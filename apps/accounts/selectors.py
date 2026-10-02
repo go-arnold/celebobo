@@ -1,16 +1,25 @@
+from collections.abc import Iterable
+
 from allauth.account.models import EmailAddress
 from django.db.models import Count, Q, QuerySet
 
-from apps.accounts.domain.enums import AddressLabel, Availability
+from apps.accounts.domain.enums import (
+    AddressLabel,
+    Availability,
+    NotificationChannel,
+    NotificationTopic,
+)
 from apps.accounts.domain.errors import AddressNotFound, UserNotFound
+from apps.accounts.domain.preferences import DEFAULT_PREFERENCES
 from apps.accounts.domain.read_models import (
     AddressView,
+    Contact,
     Profile,
     ReferralCheck,
     ResellerProfile,
     ResellerRef,
 )
-from apps.accounts.models import Address, User
+from apps.accounts.models import Address, NotificationPreference, User
 from core.authz.catalog import PermissionCatalog
 from core.domain.actor import Role
 
@@ -121,3 +130,42 @@ def _reseller_ref(user: User) -> ResellerRef:
         email=user.email,
         availability=Availability(user.availability),
     )
+
+
+class DirectorySelector:
+    def staff_ids(self) -> list[int]:
+        return list(
+            User.objects.filter(
+                role__in=[Role.MANAGER.value, Role.ADMIN.value], is_active=True
+            ).values_list("pk", flat=True)
+        )
+
+    def contacts(self, user_ids: Iterable[int]) -> dict[int, Contact]:
+        users = User.objects.filter(pk__in=set(user_ids), is_active=True).only(
+            "pk", "email", "first_name", "role"
+        )
+        return {
+            user.pk: Contact(
+                id=user.pk, email=user.email, first_name=user.first_name, role=user.account_role
+            )
+            for user in users
+        }
+
+    def subscribed(
+        self,
+        user_ids: Iterable[int],
+        topic: NotificationTopic,
+        channel: NotificationChannel,
+    ) -> set[int]:
+        wanted = set(user_ids)
+        stored = dict(
+            NotificationPreference.objects.filter(user_id__in=wanted).values_list(
+                "user_id", "preferences"
+            )
+        )
+        default = DEFAULT_PREFERENCES[topic][channel]
+        return {
+            user_id
+            for user_id in wanted
+            if bool(stored.get(user_id, {}).get(topic.value, {}).get(channel.value, default))
+        }

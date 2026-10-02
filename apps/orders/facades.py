@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
+from decimal import Decimal
 from uuid import UUID
 
 from django.db import transaction
@@ -20,10 +21,12 @@ from apps.orders.domain.events import (
     AssignmentDeclined,
     OrderAssigned,
     OrderPlaced,
+    OrderRepriced,
     OrderStatusChanged,
 )
 from apps.orders.domain.numbers import normalize_order_number
 from apps.orders.domain.read_models import (
+    AdjustableItem,
     AssignableReseller,
     CartView,
     OrderDetail,
@@ -34,6 +37,7 @@ from apps.orders.domain.read_models import (
 from apps.orders.models import Order
 from apps.orders.repositories import CartRepository, OrderRepository
 from apps.orders.selectors import OrderSelector, scoped_orders
+from apps.orders.services.adjustments import AdjustmentService
 from apps.orders.services.cart import CartOwner, CartService
 from apps.orders.services.checkout import CheckoutService
 from apps.orders.services.contracts import OrderThreads, ResellerDirectory
@@ -296,3 +300,28 @@ def _user_id(actor: Actor) -> int:
     if actor.user_id is None:
         raise Unauthenticated
     return actor.user_id
+
+
+@logged_facade
+class OrderAdjustmentFacade:
+    def __init__(self, *, adjustments: AdjustmentService, publisher: EventPublisher) -> None:
+        self._adjustments = adjustments
+        self._publisher = publisher
+
+    def adjustable(self, actor: Actor, order_id: int, item_id: int) -> AdjustableItem:
+        return self._adjustments.adjustable(actor, order_id, item_id)
+
+    def apply(self, actor: Actor, order_id: int, item_id: int, price: Decimal) -> AdjustableItem:
+        with transaction.atomic():
+            change = self._adjustments.apply(order_id, item_id, price)
+            self._publisher.publish(
+                OrderRepriced(
+                    order_id=order_id,
+                    item_id=item_id,
+                    previous_price=change.previous_price,
+                    price=price,
+                    total=change.order.total,
+                    actor_id=actor.user_id,
+                )
+            )
+        return self._adjustments.adjustable(Actor.system(), order_id, item_id)

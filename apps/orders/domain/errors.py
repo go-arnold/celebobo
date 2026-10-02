@@ -51,3 +51,21 @@ class NotAssignedToYou(Forbidden):
 class CartLineNotFound(NotFound):
     default_code = "cart_line_not_found"
     default_detail = "Article introuvable dans le panier."
+
+
+class ItemNotAdjustable(BusinessRuleViolation):
+    default_code = "item_not_adjustable"
+    default_detail = "Le prix ne peut plus être modifié pour cette commande."
+
+
+class InvalidProposedPrice(ValidationFailed):
+    default_code = "invalid_proposed_price"
+    default_detail = "Le prix proposé doit être positif et ne pas dépasser le prix catalogue."
+
+    def __init__(self) -> None:
+        super().__init__(errors={"new_price": [self.default_detail]})
+
+
+class OrderItemNotFound(NotFound):
+    default_code = "order_item_not_found"
+    default_detail = "Article introuvable dans cette commande."

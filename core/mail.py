@@ -1,13 +1,30 @@
 from typing import Any
 
+from celery import shared_task
+from django.conf import settings
 from django.core.mail import EmailMessage, EmailMultiAlternatives
+from django.template.loader import render_to_string
+
+
+def queue_message(message: EmailMessage) -> None:
+    deliver_email.delay(serialize_message(message))
+
+
+def queue_templated(
+    template_prefix: str, *, to: list[str], context: dict[str, Any], subject: str
+) -> None:
+    body = render_to_string(f"{template_prefix}_message.txt", context).strip()
+    message = EmailMultiAlternatives(
+        subject=subject, body=body, from_email=settings.DEFAULT_FROM_EMAIL, to=to
+    )
+    queue_message(message)
 
 
 def serialize_message(message: EmailMessage) -> dict[str, Any]:
     alternatives = getattr(message, "alternatives", [])
     return {
-        "subject": message.subject,
-        "body": message.body,
+        "subject": str(message.subject),
+        "body": str(message.body),
         "from_email": message.from_email,
         "to": list(message.to),
         "cc": list(message.cc),
@@ -34,7 +51,13 @@ def build_message(payload: dict[str, Any]) -> EmailMultiAlternatives:
     return message
 
 
-def queue_message(message: EmailMessage) -> None:
-    from apps.accounts.tasks import deliver_email
-
-    deliver_email.delay(serialize_message(message))
+@shared_task(
+    name="core.mail.deliver",
+    autoretry_for=(OSError,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    max_retries=6,
+    acks_late=True,
+)
+def deliver_email(payload: dict[str, Any]) -> None:
+    build_message(payload).send(fail_silently=False)

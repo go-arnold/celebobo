@@ -144,3 +144,26 @@ class AssignableReseller:
     name: str
     availability: str
     open_orders: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AdjustableItem:
+    order_id: int
+    order_number: str
+    item_id: int
+    client_id: int
+    reseller_id: int | None
+    name: str
+    quantity: int
+    unit_price: Decimal
+    list_unit_price: Decimal
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OrderRef:
+    id: int
+    number: str
+    client_id: int
+    reseller_id: int | None
+    status: OrderStatus
+    total: Decimal

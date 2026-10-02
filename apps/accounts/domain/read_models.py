@@ -61,3 +61,11 @@ class ResellerRef:
     name: str
     email: str
     availability: Availability
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Contact:
+    id: int
+    email: str
+    first_name: str
+    role: Role

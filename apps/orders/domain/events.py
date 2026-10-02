@@ -33,3 +33,12 @@ class OrderStatusChanged(DomainEvent):
     reseller_id: int | None
     previous_status: OrderStatus
     status: OrderStatus
+
+
+@domain_event
+class OrderRepriced(DomainEvent):
+    order_id: int
+    item_id: int
+    previous_price: Decimal
+    price: Decimal
+    total: Decimal

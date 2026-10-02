@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.catalog",
     "apps.orders",
+    "apps.messaging",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",

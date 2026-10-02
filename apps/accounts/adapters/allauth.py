@@ -10,9 +10,9 @@ from allauth.socialaccount.models import SocialLogin
 from django.conf import settings
 from django.http import HttpRequest
 
-from apps.accounts.adapters.mail import queue_message
 from apps.accounts.models import User
 from core.container import container
+from core.mail import queue_message
 
 SITE_NAME = "Celebobo"
 DEFAULT_FRONTEND_PATHS = {

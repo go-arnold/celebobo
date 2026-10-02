@@ -107,3 +107,9 @@ class OrderRepository:
             actor_role=actor_role,
             note=note[:500],
         )
+
+    def item(self, order: Order, item_id: int) -> OrderItem | None:
+        return order.items.filter(pk=item_id).first()
+
+    def save_item(self, item: OrderItem, *, fields: Iterable[str]) -> None:
+        item.save(update_fields=[*fields])
