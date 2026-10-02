@@ -1,33 +1,11 @@
 from collections.abc import Mapping
-from types import MappingProxyType
 from typing import Any
 
 from apps.accounts.domain.commands import UpdatePreferences
-from apps.accounts.domain.enums import NotificationChannel, NotificationTopic
+from apps.accounts.domain.preferences import DEFAULT_PREFERENCES
 from apps.accounts.services.contracts import PreferenceStore
 
 type Preferences = dict[str, dict[str, bool]]
-
-DEFAULTS: Mapping[NotificationTopic, Mapping[NotificationChannel, bool]] = MappingProxyType(
-    {
-        NotificationTopic.ORDER_ASSIGNED: {
-            NotificationChannel.EMAIL: True,
-            NotificationChannel.PUSH: True,
-        },
-        NotificationTopic.STATUS_CHANGED: {
-            NotificationChannel.EMAIL: True,
-            NotificationChannel.PUSH: True,
-        },
-        NotificationTopic.NEW_MESSAGE: {
-            NotificationChannel.EMAIL: True,
-            NotificationChannel.PUSH: True,
-        },
-        NotificationTopic.PROMOTIONS: {
-            NotificationChannel.EMAIL: True,
-            NotificationChannel.PUSH: False,
-        },
-    }
-)
 
 
 class PreferenceService:
@@ -48,7 +26,7 @@ class PreferenceService:
 
 def _merge(stored: Mapping[str, Any]) -> Preferences:
     merged: Preferences = {}
-    for topic, channels in DEFAULTS.items():
+    for topic, channels in DEFAULT_PREFERENCES.items():
         saved = stored.get(topic.value, {})
         merged[topic.value] = {
             channel.value: bool(saved.get(channel.value, default))

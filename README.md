@@ -108,3 +108,32 @@ Cancellations and returns put the stock back.
 | `GET /api/v1/bo/orders/` · `<id>/` | Back-office list (counts per status; resellers see only their assignments) and detail with allowed transitions |
 | `POST /api/v1/bo/orders/<id>/assign/` · `decline/` · `transition/` | Dispatch and status changes |
 | `GET /api/v1/bo/resellers/assignable/` | Resellers with availability and current workload |
+
+### `apps.messaging`
+
+Order and support conversations, messages with read tracking, price proposals, and notifications (in-app and email).
+
+**Order threads**
+- Messaging implements the orders `OrderThreads` port, so every order gets its thread inside the checkout transaction.
+- Inline handlers on order events add or remove the assigned reseller and close the thread when the order reaches a final status.
+
+**Price proposals**
+- The assigned reseller or a manager proposes a new unit price for an item. The order must be `assigned` or `confirmed`, and the price can't exceed the catalogue price.
+- Only the client answers. Accepting reprices the item through `OrderAdjustmentFacade`, which recomputes the totals and publishes `OrderRepriced`.
+
+**Notifications**
+- Background handlers turn order and messaging events into notifications through `NotificationRouter`, then `NotificationFanout`.
+- The channels come from `notifier_registry` (`MESSAGING.NOTIFICATION_CHANNELS`): `in_app` (stored and announced with `NotificationCreated`) and `email` (sent according to each user's preferences, through `core.mail`).
+- "New message" alerts are deduplicated: only one unread alert per conversation.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET · POST /api/v1/conversations/` | List (`kind`, `status`, `unread`, `search`) or open a support conversation |
+| `GET /api/v1/conversations/<id>/` | Header with the last message and the unread count |
+| `GET · POST /api/v1/conversations/<id>/messages/` | History (`before` cursor, `limit`) or send a message (`client_msg_id` makes retries safe) |
+| `POST /api/v1/conversations/<id>/read/` | Mark as read up to a message |
+| `POST /api/v1/conversations/<id>/close/` · `reopen/` · `assign/` | Moderation; `assign` is for managers and support threads only |
+| `POST /api/v1/conversations/<id>/price-proposals/` | Propose a price for an order item |
+| `POST /api/v1/price-proposals/<id>/respond/` | The client accepts or refuses |
+| `GET /api/v1/notifications/` · `unread-counts/` | Inbox and header badges |
+| `POST /api/v1/notifications/<id>/read/` · `read-all/` | Mark notifications as read |

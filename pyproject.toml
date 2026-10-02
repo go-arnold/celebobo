@@ -157,7 +157,7 @@ type = "layers"
 layers = [
     "core.bootstrap | core.testing",
     "core.api | core.health",
-    "core.authz | core.events | core.observability",
+    "core.authz | core.events | core.observability | core.mail",
     "core.container | core.registry | core.conf",
     "core.domain",
 ]
@@ -165,13 +165,18 @@ layers = [
 [[tool.importlinter.contracts]]
 name = "app domains are framework-free"
 type = "forbidden"
-source_modules = ["apps.accounts.domain", "apps.catalog.domain", "apps.orders.domain"]
+source_modules = [
+    "apps.accounts.domain",
+    "apps.catalog.domain",
+    "apps.orders.domain",
+    "apps.messaging.domain",
+]
 forbidden_modules = ["django", "rest_framework", "celery", "allauth", "dj_rest_auth"]
 
 [[tool.importlinter.contracts]]
 name = "app layers"
 type = "layers"
-containers = ["apps.accounts", "apps.catalog", "apps.orders"]
+containers = ["apps.accounts", "apps.catalog", "apps.orders", "apps.messaging"]
 layers = [
     "api",
     "facades",
@@ -199,4 +204,25 @@ forbidden_modules = [
     "apps.catalog.adapters",
 ]
 ignore_imports = ["apps.orders.tests.** -> apps.**"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "messaging reaches other apps only through their public API"
+type = "forbidden"
+source_modules = ["apps.messaging"]
+forbidden_modules = [
+    "apps.accounts.models",
+    "apps.accounts.repositories",
+    "apps.accounts.services",
+    "apps.accounts.adapters",
+    "apps.orders.repositories",
+    "apps.orders.services.cart",
+    "apps.orders.services.checkout",
+    "apps.orders.services.lifecycle",
+    "apps.orders.services.pricing",
+    "apps.orders.services.adjustments",
+    "apps.orders.adapters",
+    "apps.catalog",
+]
+ignore_imports = ["apps.messaging.tests.** -> apps.**"]
 allow_indirect_imports = true

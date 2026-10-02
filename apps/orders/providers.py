@@ -8,9 +8,16 @@ from apps.orders.adapters.gateways import (
 )
 from apps.orders.conf import order_settings
 from apps.orders.domain.state_machine import OrderStateMachine, TransitionPolicyFactory
-from apps.orders.facades import CartFacade, CheckoutFacade, ClientOrderFacade, DispatchFacade
+from apps.orders.facades import (
+    CartFacade,
+    CheckoutFacade,
+    ClientOrderFacade,
+    DispatchFacade,
+    OrderAdjustmentFacade,
+)
 from apps.orders.repositories import CartRepository, OrderRepository
 from apps.orders.selectors import OrderSelector
+from apps.orders.services.adjustments import AdjustmentService
 from apps.orders.services.cart import CartService
 from apps.orders.services.checkout import CheckoutService
 from apps.orders.services.contracts import AddressBook, Inventory, OrderThreads, ResellerDirectory
@@ -32,6 +39,7 @@ def register(container: Container) -> None:
     container.register(CheckoutFacade, _checkout_facade, lifetime=Lifetime.TRANSIENT)
     container.register(ClientOrderFacade, _client_facade, lifetime=Lifetime.TRANSIENT)
     container.register(DispatchFacade, _dispatch_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(OrderAdjustmentFacade, _adjustment_facade, lifetime=Lifetime.TRANSIENT)
 
 
 def _pricing(container: Container) -> PricingService:
@@ -92,5 +100,12 @@ def _dispatch_facade(container: Container) -> DispatchFacade:
         selector=OrderSelector(),
         resellers=container.resolve(ResellerDirectory),
         threads=container.resolve(OrderThreads),
+        publisher=container.resolve(EventPublisher),
+    )
+
+
+def _adjustment_facade(container: Container) -> OrderAdjustmentFacade:
+    return OrderAdjustmentFacade(
+        adjustments=AdjustmentService(OrderRepository()),
         publisher=container.resolve(EventPublisher),
     )

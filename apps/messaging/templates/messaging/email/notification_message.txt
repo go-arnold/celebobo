@@ -1,0 +1,11 @@
+{% autoescape off %}Bonjour {{ first_name|default:"" }},
+
+{{ title }}
+
+{{ body }}
+
+Voir le détail : {{ url }}
+
+Vous recevez cet e-mail selon vos préférences de notification. Vous pouvez les modifier depuis votre compte.
+
+L'équipe Celebobo{% endautoescape %}

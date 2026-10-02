@@ -11,6 +11,7 @@ from apps.orders.domain.read_models import (
     AddressSnapshot,
     OrderDetail,
     OrderLineView,
+    OrderRef,
     OrderSummary,
     PersonBrief,
     StatusEntry,
@@ -248,3 +249,17 @@ def _start_of(day: date) -> datetime:
 
 def _end_of(day: date) -> datetime:
     return timezone.make_aware(datetime.combine(day, time.max))
+
+
+def order_ref(order_id: int) -> OrderRef:
+    order = Order.objects.filter(pk=order_id).first()
+    if order is None:
+        raise OrderNotFound
+    return OrderRef(
+        id=order.pk,
+        number=order.number,
+        client_id=order.client_id,
+        reseller_id=order.assigned_reseller_id,
+        status=order.order_status,
+        total=order.total,
+    )

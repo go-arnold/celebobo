@@ -10,7 +10,7 @@ from core.events.contracts import EventPublisher
 from core.observability.metrics import Metrics, metrics_registry
 
 APP_MODULES = ("permissions", "handlers")
-CORE_PROVIDERS = ("core.events.tasks", "core.health.checks")
+CORE_PROVIDERS = ("core.events.tasks", "core.health.checks", "core.mail")
 
 
 def bootstrap(target: Container = container) -> None:
