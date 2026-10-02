@@ -232,6 +232,7 @@ The consumer only parses envelopes, checks access, and calls the same facades as
 - sales (seller and staff): `sale.created`, `sale.updated`, `sale.deleted`;
 - commissions (the reseller): `commission.updated`, `payout.created`;
 - reseller programme (staff): `reseller_application.created`;
+- dashboard (staff): `dashboard.updated` after each refresh of the analytics facts;
 - errors: `error`, carrying the same `code` values as the REST API.
 
 **Limits and presence**
@@ -323,3 +324,40 @@ The reseller programme: applications from `/devenir-revendeur`, the reseller dir
 Permissions:
 - resellers: `referral.view.own`;
 - managers: `resellers.view`, `resellers.manage`, `reseller_applications.review`.
+
+### `apps.analytics`
+
+Dashboard KPIs and analytics, read from the `analytics_sales_fact` materialized view. The view is created in migration `0001_sales_facts` and read through the unmanaged `SalesFact` model. It aggregates `sales_sale` per hour (in `TIME_ZONE`), product, category, seller and payment method:
+- revenue is net of refunds;
+- profit only counts sales with a known cost;
+- returned sales count for nothing.
+
+**Freshness**
+- The view refreshes `CONCURRENTLY` in three ways:
+  - every `ANALYTICS_REFRESH_SECONDS` (Celery beat, default 600 s);
+  - shortly after any sale change (an inline handler takes a cache lock and schedules one refresh after `ANALYTICS.refresh_debounce_seconds`);
+  - on demand with `FactsFacade.refresh()`.
+- Each refresh publishes `SalesFactsRefreshed`, which pushes `dashboard.updated` to staff.
+- The recent-sales and open-orders widgets read live data.
+
+**Periods and scope**
+- `period` is `7d`, `30d` (default), `90d`, `12m` or `ytd`; `date_from` and `date_to` set a custom range instead.
+- Every KPI is compared with the previous window of the same length.
+- Series are daily up to 92 days and monthly beyond, and every bucket is filled.
+- Staff can filter by `seller_id`, `category_id` and `payment_method`. Resellers always get their own numbers, whatever `seller_id` they send.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/bo/dashboard/summary/` | Revenue, profit, sales, units and average basket with previous value and % change; margin rate, today's revenue, open orders |
+| `GET /api/v1/bo/dashboard/revenue-series/` | Revenue, profit, sales count and average basket per day or month |
+| `GET /api/v1/bo/dashboard/payment-split/` | Revenue and share per payment method |
+| `GET /api/v1/bo/dashboard/top-products/` | `by=revenue\|units\|profit`, `limit` (default 5) |
+| `GET /api/v1/bo/dashboard/recent-sales/` · `open-orders/` | Live widgets |
+| `GET /api/v1/bo/analytics/categories/` | Revenue, profit, margin and share per category (staff) |
+| `GET /api/v1/bo/analytics/peak-hours/` | ISO weekday × hour heatmap (staff) |
+| `GET /api/v1/bo/analytics/sellers/` | Seller ranking with revenue share (staff) |
+| `GET /api/v1/bo/analytics/slow-movers/` | In-stock products older than the window with no sales in it, with their last sale (staff) |
+
+Permissions: `dashboard.view` for resellers, `analytics.view` for managers.
+
+The analytics page uses the dashboard endpoints with filters; `revenue-series` also carries the average-basket series, and `categories` the margin by category.

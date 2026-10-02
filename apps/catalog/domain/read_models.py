@@ -161,3 +161,13 @@ class PricedLine:
     @property
     def total(self) -> Decimal:
         return self.unit_price * self.quantity
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ProductLabel:
+    id: int
+    name: str
+    image: str
+    category_id: int
+    stock: int
+    created_at: datetime

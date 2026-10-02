@@ -38,6 +38,7 @@ from apps.catalog.domain.read_models import (
     ProductCard,
     ProductDetail,
     ProductDocument,
+    ProductLabel,
     ReviewAuthor,
     ReviewSummary,
     ReviewView,
@@ -591,4 +592,33 @@ def _admin_review(review: Review) -> AdminReview:
         status=ReviewStatus(review.status),
         verified=review.verified,
         created_at=review.created_at,
+    )
+
+
+class ProductLabelSelector:
+    def products(self, ids: Sequence[int]) -> dict[int, ProductLabel]:
+        products = Product.all_objects.filter(pk__in=list(ids)).prefetch_related(_first_images())
+        return {product.pk: _label(product) for product in products}
+
+    def stocked(self, *, limit: int) -> list[ProductLabel]:
+        products = (
+            Product.objects.filter(is_active=True, stock__gt=0)
+            .prefetch_related(_first_images())
+            .order_by("-stock", "pk")[:limit]
+        )
+        return [_label(product) for product in products]
+
+    def categories(self, ids: Sequence[int]) -> dict[int, str]:
+        return dict(Category.all_objects.filter(pk__in=list(ids)).values_list("pk", "name"))
+
+
+def _label(product: Product) -> ProductLabel:
+    images = getattr(product, "ordered_images", [])
+    return ProductLabel(
+        id=product.pk,
+        name=product.name,
+        image=images[0].url if images else "",
+        category_id=product.category_id,
+        stock=product.stock,
+        created_at=product.created_at,
     )

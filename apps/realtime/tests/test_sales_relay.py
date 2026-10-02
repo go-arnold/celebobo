@@ -4,10 +4,12 @@ import pytest
 from rest_framework.test import APIClient
 
 from apps.accounts.tests.factories import AdminFactory, ResellerFactory
+from apps.analytics.facades import FactsFacade
 from apps.catalog.tests.factories import ProductFactory
 from apps.realtime.domain.groups import STAFF, user_group
 from apps.realtime.domain.protocol import ServerEvent
 from apps.realtime.tests.test_presence_api import authenticated, broadcaster
+from core.container import container
 
 __all__ = ["broadcaster"]
 
@@ -60,3 +62,9 @@ def test_new_reseller_applications_reach_staff(broadcaster):
     ]
     assert sent[0] == (STAFF,)
     assert "application_id" in sent[2]
+
+
+def test_fresh_dashboard_numbers_reach_staff(broadcaster):
+    container.resolve(FactsFacade).refresh()
+
+    assert ((STAFF,), ServerEvent.DASHBOARD_UPDATED, {}) in broadcaster.sent

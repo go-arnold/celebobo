@@ -6,7 +6,7 @@ from django.db.models import Count, Q, QuerySet, Sum
 from django.utils import timezone
 
 from apps.orders.domain.commands import OrderFilters
-from apps.orders.domain.enums import OrderStatus, PaymentMethod
+from apps.orders.domain.enums import FINAL_STATUSES, OrderStatus, PaymentMethod
 from apps.orders.domain.errors import OrderNotFound
 from apps.orders.domain.read_models import (
     AddressSnapshot,
@@ -93,6 +93,12 @@ class OrderSelector:
                 for event in order.history.all()
             ),
         )
+
+    def open_page(self, actor: Actor, *, limit: int) -> tuple[list[OrderSummary], int]:
+        orders = scoped_orders(actor).exclude(
+            status__in=[status.value for status in FINAL_STATUSES]
+        )
+        return self._page(orders, 0, limit)
 
     def open_orders_by_reseller(self, reseller_ids: Iterable[int]) -> dict[int, int]:
         open_statuses = [status.value for status in OrderStatus if status.is_open]

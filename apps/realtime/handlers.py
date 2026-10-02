@@ -1,4 +1,5 @@
 from apps.accounts.domain.events import AvailabilityChanged
+from apps.analytics.domain.events import SalesFactsRefreshed
 from apps.catalog.domain.events import StockLow
 from apps.messaging.domain.events import (
     ConversationAssigned,
@@ -139,3 +140,8 @@ def push_reseller_application(event: ApplicationSubmitted) -> None:
     _relay().staff_event(
         ServerEvent.RESELLER_APPLICATION_CREATED, application_id=event.application_id
     )
+
+
+@event_bus.on(SalesFactsRefreshed)
+def push_dashboard_refresh(_event: SalesFactsRefreshed) -> None:
+    _relay().staff_event(ServerEvent.DASHBOARD_UPDATED)
