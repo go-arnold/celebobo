@@ -521,3 +521,26 @@ The public site content and its back-office editors.
 Permissions:
 - managers: `contact.inbox`, `newsletter.view`, `content.manage`;
 - admins: `settings.manage`.
+
+### `apps.push`
+
+Browser push notifications (Web Push with VAPID), the third notification channel next to `in_app` and `email`.
+
+**Devices**
+- The frontend reads `GET /push/public-key/`, subscribes through the browser's Push API and sends the subscription to `POST /me/devices/`.
+- The endpoint must be HTTPS and is unique: a browser that signs in to another account moves to that account.
+- Each user can register up to `PUSH.max_devices` devices (10).
+
+**Delivery**
+- Messaging's `push` notifier sends each notification to recipients whose preferences allow push for that topic (`order_assigned`, `status_changed` and `new_message` are on by default, `promotions` is off).
+- `PushDispatcher` uses the `PushSender` contract (pywebpush adapter). Subscriptions the push service reports as gone (404/410) are deleted. Other failures are counted, and a device is dropped after `max_failures` (5) failed sends.
+- Nothing is sent until `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are set.
+  - `uv run vapid --gen` writes `private_key.pem` and `public_key.pem`.
+  - `uv run vapid --applicationServerKey` prints the public key to use as `VAPID_PUBLIC_KEY`.
+  - `VAPID_PRIVATE_KEY` is the path to `private_key.pem`, or the key itself in base64 DER form.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/push/public-key/` | VAPID public key and whether push is enabled |
+| `GET · POST /api/v1/me/devices/` | The user's devices; register `{endpoint, keys: {p256dh, auth}, user_agent}` |
+| `DELETE /api/v1/me/devices/<id>/` | Remove a device |

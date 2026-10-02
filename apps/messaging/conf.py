@@ -5,7 +5,7 @@ from core.conf import load_section
 
 @dataclass(frozen=True, slots=True)
 class MessagingSettings:
-    notification_channels: tuple[str, ...] = ("in_app", "email")
+    notification_channels: tuple[str, ...] = ("in_app", "email", "push")
     page_size: int = 30
 
 
