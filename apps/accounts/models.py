@@ -8,6 +8,7 @@ from django.db.models.functions import Lower
 
 from apps.accounts.domain.enums import (
     ACCOUNT_ROLES,
+    MAX_COMMISSION_RATE,
     ROLE_LABELS,
     AddressLabel,
     Availability,
@@ -18,7 +19,6 @@ from core.domain.actor import Role
 ROLE_CHOICES = [(role.value, ROLE_LABELS[role]) for role in ACCOUNT_ROLES]
 AVAILABILITY_CHOICES = [(item.value, item.label) for item in Availability]
 ADDRESS_LABEL_CHOICES = [(item.value, item.label) for item in AddressLabel]
-MAX_COMMISSION_RATE = Decimal("0.500")
 DEFAULT_COMMISSION_RATE = Decimal("0.070")
 
 

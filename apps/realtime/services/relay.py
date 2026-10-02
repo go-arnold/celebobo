@@ -135,3 +135,6 @@ class RealtimeRelay:
         self._broadcaster.send(
             [user_group(reseller_id)], event, {"reseller_id": reseller_id, **jsonable(extra)}
         )
+
+    def staff_event(self, event: ServerEvent, **data: Any) -> None:
+        self._broadcaster.send([STAFF], event, jsonable(data))

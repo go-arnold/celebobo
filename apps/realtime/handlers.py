@@ -16,6 +16,7 @@ from apps.orders.domain.events import (
 )
 from apps.realtime.domain.protocol import ServerEvent
 from apps.realtime.services.relay import RealtimeRelay
+from apps.resellers.domain.events import ApplicationSubmitted
 from apps.sales.domain.events import (
     CommissionChanged,
     PayoutRecorded,
@@ -130,4 +131,11 @@ def push_payout(event: PayoutRecorded) -> None:
         event.reseller_id,
         payout_id=event.payout_id,
         amount=event.amount,
+    )
+
+
+@event_bus.on(ApplicationSubmitted)
+def push_reseller_application(event: ApplicationSubmitted) -> None:
+    _relay().staff_event(
+        ServerEvent.RESELLER_APPLICATION_CREATED, application_id=event.application_id
     )

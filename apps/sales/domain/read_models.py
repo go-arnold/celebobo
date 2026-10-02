@@ -106,3 +106,12 @@ class PayoutView:
     note: str
     paid_at: datetime
     paid_by: PersonRef | None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SellerPerformance:
+    seller_id: int
+    sales_count: int
+    revenue: Decimal
+    commission_earned: Decimal
+    commission_due: Decimal

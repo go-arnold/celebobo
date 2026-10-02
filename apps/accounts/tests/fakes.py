@@ -19,6 +19,22 @@ class InMemoryUsers:
         self.users[user.pk] = user
         return user
 
+    def create_invited(self, *, email: str, **fields: Any) -> User:
+        user = User(pk=len(self.users) + 1, email=email, **fields)
+        user.set_unusable_password()
+        self.users[user.pk] = user
+        return user
+
+    def by_email(self, email: str, *, for_update: bool = False) -> User | None:
+        return next(
+            (user for user in self.users.values() if user.email.lower() == email.lower()), None
+        )
+
+    def active_staff(self, user_id: int) -> User | None:
+        user = self.users.get(user_id)
+        staff = (Role.MANAGER.value, Role.ADMIN.value)
+        return user if user and user.is_active and user.role in staff else None
+
     def save(self, user: User, *, fields: Iterable[str]) -> None:
         self.saved.append((user.pk, tuple(fields)))
 

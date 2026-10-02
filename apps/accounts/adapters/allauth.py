@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 
 from allauth.account import app_settings as account_settings
 from allauth.account.adapter import DefaultAccountAdapter
+from allauth.account.forms import default_token_generator
 from allauth.account.models import EmailAddress, EmailConfirmation, EmailConfirmationHMAC
 from allauth.account.utils import user_pk_to_url_str
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
@@ -99,3 +100,8 @@ class AllauthEmailVerifier:
         )
         if address is not None:
             EmailConfirmationHMAC(address).send(request=None, signup=True)
+
+
+class AllauthPasswordSetupLinks:
+    def link_for(self, user: User) -> str:
+        return password_reset_url(None, user, default_token_generator.make_token(user))

@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from rest_framework.test import APIClient
 
 from apps.accounts.tests.factories import AdminFactory, ResellerFactory
 from apps.catalog.tests.factories import ProductFactory
@@ -39,3 +40,23 @@ def test_sales_commissions_and_payouts_are_pushed(broadcaster):
         {"reseller_id": reseller.pk, "delta": "10.00"},
     )
     assert sent[ServerEvent.PAYOUT_CREATED][1]["amount"] == "4.00"
+
+
+def test_new_reseller_applications_reach_staff(broadcaster):
+    APIClient().post(
+        "/api/v1/reseller-applications/",
+        {
+            "first_name": "Grâce",
+            "last_name": "Ilunga",
+            "email": "grace@example.com",
+            "phone_number": "+243 82 555 0101",
+            "city": "Kolwezi",
+        },
+        format="json",
+    )
+
+    (sent,) = [
+        item for item in broadcaster.sent if item[1] is ServerEvent.RESELLER_APPLICATION_CREATED
+    ]
+    assert sent[0] == (STAFF,)
+    assert "application_id" in sent[2]

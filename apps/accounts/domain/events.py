@@ -38,3 +38,21 @@ class AvailabilityChanged(DomainEvent):
 @domain_event
 class AccountDeleted(DomainEvent):
     user_id: int
+
+
+@domain_event
+class ResellerOnboarded(DomainEvent):
+    user_id: int
+    created: bool
+
+
+@domain_event
+class ResellerUpdated(DomainEvent):
+    user_id: int
+    fields: tuple[str, ...]
+
+
+@domain_event
+class ResellerActivationChanged(DomainEvent):
+    user_id: int
+    active: bool

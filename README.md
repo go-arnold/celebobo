@@ -219,6 +219,7 @@ The consumer only parses envelopes, checks access, and calls the same facades as
 - presence: `presence.changed`;
 - sales (seller and staff): `sale.created`, `sale.updated`, `sale.deleted`;
 - commissions (the reseller): `commission.updated`, `payout.created`;
+- reseller programme (staff): `reseller_application.created`;
 - errors: `error`, carrying the same `code` values as the REST API.
 
 **Limits and presence**
@@ -271,3 +272,42 @@ Permissions:
 - resellers: `sales.view.own`, `sales.create`, `sales.convert`, `sales.edit.own`, `commissions.view.own`;
 - managers: `sales.view.all`, `sales.edit.all`, `sales.refund`, `commissions.view.all`;
 - admins: `sales.delete`, `commissions.pay`.
+
+### `apps.resellers`
+
+The reseller programme: applications from `/devenir-revendeur`, the reseller directory for staff, and each reseller's referral kit. Account changes stay in accounts (`ResellerAccountFacade`), so this app only reaches other apps through ports:
+
+| Port | Default adapter |
+|---|---|
+| `ResellerAccounts` | accounts `ResellerAccountFacade` (onboard, update, activate, password setup link) |
+| `ResellerDirectory` | accounts `ResellerDirectorySelector` |
+| `SalesLedger` | sales `seller_performance` and `top_sellers` |
+| `InviteeOrders` | orders `client_order_totals` (cancelled and returned orders excluded) |
+| `QrRenderer` | `segno`, as an SVG data URI |
+
+**Applications**
+- Anyone can apply (throttled to `reseller_applications`); a signed-in applicant is linked to the application. There is one pending application per email, and active resellers can't apply.
+- Approving onboards the account. A new email gets a reseller account without a password and a verified address; an existing client is promoted and keeps their account. Staff accounts can't become resellers.
+- Onboarding issues a referral code and sets the commission rate (default 7 %) and the optional manager.
+- Emails go out in background handlers: an acknowledgement, a welcome email (with a password setup link for new accounts), or the rejection with its reason.
+
+**Directory**
+- Each reseller row carries `performance`: sales count, net revenue, commission earned and commission due.
+- Deactivating a reseller sets them offline and revokes their refresh tokens.
+- A reseller's sales and commissions come from `bo/sales/?seller_id=` and `bo/commissions/?reseller_id=`.
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/v1/reseller-applications/` | Public application form |
+| `GET /api/v1/bo/reseller-applications/` · `<id>/` | Review queue (`status`, `search`, `meta.counts` per status) |
+| `POST /api/v1/bo/reseller-applications/<id>/approve/` · `reject/` | Approve (`commission_rate`, `manager_id`) or reject (`reason`) |
+| `GET /api/v1/bo/resellers/` | Directory (`search`, `active`, `manager_id`, `ordering`: `name`, `-joined`, `joined`, `-invited`, `-rate`) |
+| `GET /api/v1/bo/resellers/stats/` | Totals, invited clients, pending applications and the top reseller over `RESELLERS.ranking_days` |
+| `GET · PATCH /api/v1/bo/resellers/<id>/` | Detail; change `commission_rate` or `manager_id` |
+| `POST /api/v1/bo/resellers/<id>/activate/` · `deactivate/` | Toggle access |
+| `GET /api/v1/bo/resellers/<id>/invitees/` · `/api/v1/bo/me/invitees/` | Invited clients with order count and total; `meta.summary` has the code, count and overall total |
+| `GET /api/v1/bo/me/referral/` | Code, invite link, QR code, share text and WhatsApp link |
+
+Permissions:
+- resellers: `referral.view.own`;
+- managers: `resellers.view`, `resellers.manage`, `reseller_applications.review`.
