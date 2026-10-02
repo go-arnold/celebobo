@@ -2,7 +2,6 @@ from core.domain.errors import (
     BusinessRuleViolation,
     InsufficientStock,
     NotFound,
-    ServiceUnavailable,
 )
 
 
@@ -19,11 +18,6 @@ class CategoryNotFound(NotFound):
 class ReviewNotAllowed(BusinessRuleViolation):
     default_code = "review_not_allowed"
     default_detail = "Seuls les clients ayant reçu ce produit peuvent laisser un avis."
-
-
-class SearchUnavailable(ServiceUnavailable):
-    default_code = "search_unavailable"
-    default_detail = "La recherche est momentanément indisponible."
 
 
 class ProductUnavailable(BusinessRuleViolation):

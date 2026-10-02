@@ -1,6 +1,6 @@
 from django.utils import timezone
 
-from apps.catalog.adapters import database, meilisearch
+from apps.catalog.adapters import postgres
 from apps.catalog.conf import catalog_settings
 from apps.catalog.facades import (
     CatalogCache,
@@ -32,26 +32,22 @@ from apps.catalog.services.contracts import (
 from apps.catalog.services.engagement import FavoriteService, ReviewService
 from apps.catalog.services.indexing import ProductIndexer
 from apps.catalog.services.inventory import InventoryService
-from apps.catalog.services.search import (
-    CatalogSearchService,
-    ResilientSearch,
-    search_engines,
-    search_indexes,
-)
+from apps.catalog.services.search import CatalogSearchService, search_engines, search_indexes
 from core.container import Container, Lifetime
 from core.events.contracts import EventPublisher
 
-DATABASE_ENGINE = "database"
-ADAPTER_MODULES = (database, meilisearch)
+ADAPTER_MODULES = (postgres,)
 
 
 def register(container: Container) -> None:
-    container.register(SearchEngine, lambda _: _search_engine())
+    container.register(
+        SearchEngine, lambda _: search_engines.create(catalog_settings().search_engine)
+    )
     container.register(
         SearchIndex, lambda _: search_indexes.create(catalog_settings().search_index)
     )
-    container.register(RelatedProducts, lambda _: database.SameCategoryRelated())
-    container.register(PurchaseVerifier, lambda _: database.NoPurchaseHistory())
+    container.register(RelatedProducts, lambda _: postgres.SameCategoryRelated())
+    container.register(PurchaseVerifier, lambda _: postgres.NoPurchaseHistory())
     container.register(
         CatalogCache, lambda _: CatalogCache("catalog", ttl=catalog_settings().cache_ttl)
     )
@@ -60,14 +56,6 @@ def register(container: Container) -> None:
     container.register(ReviewFacade, _review_facade, lifetime=Lifetime.TRANSIENT)
     container.register(FavoriteFacade, _favorite_facade, lifetime=Lifetime.TRANSIENT)
     container.register(InventoryFacade, _inventory_facade, lifetime=Lifetime.TRANSIENT)
-
-
-def _search_engine() -> SearchEngine:
-    name = catalog_settings().search_engine
-    engine = search_engines.create(name)
-    if name == DATABASE_ENGINE:
-        return engine
-    return ResilientSearch(primary=engine, fallback=search_engines.create(DATABASE_ENGINE))
 
 
 def _indexer(container: Container) -> ProductIndexer:

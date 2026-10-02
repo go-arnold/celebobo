@@ -21,7 +21,6 @@ dependencies = [
     "djangorestframework-simplejwt>=5.5",
     "django-stubs-ext>=5.2",
     "django-safedelete>=1.4",
-    "meilisearch>=0.34",
     "channels>=4.2",
     "channels-redis>=4.2",
     "uvicorn[standard]>=0.34",
@@ -100,7 +99,6 @@ module = [
     "allauth.*",
     "dj_rest_auth.*",
     "safedelete.*",
-    "meilisearch.*",
     "channels.*",
 ]
 ignore_missing_imports = true

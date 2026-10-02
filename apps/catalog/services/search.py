@@ -2,54 +2,16 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timedelta
 
-import structlog
-
 from apps.catalog.domain.enums import Badge
-from apps.catalog.domain.errors import SearchUnavailable
 from apps.catalog.domain.queries import ProductQuery
 from apps.catalog.domain.read_models import Facets, SearchPage
 from apps.catalog.services.contracts import SearchEngine, SearchIndex
-from core.observability.metrics import get_metrics
 from core.registry import Registry
 
 MIN_SUGGESTION_LENGTH = 2
 
 search_engines: Registry[SearchEngine] = Registry("catalog search engine")
 search_indexes: Registry[SearchIndex] = Registry("catalog search index")
-
-logger = structlog.get_logger(__name__)
-
-
-class ResilientSearch:
-    def __init__(self, primary: SearchEngine, fallback: SearchEngine) -> None:
-        self._primary = primary
-        self._fallback = fallback
-
-    def search(self, query: ProductQuery) -> SearchPage:
-        try:
-            return self._primary.search(query)
-        except SearchUnavailable:
-            self._degraded("search")
-            return self._fallback.search(query)
-
-    def facets(self, query: ProductQuery) -> Facets:
-        try:
-            return self._primary.facets(query)
-        except SearchUnavailable:
-            self._degraded("facets")
-            return self._fallback.facets(query)
-
-    def suggest(self, text: str, *, limit: int) -> tuple[int, ...]:
-        try:
-            return self._primary.suggest(text, limit=limit)
-        except SearchUnavailable:
-            self._degraded("suggest")
-            return self._fallback.suggest(text, limit=limit)
-
-    @staticmethod
-    def _degraded(operation: str) -> None:
-        logger.warning("catalog.search_degraded", operation=operation)
-        get_metrics().increment("catalog.search_degraded", tags={"operation": operation})
 
 
 class CatalogSearchService:

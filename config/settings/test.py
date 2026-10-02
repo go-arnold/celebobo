@@ -5,7 +5,9 @@ SECRET_KEY = "test-secret-key-for-celebobo-api-suite-0001"
 DEBUG = False
 
 DATABASES = {
-    "default": env.db("TEST_DATABASE_URL", default="sqlite://:memory:"),
+    "default": env.db(
+        "TEST_DATABASE_URL", default="postgres://celebobo:celebobo@localhost:5432/celebobo"
+    ),
 }
 
 CACHES = {

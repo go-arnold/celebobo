@@ -7,7 +7,8 @@ Django REST + Channels backend for Celebobo. The architecture, the data model an
 ```bash
 uv sync
 cp .env.example .env
-uv run pytest
+docker run -d --name celebobo-pg -e POSTGRES_USER=celebobo -e POSTGRES_PASSWORD=celebobo -e POSTGRES_DB=celebobo -p 5432:5432 postgres:16-alpine
+uv run pytest            # the test suite needs PostgreSQL (TEST_DATABASE_URL overrides the default)
 uv run pre-commit install
 ```
 
@@ -72,7 +73,11 @@ Custom `User` (email login, role, reseller referral code, availability, commissi
 
 ### `apps.catalog`
 
-Categories, products (variants, options, images, features), the stock movement log, reviews and favourites. Products and categories use soft deletes. The catalogue is read through the `SearchEngine` contract: `CATALOG_SEARCH_ENGINE=database` (the default) or `meilisearch`. Meilisearch is wrapped so that the database engine takes over when it is unavailable. `CATALOG_SEARCH_INDEX` (`null` or `meilisearch`) receives document updates from background event handlers, and `manage.py catalog_reindex` rebuilds it.
+Categories, products (variants, options, images, features), the stock movement log, reviews and favourites. Products and categories use soft deletes. Search uses PostgreSQL full-text search, read through the `SearchEngine` and `SearchIndex` contracts (`postgres` adapters):
+- `Product.search_vector` is a pre-computed `SearchVectorField` with a GIN index. Weights: name A, category B, features C, description D.
+- It uses the `french_unaccent` text configuration (the `unaccent` extension plus French stemming), so "ecouteur" finds "Écouteurs".
+- Listing uses `websearch_to_tsquery` (quotes and `-word` work) ranked with `ts_rank`; autocomplete uses prefix tsqueries (`ipho:*`).
+- `ProductChanged` updates the vector inline, and `manage.py catalog_reindex` rebuilds every vector.
 
 | Endpoint | Purpose |
 |---|---|

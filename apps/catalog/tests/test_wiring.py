@@ -1,15 +1,14 @@
 import pytest
 from django.contrib.admin.sites import AdminSite
-from django.test import RequestFactory, override_settings
+from django.test import RequestFactory
 
 from apps.accounts.tests.factories import AdminFactory
-from apps.catalog.adapters.database import DatabaseSearch
+from apps.catalog.adapters.postgres import PostgresSearch
 from apps.catalog.admin import CategoryAdmin, ProductAdmin
 from apps.catalog.domain.events import CategoryChanged, ProductRemoved
 from apps.catalog.models import Category, Product
 from apps.catalog.providers import register
 from apps.catalog.services.contracts import SearchEngine
-from apps.catalog.services.search import ResilientSearch
 from apps.catalog.tests.factories import CategoryFactory, ProductFactory
 from core.container import Container
 
@@ -51,15 +50,8 @@ class TestAdminPublishesEvents:
 
 
 class TestProviders:
-    def test_database_engine_by_default(self):
+    def test_postgres_engine_by_default(self):
         target = Container()
         register(target)
 
-        assert isinstance(target.resolve(SearchEngine), DatabaseSearch)
-
-    @override_settings(CATALOG={"SEARCH_ENGINE": "meilisearch"})
-    def test_meilisearch_is_wrapped_with_a_database_fallback(self):
-        target = Container()
-        register(target)
-
-        assert isinstance(target.resolve(SearchEngine), ResilientSearch)
+        assert isinstance(target.resolve(SearchEngine), PostgresSearch)
