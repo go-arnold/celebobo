@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.analytics",
     "apps.documents",
     "apps.audit",
+    "apps.assistant",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -171,6 +172,7 @@ REST_FRAMEWORK = {
         "auth": "10/min",
         "dj_rest_auth": "10/min",
         "referral": "20/min",
+        "assistant": "12/min",
         "reseller_applications": "5/hour",
         "search": "120/min",
         "tracking": "10/min",
@@ -348,6 +350,13 @@ AUDITLOG_INCLUDE_TRACKING_MODELS = (
     "resellers.resellerapplication",
 )
 AUDIT = {"RETENTION_DAYS": env.int("AUDIT_RETENTION_DAYS", default=365)}
+ASSISTANT = {
+    "PROVIDER": env.str("ASSISTANT_PROVIDER", default="offline"),
+    "API_KEY": env.str("GEMINI_API_KEY", default=""),
+    "CHAT_MODEL": env.str("GEMINI_CHAT_MODEL", default="gemini-2.5-flash"),
+    "EMBEDDING_MODEL": env.str("GEMINI_EMBEDDING_MODEL", default="gemini-embedding-001"),
+    "DAILY_MESSAGES": env.int("ASSISTANT_DAILY_MESSAGES", default=2000),
+}
 DOCUMENTS = {
     "COMPANY_NAME": env.str("DOCUMENTS_COMPANY_NAME", default="Celebobo"),
     "COMPANY_ADDRESS": env.str("DOCUMENTS_COMPANY_ADDRESS", default="Kinshasa, RD Congo"),
