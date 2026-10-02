@@ -1,10 +1,34 @@
 from dataclasses import dataclass, fields
-from functools import lru_cache
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.signals import setting_changed
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
+
+_sections: dict[str, Any] = {}
+
+
+def load_section[S: "DataclassInstance"](name: str, schema: type[S]) -> S:
+    if name not in _sections:
+        raw = {key.lower(): value for key, value in getattr(settings, name, {}).items()}
+        if unknown := raw.keys() - {item.name for item in fields(schema)}:
+            raise ImproperlyConfigured(f"Unknown {name} settings: {', '.join(sorted(unknown))}")
+        values = {
+            key: tuple(value) if isinstance(value, list) else value for key, value in raw.items()
+        }
+        _sections[name] = schema(**values)
+    section: S = _sections[name]
+    return section
+
+
+def _reset_section(*, setting: str, **_: Any) -> None:
+    _sections.pop(setting, None)
+
+
+setting_changed.connect(_reset_section)
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,23 +45,5 @@ class CoreSettings:
     quiet_paths: tuple[str, ...] = ("/health/",)
 
 
-_TUPLE_FIELDS = frozenset({"health_checks", "quiet_paths"})
-
-
-@lru_cache(maxsize=1)
 def core_settings() -> CoreSettings:
-    raw = {key.lower(): value for key, value in getattr(settings, "CORE", {}).items()}
-    if unknown := raw.keys() - {field.name for field in fields(CoreSettings)}:
-        raise ImproperlyConfigured(f"Unknown CORE settings: {', '.join(sorted(unknown))}")
-    values: dict[str, Any] = {
-        key: tuple(value) if key in _TUPLE_FIELDS else value for key, value in raw.items()
-    }
-    return CoreSettings(**values)
-
-
-def _reset_core_settings(*, setting: str, **_: Any) -> None:
-    if setting == "CORE":
-        core_settings.cache_clear()
-
-
-setting_changed.connect(_reset_core_settings)
+    return load_section("CORE", CoreSettings)

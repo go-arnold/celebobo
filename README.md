@@ -61,3 +61,19 @@ Custom `User` (email login, role, reseller referral code, availability, commissi
 | `GET · PATCH /api/v1/me/notification-preferences/` | Per-topic email and push toggles |
 | `POST /api/v1/bo/users/<id>/role/` | Admin only: change a role (promoting to reseller issues a code) |
 | `PATCH /api/v1/bo/me/availability/` | Reseller only: online, away or offline |
+
+### `apps.catalog`
+
+Categories, products (variants, options, images, features), the stock movement log, reviews and favourites. Products and categories use soft deletes. The catalogue is read through the `SearchEngine` contract: `CATALOG_SEARCH_ENGINE=database` (the default) or `meilisearch`. Meilisearch is wrapped so that the database engine takes over when it is unavailable. `CATALOG_SEARCH_INDEX` (`null` or `meilisearch`) receives document updates from background event handlers, and `manage.py catalog_reindex` rebuilds it.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/categories/` · `<slug>/` | Active categories with visible product counts |
+| `GET /api/v1/products/` | `search`, `category`, `ids`, `on_sale`, `in_stock`, `badge`, `min_price`, `max_price`, `ordering`, `page`, `page_size` |
+| `GET /api/v1/products/facets/` | Category counts, price range, stock and sale counts for the same filters |
+| `GET /api/v1/products/<slug>/` · `related/` | Product detail (variants, options, care instructions) and related products |
+| `GET /api/v1/search/suggest/?q=` | Autocomplete |
+| `GET · POST /api/v1/products/<slug>/reviews/` · `eligibility/` | Reviews with a rating summary; only verified buyers can post |
+| `GET · POST /api/v1/me/favorites/` · `DELETE <product_id>/` | Favourites |
+
+Reads are cached in `CatalogCache`, which is invalidated by `ProductChanged`, `ProductRemoved`, `CategoryChanged` and `ReviewPosted`. Edits made in Django admin publish the same events.
