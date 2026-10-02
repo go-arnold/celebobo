@@ -8,6 +8,7 @@ ADDRESSES_MANAGE = "addresses.manage"
 PREFERENCES_MANAGE = "preferences.manage"
 REALTIME_CONNECT = "realtime.connect"
 AVAILABILITY_UPDATE = "availability.update"
+USERS_VIEW = "users.view"
 USERS_MANAGE = "users.manage"
 
 permission_catalog.grant(
@@ -20,4 +21,5 @@ permission_catalog.grant(
     REALTIME_CONNECT,
 )
 permission_catalog.grant(Role.RESELLER, AVAILABILITY_UPDATE)
+permission_catalog.grant(Role.MANAGER, USERS_VIEW)
 permission_catalog.grant(Role.ADMIN, USERS_MANAGE)

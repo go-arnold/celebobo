@@ -10,6 +10,7 @@ from dj_rest_auth.views import (
 from django.urls import include, path
 from rest_framework.routers import SimpleRouter
 
+from apps.accounts.api.v1.backoffice_views import UserAdminViewSet
 from apps.accounts.api.v1.views import (
     AddressViewSet,
     AvailabilityViewSet,
@@ -61,6 +62,31 @@ urlpatterns = [
         "me/notification-preferences/",
         PreferencesViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
         name="notification-preferences",
+    ),
+    path(
+        "bo/users/",
+        UserAdminViewSet.as_view({"get": "list", "post": "create"}),
+        name="bo-users",
+    ),
+    path(
+        "bo/users/<int:user_id>/",
+        UserAdminViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
+        name="bo-user",
+    ),
+    path(
+        "bo/users/<int:user_id>/activate/",
+        UserAdminViewSet.as_view({"post": "activate"}),
+        name="bo-user-activate",
+    ),
+    path(
+        "bo/users/<int:user_id>/deactivate/",
+        UserAdminViewSet.as_view({"post": "deactivate"}),
+        name="bo-user-deactivate",
+    ),
+    path(
+        "bo/users/<int:user_id>/send-password-reset/",
+        UserAdminViewSet.as_view({"post": "send_password_reset"}),
+        name="bo-user-password-reset",
     ),
     path(
         "bo/users/<int:user_id>/role/",

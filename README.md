@@ -71,6 +71,18 @@ Custom `User` (email login, role, reseller referral code, availability, commissi
 | `POST /api/v1/bo/users/<id>/role/` | Admin only: change a role (promoting to reseller issues a code) |
 | `PATCH /api/v1/bo/me/availability/` | Reseller only: online, away or offline |
 
+**User administration** (`UserAdminFacade`; managers can read, only admins can change anything):
+- Accounts created by an admin have no password. Their email is marked verified, and an invitation with a password setup link goes out in the background.
+- Deactivating an account sets it offline and revokes its refresh tokens. The same `AccessService` is used for resellers. Admins can't deactivate their own account.
+- Anonymized (deleted) accounts are hidden from the list.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET · POST /api/v1/bo/users/` | List (`role`, `search`, `active`, `meta.counts` per role) or create an account |
+| `GET · PATCH /api/v1/bo/users/<id>/` | Detail with the inviter; edit name, email or phone |
+| `POST /api/v1/bo/users/<id>/activate/` · `deactivate/` | Toggle access |
+| `POST /api/v1/bo/users/<id>/send-password-reset/` | Email a password reset link (`202`) |
+
 ### `apps.catalog`
 
 Categories, products (variants, options, images, features), the stock movement log, reviews and favourites. Products and categories use soft deletes. Search uses PostgreSQL full-text search, read through the `SearchEngine` and `SearchIndex` contracts (`postgres` adapters):

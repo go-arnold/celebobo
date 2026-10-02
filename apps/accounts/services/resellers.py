@@ -11,7 +11,8 @@ from apps.accounts.domain.errors import (
 )
 from apps.accounts.domain.normalization import clean_text, normalize_email, normalize_phone
 from apps.accounts.models import DEFAULT_COMMISSION_RATE, User
-from apps.accounts.services.contracts import GroupSync, TokenRevoker, UserStore
+from apps.accounts.services.access import AccessService
+from apps.accounts.services.contracts import GroupSync, UserStore
 from apps.accounts.services.referrals import ReferralService
 from core.domain.actor import Role
 from core.domain.values import provided
@@ -30,12 +31,12 @@ class ResellerAccountService:
         users: UserStore,
         referrals: ReferralService,
         groups: GroupSync,
-        revoker: TokenRevoker,
+        access: AccessService,
     ) -> None:
         self._users = users
         self._referrals = referrals
         self._groups = groups
-        self._revoker = revoker
+        self._access = access
 
     def onboard(self, command: OnboardReseller) -> Onboarding:
         manager_id = self._manager(command.manager_id)
@@ -76,15 +77,7 @@ class ResellerAccountService:
         return changed
 
     def set_active(self, reseller_id: int, *, active: bool) -> bool:
-        user = self._reseller(reseller_id)
-        if user.is_active is active:
-            return False
-        user.is_active = active
-        user.availability = Availability.OFFLINE.value
-        self._users.save(user, fields=("is_active", "availability"))
-        if not active:
-            self._revoker.revoke_all(user.pk)
-        return True
+        return self._access.set_active(self._reseller(reseller_id), active=active)
 
     def _create(self, email: str, command: OnboardReseller) -> User:
         phone = normalize_phone(command.phone_number)

@@ -123,3 +123,28 @@ class ResellerCounts:
 class OnboardedReseller:
     user_id: int
     created: bool
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class InviterRef:
+    id: int
+    name: str
+    referral_code: str | None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class UserRow:
+    id: int
+    first_name: str
+    last_name: str
+    name: str
+    email: str
+    phone_number: str | None
+    avatar: str
+    role: Role
+    referral_code: str | None
+    invited_by: InviterRef | None
+    is_active: bool
+    email_verified: bool
+    date_joined: datetime
+    last_login: datetime | None
