@@ -5,6 +5,7 @@ from django.db import transaction
 from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import HttpRequest
+from import_export.admin import ExportMixin
 
 from apps.catalog.domain.events import CategoryChanged, ProductChanged, ProductRemoved
 from apps.catalog.models import (
@@ -66,7 +67,7 @@ class CategoryAdmin(admin.ModelAdmin[Category]):
 
 
 @admin.register(Product)
-class ProductAdmin(admin.ModelAdmin[Product]):
+class ProductAdmin(ExportMixin, admin.ModelAdmin[Product]):
     list_display = ("name", "category", "price", "sale_price", "stock", "is_active", "created_at")
     list_filter = ("is_active", "category", "badge", "free_shipping")
     search_fields = ("name", "slug", "description")

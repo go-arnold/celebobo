@@ -46,3 +46,10 @@ CORE = {
 
 LOGGING = logging_config(json_logs=False, level="WARNING")
 configure_structlog(cache_loggers=False)
+
+STORAGES = {
+    **STORAGES,
+    "documents": {
+        "BACKEND": "django.core.files.storage.InMemoryStorage",
+    },
+}

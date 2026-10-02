@@ -611,6 +611,9 @@ class ProductLabelSelector:
     def categories(self, ids: Sequence[int]) -> dict[int, str]:
         return dict(Category.all_objects.filter(pk__in=list(ids)).values_list("pk", "name"))
 
+    def id_for_slug(self, slug: str) -> int | None:
+        return Product.objects.filter(slug=slug).values_list("pk", flat=True).first()
+
 
 def _label(product: Product) -> ProductLabel:
     images = getattr(product, "ordered_images", [])

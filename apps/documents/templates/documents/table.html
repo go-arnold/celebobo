@@ -1,0 +1,17 @@
+{% extends "documents/base.html" %}
+{% block title %}{{ table.title }}{% endblock %}
+{% block page_size %}A4 landscape{% endblock %}
+{% block stamp %}Généré le {{ generated_at|date:"d/m/Y H:i" }}{% endblock %}
+{% block content %}
+<h1>{{ table.title }}</h1>
+{% if table.subtitle %}<p class="muted">{{ table.subtitle }}</p>{% endif %}
+<table>
+  <thead><tr>{% for column in table.columns %}<th{% if column.numeric %} class="num"{% endif %}>{{ column.label }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in rows %}<tr>{% for value in row %}<td>{{ value }}</td>{% endfor %}</tr>{% endfor %}
+  </tbody>
+  {% if table.totals %}
+  <tfoot>{% for label, value in table.totals %}<tr class="totals"><td colspan="{{ table.columns|length|add:"-1" }}">{{ label }}</td><td class="num">{{ value }}</td></tr>{% endfor %}</tfoot>
+  {% endif %}
+</table>
+{% endblock %}

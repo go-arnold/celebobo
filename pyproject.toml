@@ -25,6 +25,9 @@ dependencies = [
     "channels-redis>=4.2",
     "uvicorn[standard]>=0.34",
     "segno>=1.6.6",
+    "weasyprint>=70.0",
+    "openpyxl>=3.1.5",
+    "django-import-export>=4.4.1",
 ]
 
 [dependency-groups]
@@ -96,6 +99,9 @@ module = [
     "rules.*",
     "django_filters.*",
     "drf_spectacular.*",
+    "import_export.*",
+    "openpyxl.*",
+    "weasyprint.*",
     "corsheaders.*",
     "allauth.*",
     "dj_rest_auth.*",
@@ -103,6 +109,10 @@ module = [
     "channels.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["apps.catalog.admin", "apps.sales.admin"]
+disallow_subclassing_any = false
 
 [[tool.mypy.overrides]]
 module = ["apps.catalog.models", "apps.catalog.repositories"]
@@ -188,6 +198,7 @@ source_modules = [
     "apps.sales.domain",
     "apps.resellers.domain",
     "apps.analytics.domain",
+    "apps.documents.domain",
 ]
 forbidden_modules = ["django", "rest_framework", "celery", "allauth", "dj_rest_auth"]
 
@@ -203,6 +214,7 @@ containers = [
     "apps.sales",
     "apps.resellers",
     "apps.analytics",
+    "apps.documents",
 ]
 layers = [
     "api",
@@ -293,6 +305,10 @@ forbidden_modules = [
     "apps.analytics.repositories",
     "apps.analytics.services",
     "apps.analytics.adapters",
+    "apps.documents.models",
+    "apps.documents.repositories",
+    "apps.documents.services",
+    "apps.documents.adapters",
 ]
 ignore_imports = ["apps.realtime.tests.** -> apps.**"]
 allow_indirect_imports = true
@@ -362,4 +378,33 @@ forbidden_modules = [
     "apps.sales.adapters",
 ]
 ignore_imports = ["apps.analytics.tests.** -> apps.**"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "documents reaches other apps only through their public API"
+type = "forbidden"
+source_modules = ["apps.documents"]
+forbidden_modules = [
+    "apps.accounts.models",
+    "apps.accounts.repositories",
+    "apps.accounts.services",
+    "apps.accounts.adapters",
+    "apps.analytics.models",
+    "apps.analytics.repositories",
+    "apps.analytics.services",
+    "apps.analytics.adapters",
+    "apps.catalog.models",
+    "apps.catalog.repositories",
+    "apps.catalog.services",
+    "apps.catalog.adapters",
+    "apps.orders.models",
+    "apps.orders.repositories",
+    "apps.orders.services",
+    "apps.orders.adapters",
+    "apps.sales.models",
+    "apps.sales.repositories",
+    "apps.sales.services",
+    "apps.sales.adapters",
+]
+ignore_imports = ["apps.documents.tests.** -> apps.**"]
 allow_indirect_imports = true

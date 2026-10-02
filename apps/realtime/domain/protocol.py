@@ -47,6 +47,7 @@ class ServerEvent(StrEnum):
     PAYOUT_CREATED = "payout.created"
     RESELLER_APPLICATION_CREATED = "reseller_application.created"
     DASHBOARD_UPDATED = "dashboard.updated"
+    JOB_COMPLETED = "job.completed"
 
 
 class InvalidEnvelope(ValidationFailed):

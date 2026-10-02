@@ -68,3 +68,14 @@ def test_fresh_dashboard_numbers_reach_staff(broadcaster):
     container.resolve(FactsFacade).refresh()
 
     assert ((STAFF,), ServerEvent.DASHBOARD_UPDATED, {}) in broadcaster.sent
+
+
+def test_finished_jobs_reach_their_owner(broadcaster):
+    owner = ResellerFactory.create()
+
+    authenticated(owner).post("/api/v1/bo/sales/export/", {"format": "csv"}, format="json")
+
+    (sent,) = [item for item in broadcaster.sent if item[1] is ServerEvent.JOB_COMPLETED]
+    assert sent[0] == (user_group(owner.pk),)
+    assert sent[2]["status"] == "done"
+    assert sent[2]["kind"] == "sales_export"

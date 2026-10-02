@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
     "safedelete",
+    "import_export",
     "core",
     "apps.accounts",
     "apps.catalog",
@@ -43,6 +44,7 @@ INSTALLED_APPS = [
     "apps.sales",
     "apps.resellers",
     "apps.analytics",
+    "apps.documents",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -124,6 +126,16 @@ FORMS_URLFIELD_ASSUME_HTTPS = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    "documents": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {
+            "location": env.str("DOCUMENTS_ROOT", default=str(BASE_DIR / "var" / "documents"))
+        },
+    },
+}
 
 REST_FRAMEWORK = {
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.NamespaceVersioning",
@@ -297,6 +309,16 @@ CELERY_BEAT_SCHEDULE = {
         "task": "analytics.refresh_sales_facts",
         "schedule": env.int("ANALYTICS_REFRESH_SECONDS", default=600),
     },
+    "purge-document-jobs": {
+        "task": "documents.purge_jobs",
+        "schedule": 24 * 60 * 60,
+    },
+}
+DOCUMENTS = {
+    "COMPANY_NAME": env.str("DOCUMENTS_COMPANY_NAME", default="Celebobo"),
+    "COMPANY_ADDRESS": env.str("DOCUMENTS_COMPANY_ADDRESS", default="Kinshasa, RD Congo"),
+    "COMPANY_CONTACT": env.str("DOCUMENTS_COMPANY_CONTACT", default="contact@celebobo.cd"),
+    "RETENTION_DAYS": env.int("DOCUMENTS_RETENTION_DAYS", default=7),
 }
 
 CORE = {
