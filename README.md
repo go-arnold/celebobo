@@ -11,6 +11,14 @@ uv run pytest
 uv run pre-commit install
 ```
 
+## Running
+
+```bash
+uv run python manage.py migrate
+uv run uvicorn config.asgi:application --reload          # HTTP and WebSocket
+uv run celery -A config worker -l info                   # background handlers and email
+```
+
 ## Quality gates
 
 ```bash
@@ -137,3 +145,31 @@ Order and support conversations, messages with read tracking, price proposals, a
 | `POST /api/v1/price-proposals/<id>/respond/` | The client accepts or refuses |
 | `GET /api/v1/notifications/` · `unread-counts/` | Inbox and header badges |
 | `POST /api/v1/notifications/<id>/read/` · `read-all/` | Mark notifications as read |
+
+### `apps.realtime`
+
+The WebSocket gateway is served by Channels at `wss://<api>/ws/?ticket=<ticket>`. Clients get the ticket from `POST /api/v1/auth/ws-ticket/`; it's single-use and expires after 30 s. The browser's `Origin` must be in `WEBSOCKET_ALLOWED_ORIGINS`. Each connection joins `user.<id>`; staff also join `staff`. Every message uses the envelope `{type, data, ref}`.
+
+The consumer only parses envelopes, checks access, and calls the same facades as the REST API: a message sent over the socket and one posted over REST go through the same code.
+
+**Server pushes:** `RealtimeObserver` (`handlers.py`) maps domain events to groups through `RealtimeRelay`, which uses the `Broadcaster` contract (Channels layer adapter). Nothing else talks to the channel layer, apart from typing indicators sent by the consumer.
+
+| Client → server | Effect |
+|---|---|
+| `conversation.subscribe` / `unsubscribe` | Join or leave `conversation.<id>` (access checked) |
+| `message.send` | Post a message; replies `message.ack` with `client_msg_id` |
+| `typing.start` / `typing.stop` | `conversation.typing` to the other subscribers |
+| `message.read` | Read receipt, plus `unread.counts` for the reader |
+| `presence.ping` | Keeps a reseller's presence alive; replies `presence.pong` |
+
+**Server → client events:**
+- messages and conversations: `message.created`, `conversation.updated`, `conversation.read`, `conversation.closed`, `conversation.reopened`, `conversation.assigned`;
+- notifications: `notification.created`, `unread.counts`;
+- orders: `order.created`, `order.assigned`, `order.status_changed`, `order.updated`;
+- presence: `presence.changed`;
+- errors: `error`, carrying the same `code` values as the REST API.
+
+**Limits and presence**
+- Each connection has a token bucket (`REALTIME.BURST`). Once it's empty, messages are answered with `rate_limited`.
+- Reseller presence counts connections per user, so several tabs are fine. Staff get `presence.changed` when a reseller comes online or goes offline.
+- `GET /api/v1/bo/presence/?ids=` returns which resellers are online (managers only).

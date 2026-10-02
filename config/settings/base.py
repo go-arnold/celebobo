@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",
+    "channels",
     "rest_framework",
     "django_filters",
     "drf_spectacular",
@@ -36,6 +37,7 @@ INSTALLED_APPS = [
     "apps.catalog",
     "apps.orders",
     "apps.messaging",
+    "apps.realtime",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -177,6 +179,24 @@ CORS_ALLOW_HEADERS = (
 )
 CORS_EXPOSE_HEADERS = ("x-request-id", "idempotent-replayed", "retry-after")
 CSRF_TRUSTED_ORIGINS: list[str] = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+WEBSOCKET_ALLOWED_ORIGINS: list[str] = env.list(
+    "WEBSOCKET_ALLOWED_ORIGINS", default=CORS_ALLOWED_ORIGINS
+)
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [env.str("REDIS_CHANNELS_URL", default="redis://localhost:6379/2")],
+            "capacity": 1500,
+            "expiry": 30,
+        },
+    },
+}
+REALTIME = {
+    "BURST": env.int("REALTIME_BURST", default=20),
+    "PRESENCE_TTL": env.int("REALTIME_PRESENCE_TTL", default=90),
+}
 
 FRONTEND_URL = env.str("FRONTEND_URL", default="http://localhost:3000")
 GOOGLE_OAUTH_CALLBACK_URL = env.str("GOOGLE_OAUTH_CALLBACK_URL", default=FRONTEND_URL)

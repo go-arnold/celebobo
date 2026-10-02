@@ -21,6 +21,9 @@ FRONTEND_URL = "https://app.test"
 
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = ()
 
+CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+WEBSOCKET_ALLOWED_ORIGINS = ["https://app.test"]
+
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_BROKER_URL = "memory://"

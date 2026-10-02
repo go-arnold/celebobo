@@ -22,6 +22,9 @@ dependencies = [
     "django-stubs-ext>=5.2",
     "django-safedelete>=1.4",
     "meilisearch>=0.34",
+    "channels>=4.2",
+    "channels-redis>=4.2",
+    "uvicorn[standard]>=0.34",
 ]
 
 [dependency-groups]
@@ -40,6 +43,8 @@ dev = [
     "pre-commit>=4.0",
     "pip-audit>=2.8",
     "bandit>=1.8",
+    "pytest-asyncio>=0.25",
+    "daphne>=4.1",
 ]
 
 [tool.uv]
@@ -61,6 +66,7 @@ ignore = ["PLR0913", "PLR0911", "PLC0415", "N818"]
 "**/tests/**" = ["S101", "PLR2004", "ARG001", "ARG002", "S105", "S106", "RUF012"]
 "**/management/commands/*" = ["ARG002"]
 "config/settings/*" = ["F403", "F405", "S105"]
+"config/asgi.py" = ["E402"]
 "**/api/**" = ["ARG001", "ARG002", "RUF012"]
 "**/adapters/**" = ["ARG001", "ARG002"]
 "**/admin.py" = ["RUF012", "ARG002"]
@@ -95,6 +101,7 @@ module = [
     "dj_rest_auth.*",
     "safedelete.*",
     "meilisearch.*",
+    "channels.*",
 ]
 ignore_missing_imports = true
 
@@ -103,7 +110,13 @@ module = ["apps.catalog.models"]
 disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]
-module = ["apps.*.adapters.allauth", "apps.*.api.v1.auth_serializers", "apps.*.api.v1.views"]
+module = [
+    "apps.*.adapters.allauth",
+    "apps.*.api.v1.auth_serializers",
+    "apps.*.api.v1.views",
+    "apps.realtime.consumers",
+    "apps.realtime.adapters.auth",
+]
 disallow_subclassing_any = false
 
 [[tool.mypy.overrides]]
@@ -117,6 +130,7 @@ disallow_untyped_decorators = false
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["test_*.py"]
 addopts = "-ra --strict-markers --strict-config"
+asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [
     "ignore:The FORMS_URLFIELD_ASSUME_HTTPS transitional setting is deprecated:django.utils.deprecation.RemovedInDjango60Warning",
     "ignore:app_settings.AUTHENTICATION_METHOD is deprecated:UserWarning:dj_rest_auth.forms",
@@ -170,6 +184,7 @@ source_modules = [
     "apps.catalog.domain",
     "apps.orders.domain",
     "apps.messaging.domain",
+    "apps.realtime.domain",
 ]
 forbidden_modules = ["django", "rest_framework", "celery", "allauth", "dj_rest_auth"]
 
@@ -225,4 +240,32 @@ forbidden_modules = [
     "apps.catalog",
 ]
 ignore_imports = ["apps.messaging.tests.** -> apps.**"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "realtime layers"
+type = "layers"
+containers = ["apps.realtime"]
+layers = ["consumers | handlers | api", "services", "domain"]
+
+[[tool.importlinter.contracts]]
+name = "realtime reaches other apps only through their public API"
+type = "forbidden"
+source_modules = ["apps.realtime"]
+forbidden_modules = [
+    "apps.accounts.models",
+    "apps.accounts.repositories",
+    "apps.accounts.services",
+    "apps.accounts.adapters",
+    "apps.messaging.models",
+    "apps.messaging.repositories",
+    "apps.messaging.services",
+    "apps.messaging.adapters",
+    "apps.orders.models",
+    "apps.orders.repositories",
+    "apps.orders.services",
+    "apps.orders.adapters",
+    "apps.catalog",
+]
+ignore_imports = ["apps.realtime.tests.** -> apps.**"]
 allow_indirect_imports = true
