@@ -167,3 +167,28 @@ class OrderRef:
     reseller_id: int | None
     status: OrderStatus
     total: Decimal
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ConvertibleItem:
+    id: int
+    product_id: int | None
+    variant_id: int | None
+    name: str
+    variant_label: str
+    quantity: int
+    unit_price: Decimal
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ConvertibleOrder:
+    id: int
+    number: str
+    status: OrderStatus
+    client_id: int
+    client_name: str
+    reseller_id: int | None
+    payment_method: PaymentMethod
+    total: Decimal
+    created_at: datetime
+    items: tuple[ConvertibleItem, ...]

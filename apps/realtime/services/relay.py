@@ -123,3 +123,15 @@ class RealtimeRelay:
                 "threshold": threshold,
             },
         )
+
+    def sale_event(self, event: ServerEvent, sale_id: int, seller_id: int, **extra: Any) -> None:
+        self._broadcaster.send(
+            [user_group(seller_id), STAFF],
+            event,
+            {"sale_id": sale_id, "seller_id": seller_id, **jsonable(extra)},
+        )
+
+    def reseller_event(self, event: ServerEvent, reseller_id: int, **extra: Any) -> None:
+        self._broadcaster.send(
+            [user_group(reseller_id)], event, {"reseller_id": reseller_id, **jsonable(extra)}
+        )

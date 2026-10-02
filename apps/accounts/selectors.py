@@ -18,6 +18,7 @@ from apps.accounts.domain.read_models import (
     ReferralCheck,
     ResellerProfile,
     ResellerRef,
+    SellerProfile,
 )
 from apps.accounts.models import Address, NotificationPreference, User
 from core.authz.catalog import PermissionCatalog
@@ -169,3 +170,27 @@ class DirectorySelector:
             for user_id in wanted
             if bool(stored.get(user_id, {}).get(topic.value, {}).get(channel.value, default))
         }
+
+
+class SellerSelector:
+    def profile(self, user_id: int) -> SellerProfile | None:
+        user = User.objects.filter(pk=user_id, is_active=True).first()
+        if user is None:
+            return None
+        return SellerProfile(
+            id=user.pk,
+            name=user.get_full_name() or user.email,
+            role=user.account_role,
+            commission_rate=user.commission_rate,
+        )
+
+    def resellers(self) -> list[SellerProfile]:
+        return [
+            SellerProfile(
+                id=user.pk,
+                name=user.get_full_name() or user.email,
+                role=user.account_role,
+                commission_rate=user.commission_rate,
+            )
+            for user in User.objects.filter(role=Role.RESELLER.value).order_by("first_name")
+        ]

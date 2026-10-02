@@ -303,9 +303,15 @@ class InventoryFacade:
     def price(self, lines: Sequence[StockLine]) -> list[PricedLine]:
         return self._inventory.price(lines)
 
-    def reserve(self, lines: Sequence[StockLine], source: StockSource) -> None:
+    def reserve(
+        self,
+        lines: Sequence[StockLine],
+        source: StockSource,
+        *,
+        reason: StockReason = StockReason.ORDER,
+    ) -> None:
         with transaction.atomic():
-            touched = self._inventory.reserve(lines, source)
+            touched = self._inventory.reserve(lines, source, reason=reason)
             self._announce(touched, source)
             _announce_low(self._publisher, self._stock, sorted(touched))
 
@@ -314,6 +320,11 @@ class InventoryFacade:
     ) -> None:
         with transaction.atomic():
             self._announce(self._inventory.release(lines, source, reason=reason, note=note), source)
+
+    def record_sales(self, product_id: int, quantity: int, *, actor_id: int | None) -> None:
+        with transaction.atomic():
+            self._stock.count_sales(product_id, quantity)
+            self._publisher.publish(ProductChanged(product_id=product_id, actor_id=actor_id))
 
     def _announce(self, product_ids: set[int], source: StockSource) -> None:
         for product_id in sorted(product_ids):

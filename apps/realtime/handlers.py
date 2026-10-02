@@ -16,6 +16,14 @@ from apps.orders.domain.events import (
 )
 from apps.realtime.domain.protocol import ServerEvent
 from apps.realtime.services.relay import RealtimeRelay
+from apps.sales.domain.events import (
+    CommissionChanged,
+    PayoutRecorded,
+    SaleDeleted,
+    SaleRecorded,
+    SaleRefunded,
+    SaleUpdated,
+)
 from core.container import container
 from core.events.bus import event_bus
 
@@ -93,3 +101,33 @@ def push_availability(event: AvailabilityChanged) -> None:
 @event_bus.on(StockLow)
 def push_low_stock(event: StockLow) -> None:
     _relay().stock_low(event.product_id, event.variant_id, event.stock, event.threshold)
+
+
+@event_bus.on(SaleRecorded)
+def push_sale_created(event: SaleRecorded) -> None:
+    _relay().sale_event(ServerEvent.SALE_CREATED, event.sale_id, event.seller_id, total=event.total)
+
+
+@event_bus.on(SaleUpdated, SaleRefunded)
+def push_sale_updated(event: SaleUpdated | SaleRefunded) -> None:
+    _relay().sale_event(ServerEvent.SALE_UPDATED, event.sale_id, event.seller_id)
+
+
+@event_bus.on(SaleDeleted)
+def push_sale_deleted(event: SaleDeleted) -> None:
+    _relay().sale_event(ServerEvent.SALE_DELETED, event.sale_id, event.seller_id)
+
+
+@event_bus.on(CommissionChanged)
+def push_commission(event: CommissionChanged) -> None:
+    _relay().reseller_event(ServerEvent.COMMISSION_UPDATED, event.reseller_id, delta=event.delta)
+
+
+@event_bus.on(PayoutRecorded)
+def push_payout(event: PayoutRecorded) -> None:
+    _relay().reseller_event(
+        ServerEvent.PAYOUT_CREATED,
+        event.reseller_id,
+        payout_id=event.payout_id,
+        amount=event.amount,
+    )

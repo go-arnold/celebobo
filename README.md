@@ -217,9 +217,57 @@ The consumer only parses envelopes, checks access, and calls the same facades as
 - notifications: `notification.created`, `unread.counts`;
 - orders: `order.created`, `order.assigned`, `order.status_changed`, `order.updated`;
 - presence: `presence.changed`;
+- sales (seller and staff): `sale.created`, `sale.updated`, `sale.deleted`;
+- commissions (the reseller): `commission.updated`, `payout.created`;
 - errors: `error`, carrying the same `code` values as the REST API.
 
 **Limits and presence**
 - Each connection has a token bucket (`REALTIME.BURST`). Once it's empty, messages are answered with `rate_limited`.
 - Reseller presence counts connections per user, so several tabs are fine. Staff get `presence.changed` when a reseller comes online or goes offline.
 - `GET /api/v1/bo/presence/?ids=` returns which resellers are online (managers only).
+
+### `apps.sales`
+
+Back-office sales, order-to-sale conversion, refunds and returns, reseller commissions and payouts. Sales reaches other apps only through ports:
+
+| Port | Default adapter |
+|---|---|
+| `Inventory` | the catalogue's `InventoryFacade` (prices, cost, stock moves, sales counter) |
+| `OrderBook` | public orders selectors, plus `DispatchFacade` to mark converted orders delivered |
+| `Sellers` | public accounts `SellerSelector` |
+
+**Recording**
+- A reseller always sells for themselves. Managers can attribute a sale to a reseller with `seller_id`; without one, the sale is theirs and earns no commission.
+- The product's cost is frozen on the sale, so profit doesn't change when the catalogue cost does. Stock moves with reason `sale`.
+- `bulk/` records up to 50 lines in one transaction. When a line fails, nothing is saved and the error carries `meta.line`.
+
+**Conversion**
+- Confirmed, paid, shipping and delivered orders can be converted. Each order item becomes one sale, and the stock is left alone because the order already reserved it.
+- An order item can only be converted once (one-to-one link), so a repeated conversion returns `409 already_converted`.
+- The seller is the assigned reseller, and the order is marked delivered if it isn't yet.
+
+**Refunds and returns**
+- `refund` is a partial or full amount and leaves the stock alone. `return` refunds what's left and restocks.
+- Sales that came from an order are returned through the order (`returned` status). An inline handler then marks its sales returned, without restocking a second time.
+
+**Commissions**
+- A sale by a reseller earns `total × rate` at the reseller's current rate, and the rate is frozen in the ledger entry.
+- Refunds reverse the commission proportionally. Returns, deletions and price edits void or rebase it.
+- The balance due is the sum of the entries minus the payouts. A payout can't exceed it.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET · POST /api/v1/bo/sales/` | List with filters (`period`, `date_from`, `date_to`, `payment_method`, `seller_id`, `product_id`, `status`, `search`) and `meta.stats` (revenue, profit, count, units, average); record a sale (`Idempotency-Key`) |
+| `POST /api/v1/bo/sales/bulk/` | Record several sales atomically |
+| `GET · PATCH · DELETE /api/v1/bo/sales/<id>/` | Detail with refunds, edit (valid sales only), delete (admins) |
+| `POST /api/v1/bo/sales/<id>/refund/` | Refund or return (managers) |
+| `GET /api/v1/bo/orders/convertible/` | Orders that can be converted, flagged when already converted |
+| `POST /api/v1/bo/orders/<id>/convert-to-sales/` | Convert, with optional price overrides per item |
+| `GET /api/v1/bo/commissions/` · `summary/` · `series/` | Ledger, balance and 6-month series; staff pass `reseller_id` |
+| `GET /api/v1/bo/commissions/overview/` | Balances of every reseller (managers) |
+| `GET · POST /api/v1/bo/payouts/` | Payout history; record a payout (admins) |
+
+Permissions:
+- resellers: `sales.view.own`, `sales.create`, `sales.convert`, `sales.edit.own`, `commissions.view.own`;
+- managers: `sales.view.all`, `sales.edit.all`, `sales.refund`, `commissions.view.all`;
+- admins: `sales.delete`, `commissions.pay`.

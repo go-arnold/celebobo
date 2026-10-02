@@ -9,6 +9,8 @@ from apps.orders.domain.enums import OrderStatus, PaymentMethod
 from apps.orders.domain.errors import OrderNotFound
 from apps.orders.domain.read_models import (
     AddressSnapshot,
+    ConvertibleItem,
+    ConvertibleOrder,
     OrderDetail,
     OrderLineView,
     OrderRef,
@@ -262,4 +264,67 @@ def order_ref(order_id: int) -> OrderRef:
         reseller_id=order.assigned_reseller_id,
         status=order.order_status,
         total=order.total,
+    )
+
+
+CONVERTIBLE_STATUSES = (
+    OrderStatus.CONFIRMED,
+    OrderStatus.PAID,
+    OrderStatus.SHIPPING,
+    OrderStatus.DELIVERED,
+)
+
+
+def convertible_orders(
+    actor: Actor, search: str | None, *, limit: int = 20
+) -> list[ConvertibleOrder]:
+    orders = scoped_orders(actor).filter(
+        status__in=[status.value for status in CONVERTIBLE_STATUSES]
+    )
+    if search:
+        orders = _filtered(orders, OrderFilters(search=search), include_status=False)
+    return [
+        _convertible(order)
+        for order in orders.select_related("client")
+        .prefetch_related("items")
+        .order_by("-created_at", "-pk")[:limit]
+    ]
+
+
+def convertible_order(actor: Actor, order_id: int) -> ConvertibleOrder:
+    order = (
+        scoped_orders(actor)
+        .select_related("client")
+        .prefetch_related("items")
+        .filter(pk=order_id)
+        .first()
+    )
+    if order is None:
+        raise OrderNotFound
+    return _convertible(order)
+
+
+def _convertible(order: Order) -> ConvertibleOrder:
+    return ConvertibleOrder(
+        id=order.pk,
+        number=order.number,
+        status=order.order_status,
+        client_id=order.client_id,
+        client_name=_display_name(order.client),
+        reseller_id=order.assigned_reseller_id,
+        payment_method=PaymentMethod(order.payment_method),
+        total=order.total,
+        created_at=order.created_at,
+        items=tuple(
+            ConvertibleItem(
+                id=item.pk,
+                product_id=item.product_id,
+                variant_id=item.variant_id,
+                name=item.product_name,
+                variant_label=item.variant_label,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+            )
+            for item in order.items.all()
+        ),
     )
