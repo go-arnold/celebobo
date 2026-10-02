@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "safedelete",
     "import_export",
+    "auditlog",
     "core",
     "apps.accounts",
     "apps.catalog",
@@ -45,6 +46,7 @@ INSTALLED_APPS = [
     "apps.resellers",
     "apps.analytics",
     "apps.documents",
+    "apps.audit",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -61,6 +63,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "auditlog.middleware.AuditlogMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
@@ -313,7 +316,38 @@ CELERY_BEAT_SCHEDULE = {
         "task": "documents.purge_jobs",
         "schedule": 24 * 60 * 60,
     },
+    "purge-audit-trail": {
+        "task": "audit.purge",
+        "schedule": 24 * 60 * 60,
+    },
 }
+AUDITLOG_STORE_JSON_CHANGES = True
+AUDITLOG_TIMESTAMPS = ["updated_at", "created_at"]
+AUDITLOG_INCLUDE_TRACKING_MODELS = (
+    {
+        "model": "accounts.user",
+        "exclude_fields": ["password", "last_login", "last_seen_at", "availability"],
+    },
+    {"model": "catalog.category", "exclude_fields": AUDITLOG_TIMESTAMPS},
+    {
+        "model": "catalog.product",
+        "exclude_fields": [
+            *AUDITLOG_TIMESTAMPS,
+            "search_vector",
+            "current_price",
+            "rating_avg",
+            "reviews_count",
+            "sales_count",
+        ],
+    },
+    "catalog.productvariant",
+    {"model": "catalog.review", "exclude_fields": AUDITLOG_TIMESTAMPS},
+    {"model": "orders.order", "exclude_fields": AUDITLOG_TIMESTAMPS},
+    "sales.sale",
+    "sales.payout",
+    "resellers.resellerapplication",
+)
+AUDIT = {"RETENTION_DAYS": env.int("AUDIT_RETENTION_DAYS", default=365)}
 DOCUMENTS = {
     "COMPANY_NAME": env.str("DOCUMENTS_COMPANY_NAME", default="Celebobo"),
     "COMPANY_ADDRESS": env.str("DOCUMENTS_COMPANY_ADDRESS", default="Kinshasa, RD Congo"),

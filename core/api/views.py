@@ -13,6 +13,7 @@ from rest_framework.viewsets import ViewSetMixin
 from core.api.actor import actor_from_user
 from core.api.pagination import MetaPaginationMixin
 from core.api.permissions import requires
+from core.api.signals import request_authenticated
 from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
 from core.observability import context
@@ -35,6 +36,7 @@ class ActorAwareView(APIView):
     def perform_authentication(self, request: Request) -> None:
         super().perform_authentication(request)
         self.actor = actor_from_user(request.user)
+        request_authenticated.send(sender=type(self), request=request, actor=self.actor)
         context.bind(
             user_id=self.actor.user_id,
             role=self.actor.role.value,

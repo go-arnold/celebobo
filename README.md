@@ -397,3 +397,26 @@ Exports, the CSV product import, PDF reports and invoices.
 | `GET /api/v1/bo/orders/<id>/invoice/` | Invoice for staff and the assigned reseller |
 
 Invoices are rendered on request, and cancelled orders have none. In the Django admin, products and sales can be exported with django-import-export (export only, so changes keep going through the domain).
+
+### `apps.audit`
+
+An audit trail with two sources, kept for `AUDIT_RETENTION_DAYS` (default 365) and purged by the `audit.purge` beat task.
+
+**Model changes (django-auditlog)**
+- `AUDITLOG_INCLUDE_TRACKING_MODELS` lists the tracked models: users, categories, products, variants, reviews, orders, sales, payouts and reseller applications. Field diffs are stored as JSON.
+- Passwords, timestamps and derived counters are left out.
+- `AuditlogMiddleware` records the IP address. JWTs are only checked inside DRF, so `ActorAwareView` sends `core.api.signals.request_authenticated` once a user is authenticated, and `apps.audit.receivers` attaches that user to the current auditlog context. Core never imports the audit app.
+- Changes made outside a request (Celery jobs, anonymous forms) have no actor.
+
+**Domain events (observer)**
+- A background handler subscribed to `DomainEvent` records every published event: type, actor and encoded payload. Recording is keyed on `event_id`, so retries don't duplicate entries.
+- `AUDIT.ignored_events` skips noise such as the analytics refresh.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/bo/audit-logs/` | Changes (`actor_id`, `action`, `object_type` as `app.model`, `object_id`, `date` or `date_from`/`date_to`, `search`) |
+| `GET /api/v1/bo/audit-logs/<id>/` | One change with its diff |
+| `GET /api/v1/bo/audit-logs/events/` | Domain events (`event_type`, `actor_id`, dates); `meta.event_types` lists the recorded types |
+| `GET /api/v1/bo/audit-logs/object-types/` | Tracked models for the filter dropdown |
+
+Permission: `audit.view` (admins).
