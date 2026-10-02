@@ -30,6 +30,13 @@ CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_BROKER_URL = "memory://"
 
+MEDIA = {
+    "CLOUD_NAME": "demo",
+    "API_KEY": "123456789",
+    "API_SECRET": "test-cloudinary-secret",
+    "ROOT_FOLDER": "celebobo-test",
+}
+
 CORE = {
     **CORE,
     "EVENTS_DISPATCHER": "inline",

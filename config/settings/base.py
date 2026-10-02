@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.orders",
     "apps.messaging",
     "apps.realtime",
+    "apps.media",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -154,6 +155,7 @@ REST_FRAMEWORK = {
         "referral": "20/min",
         "search": "120/min",
         "tracking": "10/min",
+        "uploads": "60/min",
     },
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
@@ -266,6 +268,12 @@ CATALOG = {
     "SEARCH_INDEX": env.str("CATALOG_SEARCH_INDEX", default="postgres"),
     "NEW_PRODUCT_DAYS": env.int("CATALOG_NEW_PRODUCT_DAYS", default=20),
     "CACHE_TTL": env.int("CATALOG_CACHE_TTL", default=300),
+}
+MEDIA = {
+    "CLOUD_NAME": env.str("CLOUDINARY_CLOUD_NAME", default=""),
+    "API_KEY": env.str("CLOUDINARY_API_KEY", default=""),
+    "API_SECRET": env.str("CLOUDINARY_API_SECRET", default=""),
+    "ROOT_FOLDER": env.str("CLOUDINARY_ROOT_FOLDER", default="celebobo"),
 }
 ORDERS = {
     "FREE_SHIPPING_THRESHOLD": env.str("ORDERS_FREE_SHIPPING_THRESHOLD", default="199.00"),

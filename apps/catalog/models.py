@@ -129,6 +129,10 @@ class Product(SafeDeleteModel, TimestampedModel):
     def in_stock(self) -> bool:
         return self.stock > 0
 
+    @property
+    def is_trashed(self) -> bool:
+        return getattr(self, "deleted", None) is not None
+
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")

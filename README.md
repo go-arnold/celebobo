@@ -91,6 +91,51 @@ Categories, products (variants, options, images, features), the stock movement l
 
 Reads are cached in `CatalogCache`, which is invalidated by `ProductChanged`, `ProductRemoved`, `CategoryChanged` and `ReviewPosted`. Edits made in Django admin publish the same events.
 
+#### Back-office catalogue
+
+Managers (`products.manage`, `stock.adjust`, `categories.manage`, `reviews.moderate`) manage the catalogue. Resellers can read it (`products.view`).
+
+**What's enforced**
+- Slugs are generated and kept unique.
+- Prices are validated (the sale price must be below the price; the cost price can't be negative).
+- Variant attributes must match the product's options. SKUs are generated (`CB-<product>-<n>`) or validated as unique.
+- A product's stock is the sum of its active variants' stock.
+- Every stock change is an append-only `StockMovement`. Going at or below the threshold publishes `StockLow`, which is pushed to staff as `stock.low`.
+- Images are referenced by uploaded media id (see `apps.media`), never by a raw URL.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET · POST /api/v1/bo/products/` | List (`search` also matches SKU, `category_id`, `status=active\|inactive\|trash\|all`, `on_sale`, `out_of_stock`, `low_stock`, `badge`, price range; `meta.stats`) or create |
+| `GET · PATCH · DELETE /api/v1/bo/products/<id>/` · `restore/` · `duplicate/` | Detail with cost and margin, edit, soft delete, restore, copy (created inactive) |
+| `POST /api/v1/bo/products/bulk/` | `activate`, `deactivate`, `trash`, `restore`, `set_category`, `set_discount` (1–90 %), `clear_discount` |
+| `POST /api/v1/bo/products/<id>/variants/` · `PATCH · DELETE /api/v1/bo/variants/<id>/` | Variants; deleting a variant that has stock history deactivates it instead |
+| `POST /api/v1/bo/products/<id>/stock-adjustments/` · `GET stock-movements/` | Adjust stock by `delta` or `set`, with a reason; movement history |
+| `GET /api/v1/bo/stock/alerts/` | Products and variants at or below their threshold |
+| `GET · POST /api/v1/bo/categories/` · `PATCH · DELETE <id>/?move_to=` · `POST reorder/` | Categories; deleting a non-empty category without `move_to` returns 409 with `products_count` |
+| `GET /api/v1/bo/reviews/` · `PATCH <id>/` | Review moderation (`published` or `hidden`); the product's rating is recomputed |
+
+### `apps.media`
+
+Cloudinary signed direct uploads, no SDK. The browser uploads straight to Cloudinary; the API only signs the request and verifies the result.
+
+1. `POST /api/v1/uploads/sign/ {purpose}` returns the upload URL, API key, timestamp, folder, allowed formats, incoming transformation (resizing and `q_auto` compression) and signature. The API secret is never sent.
+2. The browser uploads the file directly to Cloudinary with those parameters.
+3. `POST /api/v1/uploads/complete/` sends Cloudinary's response (`public_id`, `version`, `signature`, `format`, `bytes`, …). The API checks:
+   - the response signature;
+   - that the `public_id` is inside the signed folder;
+   - the format and size limits.
+
+   It then stores an `UploadedMedia` and rebuilds the delivery URL itself.
+
+| Purpose | Permission | Max size | Transformation |
+|---|---|---|---|
+| `product_image` | `products.manage` | 8 MB | `c_limit,w_1600,h_1600/q_auto:good` |
+| `category_image` | `categories.manage` | 4 MB | `c_limit,w_1200,h_1200/q_auto:good` |
+| `avatar` | `media.upload` | 2 MB | `c_fill,g_face,w_400,h_400/q_auto` |
+| `message_attachment` | `media.upload` | 5 MB | `c_limit,w_1600,h_1600/q_auto` |
+
+Configure with `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` and `CLOUDINARY_ROOT_FOLDER`. While these are missing, signing returns 503 `storage_not_configured`.
+
 ### `apps.orders`
 
 Cart, pricing, idempotent checkout, the order state machine, reseller dispatch and public tracking. Orders reaches other apps only through ports:
