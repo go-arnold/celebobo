@@ -7,11 +7,14 @@ from apps.messaging.models import Notification
 from apps.messaging.repositories import NotificationRepository
 from apps.messaging.services.contracts import Delivery, Directory
 from apps.messaging.services.notifications import notifier_registry
+from apps.push.domain.messages import PushMessage
+from apps.push.facades import PushFacade
 from core.container import container
 from core.events.contracts import EventPublisher
 from core.mail import queue_templated
 
 EMAIL_CHANNEL = "email"
+PUSH_CHANNEL = "push"
 EMAIL_TEMPLATE = "messaging/email/notification"
 
 
@@ -65,4 +68,27 @@ class EmailNotifier:
                         "body": notification.body,
                         "url": f"{base_url}{notification.link}",
                     },
+                )
+
+
+@notifier_registry.register("push")
+class PushNotifier:
+    def deliver(self, deliveries: Sequence[Delivery]) -> None:
+        directory = container.resolve(Directory)
+        push = container.resolve(PushFacade)
+        base_url = str(settings.FRONTEND_URL).rstrip("/")
+        for delivery in deliveries:
+            notification = delivery.notification
+            recipients = directory.subscribed(
+                delivery.recipient_ids, notification.topic, PUSH_CHANNEL
+            )
+            if recipients:
+                push.send(
+                    recipients,
+                    PushMessage(
+                        title=notification.title,
+                        body=notification.body,
+                        url=f"{base_url}{notification.link}",
+                        tag=notification.kind.value,
+                    ),
                 )

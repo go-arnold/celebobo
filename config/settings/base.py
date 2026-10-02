@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.assistant",
     "apps.content",
+    "apps.push",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -355,6 +356,11 @@ AUDITLOG_INCLUDE_TRACKING_MODELS = (
     "resellers.resellerapplication",
 )
 AUDIT = {"RETENTION_DAYS": env.int("AUDIT_RETENTION_DAYS", default=365)}
+PUSH = {
+    "VAPID_PUBLIC_KEY": env.str("VAPID_PUBLIC_KEY", default=""),
+    "VAPID_PRIVATE_KEY": env.str("VAPID_PRIVATE_KEY", default=""),
+    "VAPID_SUBJECT": env.str("VAPID_SUBJECT", default="mailto:contact@celebobo.cd"),
+}
 ASSISTANT = {
     "PROVIDER": env.str("ASSISTANT_PROVIDER", default="offline"),
     "API_KEY": env.str("GEMINI_API_KEY", default=""),

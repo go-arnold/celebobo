@@ -31,6 +31,7 @@ dependencies = [
     "django-auditlog>=3.4.1",
     "pgvector>=0.5.0",
     "google-genai>=2.28.0",
+    "pywebpush>=2.5.0",
 ]
 
 [dependency-groups]
@@ -105,6 +106,7 @@ module = [
     "import_export.*",
     "auditlog.*",
     "pgvector.*",
+    "pywebpush.*",
     "openpyxl.*",
     "weasyprint.*",
     "corsheaders.*",
@@ -207,6 +209,7 @@ source_modules = [
     "apps.audit.domain",
     "apps.assistant.domain",
     "apps.content.domain",
+    "apps.push.domain",
 ]
 forbidden_modules = ["django", "rest_framework", "celery", "allauth", "dj_rest_auth"]
 
@@ -226,6 +229,7 @@ containers = [
     "apps.audit",
     "apps.assistant",
     "apps.content",
+    "apps.push",
 ]
 layers = [
     "api",
@@ -271,8 +275,15 @@ forbidden_modules = [
     "apps.orders.services.lifecycle",
     "apps.orders.services.pricing",
     "apps.orders.services.adjustments",
+    "apps.orders.services.coupons",
+    "apps.orders.services.promotions",
+    "apps.orders.services.shipping",
     "apps.orders.adapters",
     "apps.catalog",
+    "apps.push.models",
+    "apps.push.repositories",
+    "apps.push.services",
+    "apps.push.adapters",
 ]
 ignore_imports = ["apps.messaging.tests.** -> apps.**"]
 allow_indirect_imports = true
@@ -473,4 +484,17 @@ forbidden_modules = [
     "apps.orders.adapters",
 ]
 ignore_imports = ["apps.content.tests.** -> apps.**"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "push stays independent of other apps"
+type = "forbidden"
+source_modules = ["apps.push"]
+forbidden_modules = [
+    "apps.accounts",
+    "apps.catalog",
+    "apps.messaging",
+    "apps.orders",
+]
+ignore_imports = ["apps.push.tests.** -> apps.**"]
 allow_indirect_imports = true
