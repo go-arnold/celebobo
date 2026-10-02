@@ -77,9 +77,10 @@ class TestSigning:
         assert response.json()["code"] == "storage_not_configured"
 
     def test_sign_skips_empty_values(self):
-        assert sign({"a": "1", "b": ""}, "s") == hashlib.sha1(
-            b"a=1s", usedforsecurity=False
-        ).hexdigest()
+        assert (
+            sign({"a": "1", "b": ""}, "s")
+            == hashlib.sha1(b"a=1s", usedforsecurity=False).hexdigest()
+        )
 
 
 class TestCompletion:
@@ -117,11 +118,17 @@ class TestCompletion:
     @pytest.mark.parametrize(
         ("payload", "code"),
         [
-            ({**cloudinary_response("celebobo-test/avatars/a"), "signature": "0" * 40}, "invalid_upload"),
+            (
+                {**cloudinary_response("celebobo-test/avatars/a"), "signature": "0" * 40},
+                "invalid_upload",
+            ),
             (cloudinary_response("celebobo-test/products/a"), "invalid_upload"),
             (cloudinary_response("elsewhere/avatars/a"), "invalid_upload"),
             (cloudinary_response("celebobo-test/avatars/a", format="gif"), "unsupported_format"),
-            (cloudinary_response("celebobo-test/avatars/a", bytes=3 * 1024 * 1024), "upload_too_large"),
+            (
+                cloudinary_response("celebobo-test/avatars/a", bytes=3 * 1024 * 1024),
+                "upload_too_large",
+            ),
         ],
     )
     def test_rejections(self, payload, code):

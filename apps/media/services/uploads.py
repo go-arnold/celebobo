@@ -22,7 +22,9 @@ class UploadService:
     def sign(self, policy: UploadPolicy) -> UploadSignature:
         return self._storage.sign_upload(policy, timestamp=int(self._clock()))
 
-    def complete(self, owner_id: int, policy: UploadPolicy, upload: CompletedUpload) -> UploadedMedia:
+    def complete(
+        self, owner_id: int, policy: UploadPolicy, upload: CompletedUpload
+    ) -> UploadedMedia:
         if not upload.public_id.startswith(f"{self._storage.folder_for(policy)}/"):
             raise InvalidUpload
         if not self._storage.verify(upload):

@@ -19,8 +19,6 @@ def register(container: Container) -> None:
 
 def _media_facade(container: Container) -> MediaFacade:
     return MediaFacade(
-        uploads=UploadService(
-            container.resolve(MediaStorage), MediaRepository(), clock=time.time
-        ),
+        uploads=UploadService(container.resolve(MediaStorage), MediaRepository(), clock=time.time),
         permissions=permission_catalog,
     )
