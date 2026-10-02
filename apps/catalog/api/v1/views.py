@@ -134,7 +134,7 @@ class FavoriteViewSet(UseCaseViewSet):
 
     @extend_schema(request=FavoriteInput, responses={201: ProductCardOutput})
     def create(self, request: Request) -> Response:
-        product_id = self.parse(FavoriteInput, into=dict)["product_id"]
+        product_id = self.validated(FavoriteInput)["product_id"]
         return self.respond(
             ProductCardOutput, self.favorites.add(self.actor, product_id), status=201
         )

@@ -38,3 +38,17 @@ class ProductQuery:
 class PostReview:
     rating: int
     message: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class StockLine:
+    product_id: int
+    quantity: int
+    variant_id: int | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class StockSource:
+    kind: str
+    id: int
+    actor_id: int | None = None

@@ -77,3 +77,34 @@ Categories, products (variants, options, images, features), the stock movement l
 | `GET · POST /api/v1/me/favorites/` · `DELETE <product_id>/` | Favourites |
 
 Reads are cached in `CatalogCache`, which is invalidated by `ProductChanged`, `ProductRemoved`, `CategoryChanged` and `ReviewPosted`. Edits made in Django admin publish the same events.
+
+### `apps.orders`
+
+Cart, pricing, idempotent checkout, the order state machine, reseller dispatch and public tracking. Orders reaches other apps only through ports:
+
+| Port | Default adapter |
+|---|---|
+| `Inventory` | the catalogue's `InventoryFacade` (prices lines, reserves and releases stock with row locks) |
+| `AddressBook`, `ResellerDirectory` | public accounts selectors |
+| `OrderThreads` | `NoOrderThreads` until the messaging app provides conversations |
+
+Orders also replaces the catalogue's `PurchaseVerifier`, so delivered orders unlock verified reviews.
+
+Status flow: `pending → assigned → confirmed → paid → shipping → delivered`, plus `cancelled` and `returned`. `TransitionPolicyFactory` picks the policy for each role:
+- the client can cancel only while the order is pending;
+- the assigned reseller moves one step forward at a time;
+- managers can make any forward move, cancel, or return a delivered order.
+
+Cancellations and returns put the stock back.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET · DELETE /api/v1/cart/` · `POST cart/items/` · `PATCH · DELETE cart/items/<id>/` | Server cart; guests use the `X-Cart-Token` header |
+| `POST /api/v1/cart/merge/` | Merge a guest cart into the user's cart at login |
+| `POST /api/v1/checkout/quote/` | Price lines, shipping fee and the amount left before free shipping |
+| `POST /api/v1/orders/` | Place an order (`Idempotency-Key` required) |
+| `GET /api/v1/me/orders/` · `<number>/` · `POST <number>/cancel/` | The client's orders |
+| `POST /api/v1/orders/track/` | Public tracking with the order number plus email or phone |
+| `GET /api/v1/bo/orders/` · `<id>/` | Back-office list (counts per status; resellers see only their assignments) and detail with allowed transitions |
+| `POST /api/v1/bo/orders/<id>/assign/` · `decline/` · `transition/` | Dispatch and status changes |
+| `GET /api/v1/bo/resellers/assignable/` | Resellers with availability and current workload |

@@ -53,3 +53,11 @@ class ReferralCheck:
 class WsTicket:
     ticket: str
     expires_in: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ResellerRef:
+    id: int
+    name: str
+    email: str
+    availability: Availability

@@ -1,9 +1,15 @@
 from allauth.account.models import EmailAddress
-from django.db.models import Count
+from django.db.models import Count, Q, QuerySet
 
 from apps.accounts.domain.enums import AddressLabel, Availability
 from apps.accounts.domain.errors import AddressNotFound, UserNotFound
-from apps.accounts.domain.read_models import AddressView, Profile, ReferralCheck, ResellerProfile
+from apps.accounts.domain.read_models import (
+    AddressView,
+    Profile,
+    ReferralCheck,
+    ResellerProfile,
+    ResellerRef,
+)
 from apps.accounts.models import Address, User
 from core.authz.catalog import PermissionCatalog
 from core.domain.actor import Role
@@ -84,4 +90,34 @@ def _reseller_profile(user: User) -> ResellerProfile:
         availability=Availability(user.availability),
         commission_rate=user.commission_rate,
         invited_count=getattr(user, "invited_count", 0),
+    )
+
+
+class ResellerSelector:
+    def active(self, reseller_id: int) -> ResellerRef | None:
+        reseller = self._resellers().filter(pk=reseller_id).first()
+        return _reseller_ref(reseller) if reseller else None
+
+    def assignable(self, search: str | None = None, *, limit: int = 50) -> list[ResellerRef]:
+        resellers = self._resellers()
+        if search:
+            resellers = resellers.filter(
+                Q(first_name__icontains=search)
+                | Q(last_name__icontains=search)
+                | Q(email__icontains=search)
+                | Q(referral_code=search)
+            )
+        return [_reseller_ref(reseller) for reseller in resellers.order_by("first_name")[:limit]]
+
+    @staticmethod
+    def _resellers() -> QuerySet[User]:
+        return User.objects.filter(role=Role.RESELLER.value, is_active=True)
+
+
+def _reseller_ref(user: User) -> ResellerRef:
+    return ResellerRef(
+        id=user.pk,
+        name=user.get_full_name() or user.email,
+        email=user.email,
+        availability=Availability(user.availability),
     )

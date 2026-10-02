@@ -64,13 +64,22 @@ class UseCaseViewSet(ViewSetMixin, ActorAwareView):
         partial: bool = False,
         **extra: Any,
     ) -> T:
+        return into(**{**self.validated(serializer_class, data=data, partial=partial), **extra})
+
+    def validated(
+        self,
+        serializer_class: type[BaseSerializer[Any]],
+        *,
+        data: Any = None,
+        partial: bool = False,
+    ) -> Any:
         serializer = serializer_class(
             data=self.request.data if data is None else data,
             partial=partial,
             context=self.serializer_context(),
         )
         serializer.is_valid(raise_exception=True)
-        return into(**{**serializer.validated_data, **extra})
+        return serializer.validated_data
 
     def respond(
         self,

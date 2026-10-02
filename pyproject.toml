@@ -63,7 +63,8 @@ ignore = ["PLR0913", "PLR0911", "PLC0415", "N818"]
 "config/settings/*" = ["F403", "F405", "S105"]
 "**/api/**" = ["ARG001", "ARG002", "RUF012"]
 "**/adapters/**" = ["ARG001", "ARG002"]
-"**/admin.py" = ["RUF012"]
+"**/admin.py" = ["RUF012", "ARG002"]
+"**/domain/state_machine.py" = ["ARG002"]
 "core/health/**" = ["ARG002", "BLE001"]
 "core/observability/metrics.py" = ["ARG002"]
 
@@ -164,13 +165,13 @@ layers = [
 [[tool.importlinter.contracts]]
 name = "app domains are framework-free"
 type = "forbidden"
-source_modules = ["apps.accounts.domain", "apps.catalog.domain"]
+source_modules = ["apps.accounts.domain", "apps.catalog.domain", "apps.orders.domain"]
 forbidden_modules = ["django", "rest_framework", "celery", "allauth", "dj_rest_auth"]
 
 [[tool.importlinter.contracts]]
 name = "app layers"
 type = "layers"
-containers = ["apps.accounts", "apps.catalog"]
+containers = ["apps.accounts", "apps.catalog", "apps.orders"]
 layers = [
     "api",
     "facades",
@@ -179,3 +180,23 @@ layers = [
     "models",
     "domain",
 ]
+
+[[tool.importlinter.contracts]]
+name = "orders reaches other apps only through their public API"
+type = "forbidden"
+source_modules = ["apps.orders"]
+forbidden_modules = [
+    "apps.accounts.models",
+    "apps.accounts.repositories",
+    "apps.accounts.services",
+    "apps.accounts.adapters",
+    "apps.catalog.models",
+    "apps.catalog.repositories",
+    "apps.catalog.services.inventory",
+    "apps.catalog.services.search",
+    "apps.catalog.services.engagement",
+    "apps.catalog.services.indexing",
+    "apps.catalog.adapters",
+]
+ignore_imports = ["apps.orders.tests.** -> apps.**"]
+allow_indirect_imports = true
