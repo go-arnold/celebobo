@@ -16,6 +16,10 @@ dependencies = [
     "celery[redis]>=5.5",
     "redis>=5.2",
     "psycopg[binary]>=3.2",
+    "django-allauth[socialaccount]>=65.4",
+    "dj-rest-auth[with-social]>=7.0",
+    "djangorestframework-simplejwt>=5.5",
+    "django-stubs-ext>=5.2",
 ]
 
 [dependency-groups]
@@ -42,7 +46,7 @@ package = false
 [tool.ruff]
 line-length = 100
 target-version = "py313"
-extend-exclude = ["docs"]
+extend-exclude = ["docs", "*/migrations/*"]
 
 [tool.ruff.lint]
 select = [
@@ -54,7 +58,8 @@ ignore = ["PLR0913", "PLR0911", "PLC0415", "N818"]
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101", "PLR2004", "ARG001", "ARG002", "S105", "S106"]
 "config/settings/*" = ["F403", "F405", "S105"]
-"core/api/**" = ["ARG001", "ARG002"]
+"**/api/**" = ["ARG001", "ARG002", "RUF012"]
+"**/adapters/**" = ["ARG001", "ARG002"]
 "core/health/**" = ["ARG002", "BLE001"]
 "core/observability/metrics.py" = ["ARG002"]
 
@@ -75,8 +80,20 @@ exclude = ["^docs/", "^\\.venv/"]
 django_settings_module = "config.settings.test"
 
 [[tool.mypy.overrides]]
-module = ["environ.*", "rules.*", "django_filters.*", "drf_spectacular.*", "corsheaders.*"]
+module = [
+    "environ.*",
+    "rules.*",
+    "django_filters.*",
+    "drf_spectacular.*",
+    "corsheaders.*",
+    "allauth.*",
+    "dj_rest_auth.*",
+]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["apps.*.adapters.allauth", "apps.*.api.v1.auth_serializers", "apps.*.api.v1.views"]
+disallow_subclassing_any = false
 
 [[tool.mypy.overrides]]
 module = ["*.tests.*", "conftest"]
@@ -100,18 +117,18 @@ skip_covered = true
 show_missing = true
 
 [tool.bandit]
-exclude_dirs = [".venv", "docs", "core/tests", "config/settings/test.py"]
-skips = ["B101"]
+exclude_dirs = [".venv", "docs", "*/tests/*", "config/settings/test.py"]
+skips = ["B101", "B105"]
 
 [tool.importlinter]
-root_packages = ["core", "config"]
+root_packages = ["core", "config", "apps"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "core is independent from config"
+name = "core is independent from config and apps"
 type = "forbidden"
 source_modules = ["core"]
-forbidden_modules = ["config"]
+forbidden_modules = ["config", "apps"]
 
 [[tool.importlinter.contracts]]
 name = "core.domain is framework-free"
@@ -128,4 +145,23 @@ layers = [
     "core.authz | core.events | core.observability",
     "core.container | core.registry | core.conf",
     "core.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "app domains are framework-free"
+type = "forbidden"
+source_modules = ["apps.accounts.domain"]
+forbidden_modules = ["django", "rest_framework", "celery", "allauth", "dj_rest_auth"]
+
+[[tool.importlinter.contracts]]
+name = "app layers"
+type = "layers"
+containers = ["apps.accounts"]
+layers = [
+    "api",
+    "facades",
+    "services",
+    "repositories | selectors",
+    "models",
+    "domain",
 ]

@@ -1,7 +1,7 @@
 from config.settings.base import *
 from core.observability.logging import configure_structlog, logging_config
 
-SECRET_KEY = "test-secret-key"
+SECRET_KEY = "test-secret-key-for-celebobo-api-suite-0001"
 DEBUG = False
 
 DATABASES = {
@@ -16,6 +16,8 @@ CACHES = {
 }
 
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+FRONTEND_URL = "https://app.test"
 
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = ()
 

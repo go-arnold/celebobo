@@ -17,7 +17,8 @@ uv run pre-commit install
 uv run ruff format --check . && uv run ruff check .
 uv run mypy .
 uv run lint-imports
-uv run bandit -q -c pyproject.toml -r core config
+uv run bandit -q -c pyproject.toml -r core config apps
+DJANGO_SETTINGS_MODULE=config.settings.test uv run python manage.py spectacular --validate --fail-on-warn --file openapi.yml
 uv run pytest --cov
 ```
 
@@ -38,3 +39,25 @@ uv run pytest --cov
 Every app follows the same conventions:
 - An app exposes its endpoints in `api/v1/urls.py`; they are mounted automatically under `/api/v1/`.
 - An app grants permissions in `permissions.py` and subscribes to events in `handlers.py`; both modules are discovered automatically.
+
+## Apps
+
+### `apps.accounts`
+
+Custom `User` (email login, role, reseller referral code, availability, commission rate), the address book and notification preferences.
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/v1/auth/register/` | Registration through `AccountFacade`; the verification email goes out in the background |
+| `POST /api/v1/auth/login/` · `logout/` · `token/refresh/` | dj-rest-auth with JWTs in httpOnly cookies (`cb_access`, `cb_refresh`) and CSRF enforced |
+| `GET /api/v1/auth/csrf/` | Sets the `csrftoken` cookie |
+| `POST /api/v1/auth/email/verify/` · `email/resend/` | Email verification; the link points to `FRONTEND_URL/verifier-email/<key>` |
+| `POST /api/v1/auth/password/reset/` · `reset/confirm/` · `change/` | Password flows; the reset link points to `FRONTEND_URL/reinitialiser-mot-de-passe?uid=…&token=…` |
+| `POST /api/v1/auth/social/google/` | Google sign-in (`access_token`, `code` or `id_token`) |
+| `GET /api/v1/auth/referral-codes/<code>/validate/` | Live check of a reseller code |
+| `POST /api/v1/auth/ws-ticket/` | Single-use WebSocket ticket (30 s) |
+| `GET · PATCH · DELETE /api/v1/me/` | Profile; deleting anonymizes the account and revokes its tokens |
+| `/api/v1/me/addresses/` (+ `<id>/`, `<id>/set-default/`) | Address book with exactly one default address |
+| `GET · PATCH /api/v1/me/notification-preferences/` | Per-topic email and push toggles |
+| `POST /api/v1/bo/users/<id>/role/` | Admin only: change a role (promoting to reseller issues a code) |
+| `PATCH /api/v1/bo/me/availability/` | Reseller only: online, away or offline |

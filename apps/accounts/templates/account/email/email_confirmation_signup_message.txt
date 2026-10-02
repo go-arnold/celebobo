@@ -1,0 +1,10 @@
+{% autoescape off %}Bonjour {{ user.first_name|default:"" }},
+
+Bienvenue sur {{ site_name }} ! Pour activer votre compte, confirmez votre adresse e-mail en ouvrant ce lien :
+
+{{ activate_url }}
+
+Ce lien expire dans {{ expiration_days }} jours. Si vous n'êtes pas à l'origine de cette inscription, ignorez simplement ce message.
+
+L'équipe {{ site_name }}
+{% endautoescape %}
