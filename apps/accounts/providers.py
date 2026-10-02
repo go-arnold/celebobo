@@ -1,6 +1,6 @@
 from allauth.account import app_settings as account_settings
 
-from apps.accounts.adapters.allauth import AllauthEmailVerifier
+from apps.accounts.adapters.allauth import AllauthEmailVerifier, AllauthPasswordSetupLinks
 from apps.accounts.adapters.security import (
     CacheTicketStore,
     DjangoGroupSync,
@@ -12,14 +12,16 @@ from apps.accounts.facades import (
     AddressBookFacade,
     PreferencesFacade,
     RealtimeAccessFacade,
+    ResellerAccountFacade,
 )
 from apps.accounts.repositories import AddressRepository, PreferenceRepository, UserRepository
-from apps.accounts.selectors import AddressSelector, ProfileSelector
+from apps.accounts.selectors import AddressSelector, ProfileSelector, ResellerDirectorySelector
 from apps.accounts.services.addresses import AddressBookService
 from apps.accounts.services.contracts import (
     EmailVerifier,
     GroupSync,
     PasswordPolicy,
+    PasswordSetupLinks,
     TicketStore,
     TokenRevoker,
 )
@@ -27,6 +29,7 @@ from apps.accounts.services.preferences import PreferenceService
 from apps.accounts.services.profiles import ProfileService
 from apps.accounts.services.referrals import ReferralService
 from apps.accounts.services.registration import RegistrationService
+from apps.accounts.services.resellers import ResellerAccountService
 from apps.accounts.services.roles import RoleService
 from apps.accounts.services.tickets import TicketService
 from core.authz.catalog import permission_catalog
@@ -40,11 +43,13 @@ def register(container: Container) -> None:
     container.register(EmailVerifier, lambda _: AllauthEmailVerifier())
     container.register(GroupSync, lambda _: DjangoGroupSync())
     container.register(TicketStore, lambda _: CacheTicketStore())
+    container.register(PasswordSetupLinks, lambda _: AllauthPasswordSetupLinks())
 
     container.register(AccountFacade, _account_facade, lifetime=Lifetime.TRANSIENT)
     container.register(AddressBookFacade, _address_book_facade, lifetime=Lifetime.TRANSIENT)
     container.register(PreferencesFacade, _preferences_facade, lifetime=Lifetime.TRANSIENT)
     container.register(RealtimeAccessFacade, _realtime_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(ResellerAccountFacade, _reseller_facade, lifetime=Lifetime.TRANSIENT)
 
 
 def _account_facade(container: Container) -> AccountFacade:
@@ -77,3 +82,20 @@ def _preferences_facade(_: Container) -> PreferencesFacade:
 
 def _realtime_facade(container: Container) -> RealtimeAccessFacade:
     return RealtimeAccessFacade(tickets=TicketService(container.resolve(TicketStore)))
+
+
+def _reseller_facade(container: Container) -> ResellerAccountFacade:
+    users = UserRepository()
+    return ResellerAccountFacade(
+        accounts=ResellerAccountService(
+            users,
+            ReferralService(users),
+            container.resolve(GroupSync),
+            container.resolve(TokenRevoker),
+        ),
+        selector=ResellerDirectorySelector(),
+        verifier=container.resolve(EmailVerifier),
+        links=container.resolve(PasswordSetupLinks),
+        users=users,
+        publisher=container.resolve(EventPublisher),
+    )

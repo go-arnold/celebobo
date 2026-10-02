@@ -1,7 +1,8 @@
 from collections.abc import Iterable
 from datetime import date, datetime, time
+from decimal import Decimal
 
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, Q, QuerySet, Sum
 from django.utils import timezone
 
 from apps.orders.domain.commands import OrderFilters
@@ -9,6 +10,7 @@ from apps.orders.domain.enums import OrderStatus, PaymentMethod
 from apps.orders.domain.errors import OrderNotFound
 from apps.orders.domain.read_models import (
     AddressSnapshot,
+    ClientOrderTotals,
     ConvertibleItem,
     ConvertibleOrder,
     OrderDetail,
@@ -328,3 +330,19 @@ def _convertible(order: Order) -> ConvertibleOrder:
             for item in order.items.all()
         ),
     )
+
+
+UNCOUNTED_STATUSES = (OrderStatus.CANCELLED.value, OrderStatus.RETURNED.value)
+
+
+def client_order_totals(client_ids: Iterable[int]) -> dict[int, ClientOrderTotals]:
+    rows = (
+        Order.objects.filter(client_id__in=list(client_ids))
+        .exclude(status__in=UNCOUNTED_STATUSES)
+        .values("client_id")
+        .annotate(count=Count("pk"), total=Sum("total"))
+    )
+    return {
+        row["client_id"]: ClientOrderTotals(count=row["count"], total=Decimal(row["total"]))
+        for row in rows
+    }

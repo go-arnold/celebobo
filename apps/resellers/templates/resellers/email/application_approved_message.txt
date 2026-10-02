@@ -1,0 +1,9 @@
+{% autoescape off %}Bonjour {{ first_name }},
+
+Bonne nouvelle : votre candidature au programme revendeur Celebobo est acceptée.
+
+{% if account_created %}Choisissez votre mot de passe pour accéder à votre espace :{% else %}Connectez-vous pour accéder à votre espace revendeur :{% endif %}
+{{ url }}
+
+Bienvenue dans l'équipe,
+L'équipe Celebobo{% endautoescape %}

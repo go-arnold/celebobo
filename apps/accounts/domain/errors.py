@@ -1,5 +1,6 @@
 from core.domain.errors import (
     BusinessRuleViolation,
+    Conflict,
     Forbidden,
     NotFound,
     ServiceUnavailable,
@@ -89,3 +90,26 @@ class InvalidRole(ValidationFailed):
 class NotAReseller(BusinessRuleViolation):
     default_code = "not_a_reseller"
     default_detail = "Seuls les revendeurs ont une disponibilité."
+
+
+class ResellerNotFound(NotFound):
+    default_code = "reseller_not_found"
+    default_detail = "Revendeur introuvable."
+
+
+class AlreadyReseller(Conflict):
+    default_code = "already_reseller"
+    default_detail = "Cette personne est déjà revendeur."
+
+
+class StaffCannotBecomeReseller(BusinessRuleViolation):
+    default_code = "staff_cannot_become_reseller"
+    default_detail = "Un compte responsable ou administrateur ne peut pas devenir revendeur."
+
+
+class InvalidManager(ValidationFailed):
+    default_code = "invalid_manager"
+    default_detail = "Le responsable doit être un membre actif de l'équipe."
+
+    def __init__(self) -> None:
+        super().__init__(errors={"manager_id": [self.default_detail]})

@@ -15,6 +15,18 @@ class UserRepository:
     def create(self, *, email: str, password: str, **fields: Any) -> User:
         return User.objects.create_user(email=email, password=password, **fields)
 
+    def create_invited(self, *, email: str, **fields: Any) -> User:
+        return User.objects.create_user(email=email, password=None, **fields)
+
+    def by_email(self, email: str, *, for_update: bool = False) -> User | None:
+        queryset = User.objects.select_for_update() if for_update else User.objects.all()
+        return queryset.filter(email__iexact=email).first()
+
+    def active_staff(self, user_id: int) -> User | None:
+        return User.objects.filter(
+            pk=user_id, is_active=True, role__in=[Role.MANAGER.value, Role.ADMIN.value]
+        ).first()
+
     def save(self, user: User, *, fields: Iterable[str]) -> None:
         user.save(update_fields=[*fields])
 

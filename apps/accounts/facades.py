@@ -7,29 +7,52 @@ from apps.accounts.domain.commands import (
     AddressChanges,
     AddressFields,
     ChangeRole,
+    OnboardReseller,
     RegisterUser,
+    ResellerChanges,
     SetAvailability,
     UpdatePreferences,
     UpdateProfile,
 )
+from apps.accounts.domain.errors import UserNotFound
 from apps.accounts.domain.events import (
     AccountDeleted,
     AvailabilityChanged,
     ProfileUpdated,
     ReferralAttached,
+    ResellerActivationChanged,
+    ResellerOnboarded,
+    ResellerUpdated,
     RoleChanged,
     UserRegistered,
 )
-from apps.accounts.domain.read_models import AddressView, Profile, WsTicket
-from apps.accounts.selectors import AddressSelector, ProfileSelector, to_address_view
+from apps.accounts.domain.read_models import (
+    AddressView,
+    OnboardedReseller,
+    Profile,
+    ResellerAccount,
+    WsTicket,
+)
+from apps.accounts.selectors import (
+    AddressSelector,
+    ProfileSelector,
+    ResellerDirectorySelector,
+    to_address_view,
+)
 from apps.accounts.services.addresses import AddressBookService
-from apps.accounts.services.contracts import EmailVerifier, TokenRevoker
+from apps.accounts.services.contracts import (
+    EmailVerifier,
+    PasswordSetupLinks,
+    TokenRevoker,
+    UserStore,
+)
 from apps.accounts.services.preferences import Preferences, PreferenceService
 from apps.accounts.services.profiles import ProfileService
 from apps.accounts.services.registration import RegistrationService
+from apps.accounts.services.resellers import ResellerAccountService
 from apps.accounts.services.roles import RoleService
 from apps.accounts.services.tickets import TicketService
-from core.domain.actor import Actor
+from core.domain.actor import Actor, Role
 from core.domain.errors import Unauthenticated
 from core.events.contracts import EventPublisher
 from core.observability.decorators import logged_facade
@@ -126,6 +149,73 @@ class AccountFacade:
                 )
             )
         return self._selector.profile(user_id)
+
+
+@logged_facade
+class ResellerAccountFacade:
+    def __init__(
+        self,
+        *,
+        accounts: ResellerAccountService,
+        selector: ResellerDirectorySelector,
+        verifier: EmailVerifier,
+        links: PasswordSetupLinks,
+        users: UserStore,
+        publisher: EventPublisher,
+    ) -> None:
+        self._accounts = accounts
+        self._selector = selector
+        self._verifier = verifier
+        self._links = links
+        self._users = users
+        self._publisher = publisher
+
+    def onboard(self, actor: Actor, command: OnboardReseller) -> OnboardedReseller:
+        with transaction.atomic():
+            onboarding = self._accounts.onboard(command)
+            user = onboarding.user
+            if onboarding.created:
+                self._verifier.register_address(user, verified=True)
+            self._publisher.publish(
+                ResellerOnboarded(
+                    user_id=user.pk, created=onboarding.created, actor_id=actor.user_id
+                )
+            )
+            if onboarding.previous_role is not Role.RESELLER:
+                self._publisher.publish(
+                    RoleChanged(
+                        user_id=user.pk,
+                        previous_role=onboarding.previous_role,
+                        role=Role.RESELLER,
+                        actor_id=actor.user_id,
+                    )
+                )
+        return OnboardedReseller(user_id=user.pk, created=onboarding.created)
+
+    def update(self, actor: Actor, reseller_id: int, changes: ResellerChanges) -> ResellerAccount:
+        with transaction.atomic():
+            fields = self._accounts.update(reseller_id, changes)
+            if fields:
+                self._publisher.publish(
+                    ResellerUpdated(user_id=reseller_id, fields=fields, actor_id=actor.user_id)
+                )
+        return self._selector.one(reseller_id)
+
+    def set_active(self, actor: Actor, reseller_id: int, *, active: bool) -> ResellerAccount:
+        with transaction.atomic():
+            if self._accounts.set_active(reseller_id, active=active):
+                self._publisher.publish(
+                    ResellerActivationChanged(
+                        user_id=reseller_id, active=active, actor_id=actor.user_id
+                    )
+                )
+        return self._selector.one(reseller_id)
+
+    def setup_link(self, user_id: int) -> str:
+        user = self._users.get(user_id)
+        if user is None:
+            raise UserNotFound
+        return self._links.link_for(user)
 
 
 @logged_facade

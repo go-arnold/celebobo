@@ -1,0 +1,6 @@
+{% autoescape off %}Bonjour {{ first_name }},
+
+Nous avons bien reçu votre candidature au programme revendeur Celebobo. Notre équipe l'examine et vous répondra rapidement.
+
+À très vite,
+L'équipe Celebobo{% endautoescape %}

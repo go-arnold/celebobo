@@ -192,3 +192,9 @@ class ConvertibleOrder:
     total: Decimal
     created_at: datetime
     items: tuple[ConvertibleItem, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ClientOrderTotals:
+    count: int
+    total: Decimal

@@ -45,6 +45,7 @@ class ServerEvent(StrEnum):
     SALE_DELETED = "sale.deleted"
     COMMISSION_UPDATED = "commission.updated"
     PAYOUT_CREATED = "payout.created"
+    RESELLER_APPLICATION_CREATED = "reseller_application.created"
 
 
 class InvalidEnvelope(ValidationFailed):

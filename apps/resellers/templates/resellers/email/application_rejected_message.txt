@@ -1,0 +1,9 @@
+{% autoescape off %}Bonjour {{ first_name }},
+
+Merci pour l'intérêt que vous portez au programme revendeur Celebobo. Après examen, nous ne pouvons pas donner suite à votre candidature pour le moment.
+{% if reason %}
+Motif : {{ reason }}
+{% endif %}
+Vous pourrez renouveler votre demande plus tard.
+
+L'équipe Celebobo{% endautoescape %}

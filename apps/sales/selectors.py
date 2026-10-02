@@ -27,6 +27,7 @@ from apps.sales.domain.read_models import (
     RefundView,
     SalesStats,
     SaleView,
+    SellerPerformance,
 )
 from apps.sales.domain.rules import ZERO, cents, profit_for
 from apps.sales.models import CommissionEntry, Payout, Sale
@@ -296,3 +297,47 @@ def _start(day: date) -> datetime:
 
 def _end(day: date) -> datetime:
     return timezone.make_aware(datetime.combine(day, time.max))
+
+
+def seller_performance(
+    seller_ids: Iterable[int], *, since: datetime | None = None
+) -> dict[int, SellerPerformance]:
+    ids = list(seller_ids)
+    sales = Sale.objects.filter(seller_id__in=ids).exclude(status=SaleStatus.RETURNED.value)
+    if since is not None:
+        sales = sales.filter(sold_at__gte=since)
+    net = ExpressionWrapper(
+        F("unit_price") * F("quantity") - F("refunded_amount"), output_field=MONEY
+    )
+    rows = sales.values("seller_id").annotate(count=Count("pk"), revenue=Sum(net))
+    counts = {row["seller_id"]: int(row["count"]) for row in rows}
+    revenue = {row["seller_id"]: Decimal(row["revenue"] or 0) for row in rows}
+    earned = _totals_by_reseller(CommissionEntry.objects.filter(reseller_id__in=ids))
+    paid = _totals_by_reseller(Payout.objects.filter(reseller_id__in=ids))
+    return {
+        seller_id: SellerPerformance(
+            seller_id=seller_id,
+            sales_count=counts.get(seller_id, 0),
+            revenue=cents(revenue.get(seller_id, ZERO)),
+            commission_earned=cents(earned.get(seller_id, ZERO)),
+            commission_due=cents(earned.get(seller_id, ZERO) - paid.get(seller_id, ZERO)),
+        )
+        for seller_id in ids
+    }
+
+
+def _totals_by_reseller(
+    queryset: QuerySet[CommissionEntry] | QuerySet[Payout],
+) -> dict[int, Decimal]:
+    rows = queryset.values("reseller_id").annotate(total=Sum("amount"))
+    return {row["reseller_id"]: Decimal(row["total"] or 0) for row in rows}
+
+
+def top_sellers(
+    seller_ids: Iterable[int], *, since: datetime, limit: int = 1
+) -> list[SellerPerformance]:
+    ranked = sorted(
+        seller_performance(seller_ids, since=since).values(),
+        key=lambda performance: (-performance.revenue, performance.seller_id),
+    )
+    return [performance for performance in ranked[:limit] if performance.revenue > ZERO]

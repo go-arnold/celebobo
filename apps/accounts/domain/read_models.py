@@ -77,3 +77,49 @@ class SellerProfile:
     name: str
     role: Role
     commission_rate: Decimal
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ManagerRef:
+    id: int
+    name: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ResellerAccount:
+    id: int
+    first_name: str
+    last_name: str
+    name: str
+    email: str
+    phone_number: str | None
+    avatar: str
+    referral_code: str | None
+    commission_rate: Decimal
+    availability: Availability
+    is_active: bool
+    manager: ManagerRef | None
+    date_joined: datetime
+    last_seen_at: datetime | None
+    invited_count: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Invitee:
+    id: int
+    name: str
+    email: str
+    joined_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ResellerCounts:
+    total: int
+    active: int
+    invited_clients: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OnboardedReseller:
+    user_id: int
+    created: bool
