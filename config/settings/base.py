@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "apps.media",
     "apps.sales",
     "apps.resellers",
+    "apps.analytics",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -291,6 +292,12 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TIMEZONE = TIME_ZONE
+CELERY_BEAT_SCHEDULE = {
+    "refresh-sales-facts": {
+        "task": "analytics.refresh_sales_facts",
+        "schedule": env.int("ANALYTICS_REFRESH_SECONDS", default=600),
+    },
+}
 
 CORE = {
     "EVENTS_DISPATCHER": env.str("CORE_EVENTS_DISPATCHER", default="celery"),

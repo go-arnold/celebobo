@@ -193,6 +193,12 @@ class SellerSelector:
             commission_rate=user.commission_rate,
         )
 
+    def names(self, user_ids: Iterable[int]) -> dict[int, str]:
+        users = User.objects.filter(pk__in=set(user_ids)).only(
+            "pk", "first_name", "last_name", "email"
+        )
+        return {user.pk: user.get_full_name() or user.email for user in users}
+
     def resellers(self) -> list[SellerProfile]:
         return [
             SellerProfile(
