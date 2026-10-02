@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "core",
     "apps.accounts",
     "apps.catalog",
+    "apps.orders",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -148,6 +149,7 @@ REST_FRAMEWORK = {
         "dj_rest_auth": "10/min",
         "referral": "20/min",
         "search": "120/min",
+        "tracking": "10/min",
     },
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
@@ -168,6 +170,7 @@ CORS_ALLOW_HEADERS = (
     "authorization",
     "content-type",
     "idempotency-key",
+    "x-cart-token",
     "x-csrftoken",
     "x-request-id",
 )
@@ -241,6 +244,10 @@ CATALOG = {
     "SEARCH_INDEX": env.str("CATALOG_SEARCH_INDEX", default="null"),
     "NEW_PRODUCT_DAYS": env.int("CATALOG_NEW_PRODUCT_DAYS", default=20),
     "CACHE_TTL": env.int("CATALOG_CACHE_TTL", default=300),
+}
+ORDERS = {
+    "FREE_SHIPPING_THRESHOLD": env.str("ORDERS_FREE_SHIPPING_THRESHOLD", default="199.00"),
+    "FLAT_SHIPPING_FEE": env.str("ORDERS_FLAT_SHIPPING_FEE", default="2.98"),
 }
 MEILISEARCH = {
     "URL": env.str("MEILISEARCH_URL", default="http://localhost:7700"),

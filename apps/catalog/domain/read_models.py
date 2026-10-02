@@ -142,3 +142,21 @@ class ReviewEligibility:
 
 
 type ProductDocument = dict[str, Any]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PricedLine:
+    product_id: int
+    variant_id: int | None
+    sku: str
+    name: str
+    variant_label: str
+    image: str
+    unit_price: Decimal
+    quantity: int
+    free_shipping: bool
+    shipping_fee: Decimal | None
+
+    @property
+    def total(self) -> Decimal:
+        return self.unit_price * self.quantity

@@ -3,16 +3,18 @@ from dataclasses import dataclass, replace
 
 from django.db import transaction
 
+from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.events import (
     FavoriteAdded,
     FavoriteRemoved,
     ProductChanged,
     ReviewPosted,
 )
-from apps.catalog.domain.queries import PostReview, ProductQuery
+from apps.catalog.domain.queries import PostReview, ProductQuery, StockLine, StockSource
 from apps.catalog.domain.read_models import (
     CategoryView,
     Facets,
+    PricedLine,
     ProductCard,
     ProductDetail,
     ReviewEligibility,
@@ -30,6 +32,7 @@ from apps.catalog.selectors import (
 )
 from apps.catalog.services.contracts import RelatedProducts
 from apps.catalog.services.engagement import FavoriteService, ReviewService
+from apps.catalog.services.inventory import InventoryService
 from apps.catalog.services.search import CatalogSearchService
 from core.cache import VersionedCache, cache_key
 from core.domain.actor import Actor
@@ -240,3 +243,27 @@ def _user_id(actor: Actor) -> int:
     if actor.user_id is None:
         raise Unauthenticated
     return actor.user_id
+
+
+@logged_facade
+class InventoryFacade:
+    def __init__(self, *, inventory: InventoryService, publisher: EventPublisher) -> None:
+        self._inventory = inventory
+        self._publisher = publisher
+
+    def price(self, lines: Sequence[StockLine]) -> list[PricedLine]:
+        return self._inventory.price(lines)
+
+    def reserve(self, lines: Sequence[StockLine], source: StockSource) -> None:
+        with transaction.atomic():
+            self._announce(self._inventory.reserve(lines, source), source)
+
+    def release(
+        self, lines: Sequence[StockLine], source: StockSource, *, reason: StockReason, note: str
+    ) -> None:
+        with transaction.atomic():
+            self._announce(self._inventory.release(lines, source, reason=reason, note=note), source)
+
+    def _announce(self, product_ids: set[int], source: StockSource) -> None:
+        for product_id in sorted(product_ids):
+            self._publisher.publish(ProductChanged(product_id=product_id, actor_id=source.actor_id))
