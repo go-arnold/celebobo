@@ -569,3 +569,16 @@ Browser push notifications (Web Push with VAPID), the third notification channel
 **API contract tests**
 - `config/tests/test_api_contract.py` runs Schemathesis against the generated OpenAPI schema. It fuzzes every GET operation anonymously and every back-office GET as an admin.
 - It fails on any 5xx and on any response that doesn't match its documented schema. Paginated endpoints document their envelope with `core.api.pagination.page_of`.
+
+## Deployment
+
+**Single container (Koyeb)**
+- The root `Dockerfile` and `entrypoint.sh` run everything in one container:
+  - migrations (skipped with `RUN_MIGRATIONS=false`);
+  - a Celery worker on all queues (`CELERY_CONCURRENCY`, default 1);
+  - Celery beat;
+  - Gunicorn with Uvicorn workers on `config.asgi` (`WEB_CONCURRENCY`, default 1), so WebSockets and SSE work.
+- `Procfile`, `runtime.txt` and `.python-version` cover buildpack builds, but the Docker builder is preferred: WeasyPrint needs Pango from the system.
+- Use a TCP health check, or HTTP on `/health/live/` only if the probe sends a `Host` header that is listed in `DJANGO_ALLOWED_HOSTS`.
+
+**Multi-container production:** see `deploy-real-prod/README.md`. It covers the separate API, `default`/`ai`/`exports` workers, beat and a migration job, plus an optional local Postgres/pgbouncer/Redis stack.

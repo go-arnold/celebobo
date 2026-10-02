@@ -32,7 +32,7 @@ urlpatterns = [
         name="my-order-invoice",
     ),
     path(
-        "bo/orders/<int:order_id>/invoice/",
+        "bo/orders/<id:order_id>/invoice/",
         InvoiceViewSet.as_view({"get": "backoffice"}),
         name="bo-order-invoice",
     ),

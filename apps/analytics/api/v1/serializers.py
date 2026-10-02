@@ -5,6 +5,7 @@ from rest_framework import serializers
 
 from apps.analytics.domain.periods import Period
 from apps.orders.domain.enums import PaymentMethod
+from core.api.fields import MAX_INTEGER
 
 RANKINGS = ("revenue", "units", "profit")
 EARLIEST_DATE = date(2000, 1, 1)
@@ -19,11 +20,11 @@ class AnalyticsFiltersInput(serializers.Serializer[Any]):
     period = serializers.ChoiceField(choices=[item.value for item in Period], required=False)
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
-    category_id = serializers.IntegerField(min_value=1, required=False)
+    category_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
     payment_method = serializers.ChoiceField(
         choices=[item.value for item in PaymentMethod], required=False
     )
-    seller_id = serializers.IntegerField(min_value=1, required=False)
+    seller_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
 
     def validate_period(self, value: str) -> Period:
         return Period(value)

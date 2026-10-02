@@ -69,27 +69,27 @@ urlpatterns = [
         name="bo-users",
     ),
     path(
-        "bo/users/<int:user_id>/",
+        "bo/users/<id:user_id>/",
         UserAdminViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
         name="bo-user",
     ),
     path(
-        "bo/users/<int:user_id>/activate/",
+        "bo/users/<id:user_id>/activate/",
         UserAdminViewSet.as_view({"post": "activate"}),
         name="bo-user-activate",
     ),
     path(
-        "bo/users/<int:user_id>/deactivate/",
+        "bo/users/<id:user_id>/deactivate/",
         UserAdminViewSet.as_view({"post": "deactivate"}),
         name="bo-user-deactivate",
     ),
     path(
-        "bo/users/<int:user_id>/send-password-reset/",
+        "bo/users/<id:user_id>/send-password-reset/",
         UserAdminViewSet.as_view({"post": "send_password_reset"}),
         name="bo-user-password-reset",
     ),
     path(
-        "bo/users/<int:user_id>/role/",
+        "bo/users/<id:user_id>/role/",
         UserRoleViewSet.as_view({"post": "create"}),
         name="user-role",
     ),

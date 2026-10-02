@@ -1,0 +1,109 @@
+name: celebobo
+
+x-app: &app
+  image: ${CELEBOBO_IMAGE:-celebobo-api:latest}
+  build:
+    context: ..
+    dockerfile: deploy-real-prod/Dockerfile
+  env_file: .env.prod
+  restart: unless-stopped
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  migrate:
+    image: ${CELEBOBO_IMAGE:-celebobo-api:latest}
+    build:
+      context: ..
+      dockerfile: deploy-real-prod/Dockerfile
+    env_file: .env.prod
+    command: ["migrate"]
+    restart: "no"
+
+  api:
+    <<: *app
+    command: ["api"]
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+    volumes:
+      - documents:/app/var/documents
+
+  worker-default:
+    <<: *app
+    command: ["worker"]
+    healthcheck:
+      disable: true
+    environment:
+      CELERY_QUEUES: default
+      CELERY_CONCURRENCY: ${CELERY_DEFAULT_CONCURRENCY:-2}
+
+  worker-ai:
+    <<: *app
+    command: ["worker"]
+    healthcheck:
+      disable: true
+    environment:
+      CELERY_QUEUES: ai
+      CELERY_CONCURRENCY: ${CELERY_AI_CONCURRENCY:-2}
+
+  worker-exports:
+    <<: *app
+    command: ["worker"]
+    healthcheck:
+      disable: true
+    environment:
+      CELERY_QUEUES: exports
+      CELERY_CONCURRENCY: ${CELERY_EXPORTS_CONCURRENCY:-1}
+    volumes:
+      - documents:/app/var/documents
+
+  beat:
+    <<: *app
+    command: ["beat"]
+    healthcheck:
+      disable: true
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    profiles: ["local-infra"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: celebobo
+      POSTGRES_USER: celebobo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-celebobo}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U celebobo"]
+      interval: 5s
+      retries: 10
+
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.24.1-p0
+    profiles: ["local-infra"]
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://celebobo:${POSTGRES_PASSWORD:-celebobo}@postgres:5432/celebobo
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 500
+      DEFAULT_POOL_SIZE: 20
+      AUTH_TYPE: scram-sha-256
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["local-infra"]
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis:/data
+
+volumes:
+  documents:
+  postgres:
+  redis:

@@ -23,7 +23,7 @@ urlpatterns = [
     ),
     path("cart/items/", CartViewSet.as_view({"post": "create"}), name="cart-items"),
     path(
-        "cart/items/<int:item_id>/",
+        "cart/items/<id:item_id>/",
         CartViewSet.as_view({"patch": "partial_update", "delete": "destroy_item"}),
         name="cart-item",
     ),
@@ -42,7 +42,7 @@ urlpatterns = [
         name="bo-shipping-zones",
     ),
     path(
-        "bo/shipping-zones/<int:zone_id>/",
+        "bo/shipping-zones/<id:zone_id>/",
         ShippingZoneAdminViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
         name="bo-shipping-zone",
     ),
@@ -52,7 +52,7 @@ urlpatterns = [
         name="bo-coupons",
     ),
     path(
-        "bo/coupons/<int:coupon_id>/",
+        "bo/coupons/<id:coupon_id>/",
         CouponAdminViewSet.as_view(
             {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}
         ),
@@ -74,22 +74,22 @@ urlpatterns = [
     ),
     path("bo/orders/", DispatchViewSet.as_view({"get": "list"}), name="bo-orders"),
     path(
-        "bo/orders/<int:order_id>/",
+        "bo/orders/<id:order_id>/",
         DispatchViewSet.as_view({"get": "retrieve"}),
         name="bo-order",
     ),
     path(
-        "bo/orders/<int:order_id>/assign/",
+        "bo/orders/<id:order_id>/assign/",
         DispatchViewSet.as_view({"post": "assign"}),
         name="bo-order-assign",
     ),
     path(
-        "bo/orders/<int:order_id>/decline/",
+        "bo/orders/<id:order_id>/decline/",
         DispatchViewSet.as_view({"post": "decline"}),
         name="bo-order-decline",
     ),
     path(
-        "bo/orders/<int:order_id>/transition/",
+        "bo/orders/<id:order_id>/transition/",
         DispatchViewSet.as_view({"post": "transition"}),
         name="bo-order-transition",
     ),

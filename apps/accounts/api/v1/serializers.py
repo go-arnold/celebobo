@@ -10,6 +10,7 @@ from apps.accounts.domain.enums import (
     NotificationChannel,
     NotificationTopic,
 )
+from core.api.fields import MAX_INTEGER
 from core.domain.actor import Role
 
 PHONE_PATTERN = r"^\+?[\d\s().-]{7,20}$"
@@ -45,7 +46,7 @@ class UpdateProfileInput(serializers.Serializer[Any]):
     phone_number = serializers.RegexField(
         PHONE_PATTERN, allow_null=True, error_messages=PHONE_ERROR
     )
-    avatar_upload_id = serializers.IntegerField(min_value=1, allow_null=True)
+    avatar_upload_id = serializers.IntegerField(min_value=1, allow_null=True, max_value=MAX_INTEGER)
     referral_code = serializers.RegexField(REFERRAL_PATTERN, error_messages=REFERRAL_ERROR)
 
 

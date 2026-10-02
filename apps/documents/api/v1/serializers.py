@@ -6,6 +6,7 @@ from apps.analytics.domain.periods import Period
 from apps.documents.domain.enums import JobFormat
 from apps.orders.domain.enums import PaymentMethod
 from apps.sales.domain.enums import SalesPeriod, SaleStatus
+from core.api.fields import MAX_INTEGER
 
 
 def choices(enum: type[Any]) -> list[str]:
@@ -26,8 +27,8 @@ class SalesExportInput(serializers.Serializer[Any]):
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
     payment_method = serializers.ChoiceField(choices=choices(PaymentMethod), required=False)
-    seller_id = serializers.IntegerField(min_value=1, required=False)
-    product_id = serializers.IntegerField(min_value=1, required=False)
+    seller_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
+    product_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
     status = serializers.ChoiceField(choices=choices(SaleStatus), required=False)
     search = serializers.CharField(max_length=100, required=False, allow_blank=True)
 
@@ -45,9 +46,9 @@ class AnalyticsReportInput(serializers.Serializer[Any]):
     period = serializers.ChoiceField(choices=choices(Period), required=False)
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
-    category_id = serializers.IntegerField(min_value=1, required=False)
+    category_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
     payment_method = serializers.ChoiceField(choices=choices(PaymentMethod), required=False)
-    seller_id = serializers.IntegerField(min_value=1, required=False)
+    seller_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
 
 
 class JobOutput(serializers.Serializer[Any]):

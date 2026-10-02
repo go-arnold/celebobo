@@ -10,6 +10,7 @@ from apps.catalog.domain.management import (
     OptionInput,
     ProductStatus,
 )
+from core.api.fields import MAX_INTEGER
 
 MAX_IMAGES = 8
 
@@ -35,7 +36,7 @@ class OptionInputSerializer(serializers.Serializer[Any]):
 class ProductFieldsSerializer(serializers.Serializer[Any]):
     name = serializers.CharField(max_length=255)
     description = serializers.CharField(min_length=10, max_length=255)
-    category_id = serializers.IntegerField(min_value=1)
+    category_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
     price = money(min_value=0)
     sale_price = money(min_value=0, allow_null=True, required=False)
     cost_price = money(min_value=0, allow_null=True, required=False)
@@ -50,7 +51,7 @@ class ProductFieldsSerializer(serializers.Serializer[Any]):
     )
     free_shipping = serializers.BooleanField(required=False)
     shipping_fee = money(min_value=0, allow_null=True, required=False)
-    stock_threshold = serializers.IntegerField(min_value=0, required=False)
+    stock_threshold = serializers.IntegerField(min_value=0, required=False, max_value=MAX_INTEGER)
     sell_by = serializers.DateField(required=False, allow_null=True)
     is_active = serializers.BooleanField(required=False)
     features = serializers.ListField(
@@ -58,7 +59,9 @@ class ProductFieldsSerializer(serializers.Serializer[Any]):
     )
     options = OptionInputSerializer(many=True, required=False)
     image_ids = serializers.ListField(
-        child=serializers.IntegerField(min_value=1), required=False, max_length=MAX_IMAGES
+        child=serializers.IntegerField(min_value=1, max_value=MAX_INTEGER),
+        required=False,
+        max_length=MAX_IMAGES,
     )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
@@ -71,7 +74,7 @@ class ProductFieldsSerializer(serializers.Serializer[Any]):
 
 
 class ProductCreateInput(ProductFieldsSerializer):
-    stock = serializers.IntegerField(min_value=0, required=False, default=0)
+    stock = serializers.IntegerField(min_value=0, required=False, default=0, max_value=MAX_INTEGER)
 
 
 class ProductPatchInput(ProductFieldsSerializer):
@@ -82,8 +85,10 @@ class VariantInput(serializers.Serializer[Any]):
     attributes = serializers.DictField(child=serializers.CharField(max_length=60))
     sku = serializers.CharField(max_length=64, required=False, allow_null=True)
     price = money(min_value=0, allow_null=True, required=False)
-    stock = serializers.IntegerField(min_value=0, required=False, default=0)
-    image_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    stock = serializers.IntegerField(min_value=0, required=False, default=0, max_value=MAX_INTEGER)
+    image_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
     is_active = serializers.BooleanField(required=False, default=True)
 
 
@@ -91,7 +96,7 @@ class VariantPatchInput(serializers.Serializer[Any]):
     attributes = serializers.DictField(child=serializers.CharField(max_length=60))
     sku = serializers.CharField(max_length=64)
     price = money(min_value=0, allow_null=True)
-    image_id = serializers.IntegerField(min_value=1, allow_null=True)
+    image_id = serializers.IntegerField(min_value=1, allow_null=True, max_value=MAX_INTEGER)
     is_active = serializers.BooleanField()
 
 
@@ -104,7 +109,9 @@ class StockAdjustmentInput(serializers.Serializer[Any]):
         choices=[reason.value for reason in StockReason if reason.value not in ("order", "sale")]
     )
     note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
-    variant_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    variant_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         attrs["mode"] = AdjustmentMode(attrs["mode"])
@@ -116,10 +123,14 @@ class StockAdjustmentInput(serializers.Serializer[Any]):
 
 class BulkInput(serializers.Serializer[Any]):
     ids = serializers.ListField(
-        child=serializers.IntegerField(min_value=1), allow_empty=False, max_length=200
+        child=serializers.IntegerField(min_value=1, max_value=MAX_INTEGER),
+        allow_empty=False,
+        max_length=200,
     )
     action = serializers.ChoiceField(choices=_choices(BulkAction))
-    category_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    category_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
     percent = serializers.DecimalField(
         max_digits=4, decimal_places=1, required=False, allow_null=True
     )
@@ -132,7 +143,7 @@ class BulkInput(serializers.Serializer[Any]):
 
 class AdminProductFiltersInput(serializers.Serializer[Any]):
     search = serializers.CharField(max_length=100, required=False)
-    category_id = serializers.IntegerField(min_value=1, required=False)
+    category_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
     status = serializers.ChoiceField(
         choices=_choices(ProductStatus), default=ProductStatus.ACTIVE.value
     )
@@ -154,7 +165,9 @@ class CategoryFieldsSerializer(serializers.Serializer[Any]):
     name = serializers.CharField(max_length=100)
     icon = serializers.ChoiceField(choices=_choices(CategoryIcon), required=False)
     description = serializers.CharField(required=False, allow_blank=True, max_length=2000)
-    image_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    image_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
     is_active = serializers.BooleanField(required=False)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
@@ -164,18 +177,20 @@ class CategoryFieldsSerializer(serializers.Serializer[Any]):
 
 
 class CategoryDeleteInput(serializers.Serializer[Any]):
-    move_to = serializers.IntegerField(min_value=1, required=False)
+    move_to = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
 
 
 class ReorderInput(serializers.Serializer[Any]):
     ids = serializers.ListField(
-        child=serializers.IntegerField(min_value=1), allow_empty=False, max_length=200
+        child=serializers.IntegerField(min_value=1, max_value=MAX_INTEGER),
+        allow_empty=False,
+        max_length=200,
     )
 
 
 class ReviewFiltersInput(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=_choices(ReviewStatus), required=False)
-    product_id = serializers.IntegerField(min_value=1, required=False)
+    product_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
     rating = serializers.IntegerField(min_value=1, max_value=5, required=False)
     search = serializers.CharField(max_length=100, required=False)
 

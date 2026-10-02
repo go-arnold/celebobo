@@ -63,6 +63,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "core.observability.middleware.request_context_middleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -103,7 +104,10 @@ DATABASES = {
 }
 DATABASES["default"]["CONN_MAX_AGE"] = env.int("DATABASE_CONN_MAX_AGE", default=0)
 DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
-DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = env.bool("DATABASE_POOLER", default=False)
+DATABASE_POOLER = env.bool("DATABASE_POOLER", default=False)
+DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = DATABASE_POOLER
+if DATABASE_POOLER:
+    DATABASES["default"].setdefault("OPTIONS", {})["prepare_threshold"] = None
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CACHES = {
@@ -295,7 +299,7 @@ REST_AUTH = {
     "JWT_AUTH_REFRESH_COOKIE": "cb_refresh",
     "JWT_AUTH_REFRESH_COOKIE_PATH": "/api/",
     "JWT_AUTH_HTTPONLY": True,
-    "JWT_AUTH_SAMESITE": "Lax",
+    "JWT_AUTH_SAMESITE": env.str("COOKIE_SAMESITE", default="Lax"),
     "JWT_AUTH_SECURE": env.bool("JWT_AUTH_SECURE", default=False),
     "JWT_AUTH_COOKIE_DOMAIN": env.str("JWT_AUTH_COOKIE_DOMAIN", default=None),
     "JWT_AUTH_COOKIE_USE_CSRF": True,
@@ -317,7 +321,7 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,
 }
 
-EMAIL_BACKEND = env.str("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+vars().update(env.email_url("EMAIL_URL", default="consolemail://"))
 DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", default="Celebobo <no-reply@celebobo.com>")
 
 CATALOG = {
@@ -338,6 +342,7 @@ ORDERS = {
 }
 CELERY_BROKER_URL = env.str("REDIS_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_TASK_DEFAULT_QUEUE = "default"
+CELERY_TASK_ROUTES = ("config.celery_routes.route_task",)
 CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_TASK_IGNORE_RESULT = True

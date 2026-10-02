@@ -49,7 +49,7 @@ urlpatterns = [
         name="bo-contact-messages",
     ),
     path(
-        "bo/contact-messages/<int:message_id>/",
+        "bo/contact-messages/<id:message_id>/",
         ContactInboxViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
         name="bo-contact-message",
     ),
@@ -64,9 +64,9 @@ urlpatterns = [
         name="bo-newsletter-export",
     ),
     path("bo/pages/", PageAdminViewSet.as_view(COLLECTION), name="bo-pages"),
-    path("bo/pages/<int:item_id>/", PageAdminViewSet.as_view(ITEM), name="bo-page"),
+    path("bo/pages/<id:item_id>/", PageAdminViewSet.as_view(ITEM), name="bo-page"),
     path("bo/faq/", FaqAdminViewSet.as_view(COLLECTION), name="bo-faq"),
-    path("bo/faq/<int:item_id>/", FaqAdminViewSet.as_view(ITEM), name="bo-faq-entry"),
+    path("bo/faq/<id:item_id>/", FaqAdminViewSet.as_view(ITEM), name="bo-faq-entry"),
     path("bo/banners/", BannerAdminViewSet.as_view(COLLECTION), name="bo-banners"),
-    path("bo/banners/<int:item_id>/", BannerAdminViewSet.as_view(ITEM), name="bo-banner"),
+    path("bo/banners/<id:item_id>/", BannerAdminViewSet.as_view(ITEM), name="bo-banner"),
 ]

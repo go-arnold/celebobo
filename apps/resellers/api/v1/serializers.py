@@ -5,6 +5,7 @@ from rest_framework import serializers
 
 from apps.accounts.domain.enums import MAX_COMMISSION_RATE, ResellerOrdering
 from apps.resellers.domain.enums import ApplicationStatus
+from core.api.fields import MAX_INTEGER
 
 PHONE_PATTERN = r"^\+?[\d\s().-]{7,20}$"
 
@@ -42,7 +43,9 @@ class ApproveApplicationInput(serializers.Serializer[Any]):
     commission_rate = rate(
         min_value=Decimal(0), max_value=MAX_COMMISSION_RATE, required=False, allow_null=True
     )
-    manager_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    manager_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
 
 
 class RejectApplicationInput(serializers.Serializer[Any]):
@@ -52,7 +55,7 @@ class RejectApplicationInput(serializers.Serializer[Any]):
 class ResellerFiltersInput(serializers.Serializer[Any]):
     search = serializers.CharField(max_length=100, required=False, allow_blank=True)
     active = serializers.BooleanField(required=False, allow_null=True, default=None)
-    manager_id = serializers.IntegerField(min_value=1, required=False)
+    manager_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
     ordering = serializers.ChoiceField(
         choices=[item.value for item in ResellerOrdering], required=False
     )
@@ -63,7 +66,7 @@ class ResellerFiltersInput(serializers.Serializer[Any]):
 
 class ResellerChangesInput(serializers.Serializer[Any]):
     commission_rate = rate(min_value=Decimal(0), max_value=MAX_COMMISSION_RATE)
-    manager_id = serializers.IntegerField(min_value=1, allow_null=True)
+    manager_id = serializers.IntegerField(min_value=1, allow_null=True, max_value=MAX_INTEGER)
 
 
 class ResellerPersonOutput(serializers.Serializer[Any]):

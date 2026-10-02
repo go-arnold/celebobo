@@ -55,3 +55,5 @@ STORAGES = {
 }
 
 ASSISTANT = {"PROVIDER": "offline", "DAILY_MESSAGES": 50}
+
+MIDDLEWARE = [name for name in MIDDLEWARE if not name.startswith("whitenoise.")]

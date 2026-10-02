@@ -13,6 +13,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 
+from core.api.fields import MAX_INTEGER
 from core.domain.errors import ValidationFailed
 
 
@@ -173,7 +174,7 @@ def _positive_int(raw: str | None, default: int, field: str) -> int:
         value = int(str(raw))
     except ValueError:
         value = 0
-    if value < 1:
+    if not 1 <= value <= MAX_INTEGER:
         raise ValidationFailed(errors={field: ["Entier positif attendu."]})
     return value
 
