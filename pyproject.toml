@@ -29,6 +29,8 @@ dependencies = [
     "openpyxl>=3.1.5",
     "django-import-export>=4.4.1",
     "django-auditlog>=3.4.1",
+    "pgvector>=0.5.0",
+    "google-genai>=2.28.0",
 ]
 
 [dependency-groups]
@@ -102,6 +104,7 @@ module = [
     "drf_spectacular.*",
     "import_export.*",
     "auditlog.*",
+    "pgvector.*",
     "openpyxl.*",
     "weasyprint.*",
     "corsheaders.*",
@@ -202,6 +205,7 @@ source_modules = [
     "apps.analytics.domain",
     "apps.documents.domain",
     "apps.audit.domain",
+    "apps.assistant.domain",
 ]
 forbidden_modules = ["django", "rest_framework", "celery", "allauth", "dj_rest_auth"]
 
@@ -219,6 +223,7 @@ containers = [
     "apps.analytics",
     "apps.documents",
     "apps.audit",
+    "apps.assistant",
 ]
 layers = [
     "api",
@@ -424,4 +429,21 @@ forbidden_modules = [
     "apps.accounts.adapters",
 ]
 ignore_imports = ["apps.audit.tests.** -> apps.**"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "assistant reaches other apps only through their public API"
+type = "forbidden"
+source_modules = ["apps.assistant"]
+forbidden_modules = [
+    "apps.accounts.models",
+    "apps.accounts.repositories",
+    "apps.accounts.services",
+    "apps.accounts.adapters",
+    "apps.catalog.models",
+    "apps.catalog.repositories",
+    "apps.catalog.services",
+    "apps.catalog.adapters",
+]
+ignore_imports = ["apps.assistant.tests.** -> apps.**"]
 allow_indirect_imports = true

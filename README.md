@@ -8,7 +8,7 @@ Django REST + Channels backend for Celebobo. The architecture, the data model an
 uv sync
 cp .env.example .env
 docker run -d --name celebobo-pg -e POSTGRES_USER=celebobo -e POSTGRES_PASSWORD=celebobo -e POSTGRES_DB=celebobo -p 5432:5432 postgres:16-alpine
-uv run pytest            # the test suite needs PostgreSQL (TEST_DATABASE_URL overrides the default)
+uv run pytest            # the test suite needs PostgreSQL with pgvector (TEST_DATABASE_URL overrides the default)
 uv run pre-commit install
 ```
 
@@ -420,3 +420,46 @@ An audit trail with two sources, kept for `AUDIT_RETENTION_DAYS` (default 365) a
 | `GET /api/v1/bo/audit-logs/object-types/` | Tracked models for the filter dropdown |
 
 Permission: `audit.view` (admins).
+
+### `apps.assistant`
+
+A shopping assistant grounded in the catalogue. It uses pgvector retrieval and Gemini function calling, and streams its replies over SSE.
+
+**Providers**
+- `ASSISTANT_PROVIDER` selects the chat model and the embedder from the `chat_models` and `embedders` registries.
+  - `gemini` needs `GEMINI_API_KEY`. It uses `GEMINI_CHAT_MODEL` (default `gemini-2.5-flash`) and `GEMINI_EMBEDDING_MODEL` (default `gemini-embedding-001`, 768 dimensions).
+  - `offline` needs no key and is used by tests and local development: hashing embeddings and an assistant that lists matching products.
+
+**Retrieval**
+- `ProductEmbedding` holds one vector per visible product (`vector(768)`, HNSW cosine index) plus the category, price, promotion and stock metadata used for filtering.
+- Background handlers refresh it on `ProductChanged`, `ProductRemoved` and `CategoryChanged`. A content hash skips products whose text hasn't changed, and hidden products lose their vector.
+- `POST /bo/embeddings/reindex/` rebuilds every vector in the background.
+- The model gets one tool, `search_products(query, category, on_sale, max_price)`. It runs a semantic search, then returns cards from the catalogue, so prices and stock are always current.
+
+**Conversations**
+- Sessions are identified by an unguessable UUID, so visitors can chat without an account; signed-in users also get their history.
+- The model sees the system prompt, a rolling summary and the last `memory_messages` messages. When a reply is saved, `AssistantReplied` triggers background follow-ups that tag the question with a sentiment and a topic, and refresh the summary.
+- Each reply stores its token usage, cost (`input_cost_per_million` / `output_cost_per_million`), latency, tool calls and error code.
+- Limits:
+  - the `assistant` throttle (12/min per user or IP);
+  - `ASSISTANT_DAILY_MESSAGES` per day (`503 assistant_quota_exceeded`);
+  - 1,000 characters per question.
+
+**Streaming**
+- `POST .../messages/` validates the question and checks the quota first, so those failures come back as normal problem+json errors.
+- It then answers with `text/event-stream`, through an async iterator served by uvicorn. The events are:
+  - `delta` (`{text}`);
+  - `products` (the cards);
+  - `done` (`{message_id, session_id, usage}`);
+  - or `error` (`{code, detail}`) if the model fails mid-answer.
+- `?stream=false` returns the same reply as one JSON object.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET · POST /api/v1/assistant/sessions/` | The signed-in user's conversations; start one (anyone) |
+| `GET · DELETE /api/v1/assistant/sessions/<id>/` | History or deletion |
+| `POST /api/v1/assistant/sessions/<id>/messages/` | Ask a question (SSE, or JSON with `?stream=false`) |
+| `GET /api/v1/bo/assistant/logs/` | Questions with answer, sentiment, topic, tokens, cost and latency; `meta.stats` (managers) |
+| `POST /api/v1/bo/embeddings/reindex/` | Rebuild product vectors (admins) |
+
+The first migration creates the `vector` extension (`pgvector.django.VectorExtension`). Supabase and the `pgvector/pgvector` image both provide it.

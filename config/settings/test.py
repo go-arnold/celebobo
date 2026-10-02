@@ -53,3 +53,5 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.InMemoryStorage",
     },
 }
+
+ASSISTANT = {"PROVIDER": "offline", "DAILY_MESSAGES": 50}
