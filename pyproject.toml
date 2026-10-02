@@ -20,6 +20,8 @@ dependencies = [
     "dj-rest-auth[with-social]>=7.0",
     "djangorestframework-simplejwt>=5.5",
     "django-stubs-ext>=5.2",
+    "django-safedelete>=1.4",
+    "meilisearch>=0.34",
 ]
 
 [dependency-groups]
@@ -56,10 +58,12 @@ select = [
 ignore = ["PLR0913", "PLR0911", "PLC0415", "N818"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S101", "PLR2004", "ARG001", "ARG002", "S105", "S106"]
+"**/tests/**" = ["S101", "PLR2004", "ARG001", "ARG002", "S105", "S106", "RUF012"]
+"**/management/commands/*" = ["ARG002"]
 "config/settings/*" = ["F403", "F405", "S105"]
 "**/api/**" = ["ARG001", "ARG002", "RUF012"]
 "**/adapters/**" = ["ARG001", "ARG002"]
+"**/admin.py" = ["RUF012"]
 "core/health/**" = ["ARG002", "BLE001"]
 "core/observability/metrics.py" = ["ARG002"]
 
@@ -88,8 +92,14 @@ module = [
     "corsheaders.*",
     "allauth.*",
     "dj_rest_auth.*",
+    "safedelete.*",
+    "meilisearch.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["apps.catalog.models"]
+disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]
 module = ["apps.*.adapters.allauth", "apps.*.api.v1.auth_serializers", "apps.*.api.v1.views"]
@@ -106,6 +116,10 @@ disallow_untyped_decorators = false
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["test_*.py"]
 addopts = "-ra --strict-markers --strict-config"
+filterwarnings = [
+    "ignore:The FORMS_URLFIELD_ASSUME_HTTPS transitional setting is deprecated:django.utils.deprecation.RemovedInDjango60Warning",
+    "ignore:app_settings.AUTHENTICATION_METHOD is deprecated:UserWarning:dj_rest_auth.forms",
+]
 
 [tool.coverage.run]
 source = ["core", "config"]
@@ -150,13 +164,13 @@ layers = [
 [[tool.importlinter.contracts]]
 name = "app domains are framework-free"
 type = "forbidden"
-source_modules = ["apps.accounts.domain"]
+source_modules = ["apps.accounts.domain", "apps.catalog.domain"]
 forbidden_modules = ["django", "rest_framework", "celery", "allauth", "dj_rest_auth"]
 
 [[tool.importlinter.contracts]]
 name = "app layers"
 type = "layers"
-containers = ["apps.accounts"]
+containers = ["apps.accounts", "apps.catalog"]
 layers = [
     "api",
     "facades",

@@ -1,11 +1,17 @@
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from enum import StrEnum
+from math import ceil
 from types import MappingProxyType
 from typing import Any
 
 from django.core.exceptions import ImproperlyConfigured
 from rest_framework.pagination import CursorPagination, PageNumberPagination
+from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.utils.urls import remove_query_param, replace_query_param
+
+from core.domain.errors import ValidationFailed
 
 
 class PaginationStyle(StrEnum):
@@ -112,3 +118,67 @@ def paginated(
     if not overrides:
         return base
     return type(base.__name__, (base,), overrides)
+
+
+@dataclass(frozen=True, slots=True)
+class PageRequest:
+    page: int
+    page_size: int
+
+    @property
+    def offset(self) -> int:
+        return (self.page - 1) * self.page_size
+
+
+def page_request(request: Request, *, default_size: int = 20, max_size: int = 100) -> PageRequest:
+    page = _positive_int(request.query_params.get("page"), 1, "page")
+    size = _positive_int(request.query_params.get("page_size"), default_size, "page_size")
+    return PageRequest(page=page, page_size=min(size, max_size))
+
+
+def page_response(
+    request: Request,
+    page: PageRequest,
+    *,
+    total: int,
+    results: Any,
+    meta: Mapping[str, Any] | None = None,
+) -> Response:
+    total_pages = max(1, ceil(total / page.page_size))
+    url = request.build_absolute_uri()
+    next_link = replace_query_param(url, "page", page.page + 1) if page.page < total_pages else None
+    previous_link = _previous_link(url, page.page)
+    return Response(
+        {
+            "results": results,
+            "next": next_link,
+            "previous": previous_link,
+            "meta": {
+                "count": total,
+                "page": page.page,
+                "page_size": page.page_size,
+                "total_pages": total_pages,
+                **(meta or {}),
+            },
+        }
+    )
+
+
+def _positive_int(raw: str | None, default: int, field: str) -> int:
+    if raw in (None, ""):
+        return default
+    try:
+        value = int(str(raw))
+    except ValueError:
+        value = 0
+    if value < 1:
+        raise ValidationFailed(errors={field: ["Entier positif attendu."]})
+    return value
+
+
+def _previous_link(url: str, page: int) -> str | None:
+    if page == 1:
+        return None
+    if page - 1 == 1:
+        return remove_query_param(url, "page")
+    return replace_query_param(url, "page", page - 1)

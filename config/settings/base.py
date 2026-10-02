@@ -30,8 +30,10 @@ INSTALLED_APPS = [
     "django_filters",
     "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
+    "safedelete",
     "core",
     "apps.accounts",
+    "apps.catalog",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -109,6 +111,8 @@ TIME_ZONE = env.str("TIME_ZONE", default="Africa/Kinshasa")
 USE_I18N = True
 USE_TZ = True
 
+FORMS_URLFIELD_ASSUME_HTTPS = True
+
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
@@ -143,6 +147,7 @@ REST_FRAMEWORK = {
         "auth": "10/min",
         "dj_rest_auth": "10/min",
         "referral": "20/min",
+        "search": "120/min",
     },
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
@@ -230,6 +235,18 @@ SIMPLE_JWT = {
 
 EMAIL_BACKEND = env.str("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", default="Celebobo <no-reply@celebobo.com>")
+
+CATALOG = {
+    "SEARCH_ENGINE": env.str("CATALOG_SEARCH_ENGINE", default="database"),
+    "SEARCH_INDEX": env.str("CATALOG_SEARCH_INDEX", default="null"),
+    "NEW_PRODUCT_DAYS": env.int("CATALOG_NEW_PRODUCT_DAYS", default=20),
+    "CACHE_TTL": env.int("CATALOG_CACHE_TTL", default=300),
+}
+MEILISEARCH = {
+    "URL": env.str("MEILISEARCH_URL", default="http://localhost:7700"),
+    "API_KEY": env.str("MEILISEARCH_API_KEY", default=""),
+    "INDEX": env.str("MEILISEARCH_INDEX", default="products"),
+}
 
 CELERY_BROKER_URL = env.str("REDIS_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_TASK_DEFAULT_QUEUE = "default"
