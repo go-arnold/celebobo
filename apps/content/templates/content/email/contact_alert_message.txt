@@ -1,0 +1,6 @@
+{% autoescape off %}Nouveau message de contact
+
+De : {{ message.name }} <{{ message.email }}>{% if message.phone %} · {{ message.phone }}{% endif %}
+Sujet : {{ message.get_subject_display }}
+
+{{ message.message }}{% endautoescape %}

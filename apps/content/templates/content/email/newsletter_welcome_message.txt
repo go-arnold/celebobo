@@ -1,0 +1,9 @@
+{% autoescape off %}Bienvenue dans la newsletter Celebobo !
+
+Vous recevrez nos nouveautés et nos meilleures offres.{% if code %}
+
+Votre code de bienvenue : {{ code }} ({{ discount }} % sur votre prochaine commande).{% endif %}
+
+Pour vous désabonner : {{ unsubscribe_url }}
+
+L'équipe Celebobo{% endautoescape %}

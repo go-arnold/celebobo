@@ -1,6 +1,7 @@
 from apps.accounts.domain.events import AvailabilityChanged
 from apps.analytics.domain.events import SalesFactsRefreshed
 from apps.catalog.domain.events import StockLow
+from apps.content.domain.events import ContactMessageReceived
 from apps.documents.domain.events import JobFinished
 from apps.messaging.domain.events import (
     ConversationAssigned,
@@ -157,3 +158,8 @@ def push_job_completed(event: JobFinished) -> None:
         kind=event.kind.value,
         status=event.status.value,
     )
+
+
+@event_bus.on(ContactMessageReceived)
+def push_contact_message(event: ContactMessageReceived) -> None:
+    _relay().staff_event(ServerEvent.CONTACT_MESSAGE_CREATED, message_id=event.message_id)

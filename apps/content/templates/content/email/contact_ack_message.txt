@@ -1,0 +1,5 @@
+{% autoescape off %}Bonjour {{ name }},
+
+Merci pour votre message ({{ subject }}). Notre équipe vous répond dans les meilleurs délais.
+
+L'équipe Celebobo{% endautoescape %}
