@@ -14,3 +14,4 @@ htmlcov/
 dump.rdb
 openapi.yml
 /var/
+deploy-real-prod/.env.prod

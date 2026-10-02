@@ -18,6 +18,7 @@ CHECKS = (not_a_server_error, response_schema_conformance)
 FUZZ = settings(
     max_examples=5,
     deadline=None,
+    derandomize=True,
     suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.too_slow],
 )
 

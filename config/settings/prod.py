@@ -6,6 +6,7 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+SECURE_REDIRECT_EXEMPT = [r"^health/"]
 SECURE_HSTS_SECONDS = 60 * 60 * 24 * 365
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
@@ -14,6 +15,8 @@ SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 X_FRAME_OPTIONS = "DENY"
 
 SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = env.str("COOKIE_SAMESITE", default="Lax")
+CSRF_COOKIE_SAMESITE = SESSION_COOKIE_SAMESITE
 SESSION_COOKIE_DOMAIN = env.str("SESSION_COOKIE_DOMAIN", default=None)
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_DOMAIN = env.str("CSRF_COOKIE_DOMAIN", default=None)
@@ -23,3 +26,10 @@ REST_AUTH["JWT_AUTH_SECURE"] = True
 SPECTACULAR_SETTINGS["SERVE_PERMISSIONS"] = ["rest_framework.permissions.IsAdminUser"]
 
 LOGGING = logging_config(json_logs=env.bool("LOG_JSON", default=True), level=LOG_LEVEL)
+
+STORAGES = {
+    **STORAGES,
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
+
+CORE = {**CORE, "HEALTH_CHECKS": ("database", "cache", "broker")}

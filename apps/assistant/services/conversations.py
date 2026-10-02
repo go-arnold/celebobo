@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from django.db import transaction
+from django.utils import timezone
 
 from apps.assistant.domain.conversation import ChatMessage, Usage
 from apps.assistant.domain.enums import Role
@@ -56,7 +57,8 @@ class ConversationStore:
         question = text.strip()
         if len(question) > self._max_question_length:
             raise QuestionTooLong(self._max_question_length)
-        if self._messages.answered_today(self._clock().date()) >= self._daily_messages:
+        today = timezone.localtime(self._clock()).date()
+        if self._messages.answered_today(today) >= self._daily_messages:
             raise AssistantQuotaExceeded
         with transaction.atomic():
             session = self.owned(actor, session_id)
