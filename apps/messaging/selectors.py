@@ -174,6 +174,9 @@ class NotificationSelector:
         page = notifications.order_by("-created_at", "-pk")[offset : offset + limit]
         return [_notification_view(item) for item in page], notifications.count()
 
+    def one(self, notification_id: int) -> NotificationView:
+        return _notification_view(Notification.objects.get(pk=notification_id))
+
     def unread(self, recipient_id: int) -> int:
         return Notification.objects.filter(recipient_id=recipient_id, is_read=False).count()
 
