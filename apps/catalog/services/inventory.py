@@ -17,7 +17,13 @@ class InventoryService:
         products = self._stock.for_pricing(line.product_id for line in lines)
         return [self._priced(products, line) for line in lines]
 
-    def reserve(self, lines: Sequence[StockLine], source: StockSource) -> set[int]:
+    def reserve(
+        self,
+        lines: Sequence[StockLine],
+        source: StockSource,
+        *,
+        reason: StockReason = StockReason.ORDER,
+    ) -> set[int]:
         merged = _merge(lines)
         products, variants = self._stock.lock(
             (product_id for product_id, _ in merged),
@@ -33,9 +39,7 @@ class InventoryService:
             available = variant.stock if variant is not None else product.stock
             if quantity > available:
                 raise OutOfStock(product_id, variant_id=variant_id, available=available)
-            self._stock.move(
-                product, variant, delta=-quantity, reason=StockReason.ORDER, source=source
-            )
+            self._stock.move(product, variant, delta=-quantity, reason=reason, source=source)
         return {product_id for product_id, _ in merged}
 
     def release(
@@ -85,6 +89,7 @@ class InventoryService:
             quantity=line.quantity,
             free_shipping=product.free_shipping,
             shipping_fee=product.shipping_fee,
+            cost_price=product.cost_price,
         )
 
 

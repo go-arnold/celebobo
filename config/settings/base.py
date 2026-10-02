@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.messaging",
     "apps.realtime",
     "apps.media",
+    "apps.sales",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",

@@ -184,6 +184,7 @@ source_modules = [
     "apps.messaging.domain",
     "apps.realtime.domain",
     "apps.media.domain",
+    "apps.sales.domain",
 ]
 forbidden_modules = ["django", "rest_framework", "celery", "allauth", "dj_rest_auth"]
 
@@ -196,6 +197,7 @@ containers = [
     "apps.orders",
     "apps.messaging",
     "apps.media",
+    "apps.sales",
 ]
 layers = [
     "api",
@@ -274,6 +276,31 @@ forbidden_modules = [
     "apps.catalog.repositories",
     "apps.catalog.services",
     "apps.catalog.adapters",
+    "apps.sales.models",
+    "apps.sales.repositories",
+    "apps.sales.services",
+    "apps.sales.adapters",
 ]
 ignore_imports = ["apps.realtime.tests.** -> apps.**"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "sales reaches other apps only through their public API"
+type = "forbidden"
+source_modules = ["apps.sales"]
+forbidden_modules = [
+    "apps.accounts.models",
+    "apps.accounts.repositories",
+    "apps.accounts.services",
+    "apps.accounts.adapters",
+    "apps.catalog.models",
+    "apps.catalog.repositories",
+    "apps.catalog.services",
+    "apps.catalog.adapters",
+    "apps.orders.models",
+    "apps.orders.repositories",
+    "apps.orders.services",
+    "apps.orders.adapters",
+]
+ignore_imports = ["apps.sales.tests.** -> apps.**"]
 allow_indirect_imports = true

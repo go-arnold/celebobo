@@ -69,3 +69,11 @@ class Contact:
     email: str
     first_name: str
     role: Role
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SellerProfile:
+    id: int
+    name: str
+    role: Role
+    commission_rate: Decimal

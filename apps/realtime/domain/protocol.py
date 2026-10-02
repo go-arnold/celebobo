@@ -40,6 +40,11 @@ class ServerEvent(StrEnum):
     ORDER_UPDATED = "order.updated"
     PRESENCE_CHANGED = "presence.changed"
     STOCK_LOW = "stock.low"
+    SALE_CREATED = "sale.created"
+    SALE_UPDATED = "sale.updated"
+    SALE_DELETED = "sale.deleted"
+    COMMISSION_UPDATED = "commission.updated"
+    PAYOUT_CREATED = "payout.created"
 
 
 class InvalidEnvelope(ValidationFailed):

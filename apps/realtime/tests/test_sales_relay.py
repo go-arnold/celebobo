@@ -1,0 +1,41 @@
+from decimal import Decimal
+
+import pytest
+
+from apps.accounts.tests.factories import AdminFactory, ResellerFactory
+from apps.catalog.tests.factories import ProductFactory
+from apps.realtime.domain.groups import STAFF, user_group
+from apps.realtime.domain.protocol import ServerEvent
+from apps.realtime.tests.test_presence_api import authenticated, broadcaster
+
+__all__ = ["broadcaster"]
+
+pytestmark = pytest.mark.django_db(transaction=True)
+
+
+def test_sales_commissions_and_payouts_are_pushed(broadcaster):
+    reseller = ResellerFactory.create(commission_rate=Decimal("0.100"))
+    product = ProductFactory.create(stock=5)
+
+    authenticated(reseller).post(
+        "/api/v1/bo/sales/",
+        {"product_id": product.pk, "quantity": 1, "unit_price": "100", "payment_method": "cash"},
+        format="json",
+        HTTP_IDEMPOTENCY_KEY="relay-sale-0001",
+    )
+    authenticated(AdminFactory.create()).post(
+        "/api/v1/bo/payouts/",
+        {"reseller_id": reseller.pk, "amount": "4.00"},
+        format="json",
+        HTTP_IDEMPOTENCY_KEY="relay-payout-01",
+    )
+
+    sent = {event: (groups, data) for groups, event, data in broadcaster.sent}
+    groups, data = sent[ServerEvent.SALE_CREATED]
+    assert set(groups) == {user_group(reseller.pk), STAFF}
+    assert data["total"] == "100.00"
+    assert sent[ServerEvent.COMMISSION_UPDATED] == (
+        (user_group(reseller.pk),),
+        {"reseller_id": reseller.pk, "delta": "10.00"},
+    )
+    assert sent[ServerEvent.PAYOUT_CREATED][1]["amount"] == "4.00"

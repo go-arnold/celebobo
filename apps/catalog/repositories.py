@@ -2,7 +2,8 @@ from collections.abc import Iterable, Sequence
 from decimal import Decimal
 from typing import Any
 
-from django.db.models import Avg, Count, Max, Model, Prefetch, QuerySet, Sum
+from django.db.models import Avg, Count, F, Max, Model, Prefetch, QuerySet, Sum
+from django.db.models.functions import Greatest
 
 from apps.catalog.domain.enums import ReviewStatus, StockReason
 from apps.catalog.domain.management import OptionInput
@@ -138,6 +139,11 @@ class StockRepository:
             elif product.stock <= product.stock_threshold:
                 levels.append((product.pk, None, product.stock, product.stock_threshold))
         return levels
+
+    def count_sales(self, product_id: int, quantity: int) -> None:
+        Product.all_objects.filter(pk=product_id).update(
+            sales_count=Greatest(F("sales_count") + quantity, 0)
+        )
 
 
 class ProductAdminRepository:
