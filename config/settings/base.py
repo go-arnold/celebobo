@@ -348,6 +348,8 @@ AUDITLOG_INCLUDE_TRACKING_MODELS = (
     "catalog.productvariant",
     {"model": "catalog.review", "exclude_fields": AUDITLOG_TIMESTAMPS},
     {"model": "orders.order", "exclude_fields": AUDITLOG_TIMESTAMPS},
+    "orders.coupon",
+    "orders.shippingzone",
     "sales.sale",
     "sales.payout",
     "resellers.resellerapplication",

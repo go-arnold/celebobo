@@ -9,19 +9,21 @@ from apps.orders.api.v1.serializers import (
     AssignableResellerOutput,
     AssignInput,
     CancelInput,
+    CartContextInput,
     CartItemInput,
     CartMergeInput,
     CartOutput,
     CartQuantityInput,
     ClientOrderDetailOutput,
     ClientStatusInput,
+    CouponCodeInput,
     DeclineInput,
     OrderDetailOutput,
     OrderFiltersInput,
     OrderSummaryOutput,
     PlaceOrderInput,
-    QuoteInput,
     QuoteOutput,
+    QuoteRequestInput,
     TrackingOutput,
     TrackInput,
     TransitionInput,
@@ -60,9 +62,19 @@ class CartViewSet(UseCaseViewSet):
     permission_classes = (AllowAny,)
     carts = Inject(CartFacade)
 
-    @extend_schema(parameters=[CART_PARAMETER], responses=CartOutput)
+    @extend_schema(parameters=[CART_PARAMETER, CartContextInput], responses=CartOutput)
     def retrieve(self, request: Request) -> Response:
-        return self.respond(CartOutput, self.carts.view(self.actor, self._token()))
+        city = self.validated(CartContextInput, data=request.query_params).get("city")
+        return self.respond(CartOutput, self.carts.view(self.actor, self._token(), city=city))
+
+    @extend_schema(parameters=[CART_PARAMETER], request=CouponCodeInput, responses=CartOutput)
+    def apply_coupon(self, request: Request) -> Response:
+        code = self.validated(CouponCodeInput)["code"]
+        return self.respond(CartOutput, self.carts.apply_coupon(self.actor, self._token(), code))
+
+    @extend_schema(parameters=[CART_PARAMETER], responses=CartOutput)
+    def remove_coupon(self, request: Request) -> Response:
+        return self.respond(CartOutput, self.carts.remove_coupon(self.actor, self._token()))
 
     @extend_schema(parameters=[CART_PARAMETER], request=CartItemInput, responses={201: CartOutput})
     def create(self, request: Request) -> Response:
@@ -108,10 +120,16 @@ class QuoteViewSet(UseCaseViewSet):
     permission_classes = (AllowAny,)
     checkout = Inject(CheckoutFacade)
 
-    @extend_schema(request=QuoteInput, responses=QuoteOutput)
+    @extend_schema(request=QuoteRequestInput, responses=QuoteOutput)
     def create(self, request: Request) -> Response:
-        lines = self.validated(QuoteInput)["lines"]
-        return self.respond(QuoteOutput, self.checkout.quote(lines))
+        data = self.validated(QuoteRequestInput)
+        quote = self.checkout.quote(
+            self.actor,
+            data["lines"],
+            city=data.get("city") or None,
+            coupon_code=data.get("coupon_code") or None,
+        )
+        return self.respond(QuoteOutput, quote)
 
 
 class CheckoutViewSet(UseCaseViewSet):

@@ -1,9 +1,12 @@
 import uuid
+from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
+from django.db.models.functions import Lower
 
 from apps.orders.domain.enums import CancelReason, OrderStatus, PaymentMethod
+from apps.orders.domain.pricing import CouponKind
 
 STATUS_CHOICES = [(item.value, item.label) for item in OrderStatus]
 PAYMENT_CHOICES = [(item.value, item.label) for item in PaymentMethod]
@@ -21,6 +24,7 @@ class Cart(models.Model):
         related_name="cart",
     )
     token = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+    coupon_code = models.CharField(max_length=40, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -81,6 +85,11 @@ class Order(models.Model):
     payment_method = models.CharField(max_length=16, choices=PAYMENT_CHOICES)
     note = models.TextField(blank=True, max_length=1000)
     subtotal = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
+    discount = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
+    )
+    coupon_code = models.CharField(max_length=40, blank=True)
+    shipping_zone = models.CharField(max_length=80, blank=True)
     shipping_fee = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     total = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     cancel_reason = models.CharField(max_length=24, choices=CANCEL_CHOICES, blank=True)
@@ -99,7 +108,9 @@ class Order(models.Model):
         )
         constraints = (
             models.CheckConstraint(
-                condition=models.Q(total=models.F("subtotal") + models.F("shipping_fee")),
+                condition=models.Q(
+                    total=models.F("subtotal") - models.F("discount") + models.F("shipping_fee")
+                ),
                 name="orders_order_total_consistent",
             ),
         )
@@ -160,3 +171,89 @@ class OrderStatusEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.order} → {self.to_status}"
+
+
+class ShippingZone(models.Model):
+    name = models.CharField("nom", max_length=80)
+    cities = models.JSONField("villes", default=list, blank=True)
+    fee = models.DecimalField("frais", max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
+    free_threshold = models.DecimalField(
+        "livraison offerte dès",
+        max_digits=MONEY_DIGITS,
+        decimal_places=MONEY_PLACES,
+        null=True,
+        blank=True,
+    )
+    delivery_estimate = models.CharField("délai", max_length=60, blank=True)
+    is_default = models.BooleanField("zone par défaut", default=False)
+    is_active = models.BooleanField(default=True)
+    position = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "zone de livraison"
+        verbose_name_plural = "zones de livraison"
+        ordering = ("position", "pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("is_default",),
+                condition=models.Q(is_default=True),
+                name="orders_zone_single_default",
+            ),
+            models.CheckConstraint(condition=models.Q(fee__gte=0), name="orders_zone_fee_positive"),
+        )
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Coupon(models.Model):
+    code = models.CharField(max_length=40)
+    description = models.CharField(max_length=200, blank=True)
+    kind = models.CharField(max_length=8, choices=[(item.value, item.value) for item in CouponKind])
+    value = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
+    max_discount = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, null=True, blank=True
+    )
+    min_subtotal = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
+    )
+    free_shipping = models.BooleanField(default=False)
+    starts_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)
+    usage_limit = models.PositiveIntegerField(null=True, blank=True)
+    per_user_limit = models.PositiveIntegerField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "code promo"
+        verbose_name_plural = "codes promo"
+        ordering = ("-created_at",)
+        constraints = (
+            models.UniqueConstraint(Lower("code"), name="orders_coupon_code_unique"),
+            models.CheckConstraint(condition=models.Q(value__gt=0), name="orders_coupon_value"),
+        )
+
+    def __str__(self) -> str:
+        return self.code
+
+    @property
+    def coupon_kind(self) -> CouponKind:
+        return CouponKind(self.kind)
+
+
+class CouponRedemption(models.Model):
+    coupon = models.ForeignKey(Coupon, on_delete=models.PROTECT, related_name="redemptions")
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="redemption")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    amount = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "utilisation de code promo"
+        verbose_name_plural = "utilisations de codes promo"
+
+    def __str__(self) -> str:
+        return f"{self.coupon_id} → {self.order_id}"

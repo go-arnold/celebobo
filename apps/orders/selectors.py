@@ -7,23 +7,25 @@ from django.utils import timezone
 
 from apps.orders.domain.commands import OrderFilters
 from apps.orders.domain.enums import FINAL_STATUSES, OrderStatus, PaymentMethod
-from apps.orders.domain.errors import OrderNotFound
+from apps.orders.domain.errors import CouponNotFound, OrderNotFound, ShippingZoneNotFound
 from apps.orders.domain.read_models import (
     AddressSnapshot,
     ClientOrderTotals,
     ConvertibleItem,
     ConvertibleOrder,
+    CouponView,
     OrderDetail,
     OrderLineView,
     OrderRef,
     OrderSummary,
     PersonBrief,
+    ShippingZoneView,
     StatusEntry,
     TrackedItem,
     TrackedStatus,
     TrackingView,
 )
-from apps.orders.models import Order, OrderItem
+from apps.orders.models import Coupon, CouponRedemption, Order, OrderItem, ShippingZone
 from core.domain.actor import Actor
 
 
@@ -148,6 +150,9 @@ class OrderSelector:
             payment_method=PaymentMethod(order.payment_method),
             note=order.note,
             subtotal=order.subtotal,
+            discount=order.discount,
+            coupon_code=order.coupon_code,
+            shipping_zone=order.shipping_zone,
             shipping_fee=order.shipping_fee,
             cancel_reason=order.cancel_reason,
             history=tuple(
@@ -352,3 +357,83 @@ def client_order_totals(client_ids: Iterable[int]) -> dict[int, ClientOrderTotal
         row["client_id"]: ClientOrderTotals(count=row["count"], total=Decimal(row["total"]))
         for row in rows
     }
+
+
+class PromotionSelector:
+    def zones(self, *, active_only: bool) -> list[ShippingZoneView]:
+        zones = ShippingZone.objects.all()
+        if active_only:
+            zones = zones.filter(is_active=True)
+        return [to_zone_view(zone) for zone in zones]
+
+    def zone(self, zone_id: int) -> ShippingZoneView:
+        zone = ShippingZone.objects.filter(pk=zone_id).first()
+        if zone is None:
+            raise ShippingZoneNotFound
+        return to_zone_view(zone)
+
+    def coupons(
+        self, *, search: str | None, active: bool | None, offset: int, limit: int
+    ) -> tuple[list[CouponView], int]:
+        coupons = Coupon.objects.all()
+        if search:
+            coupons = coupons.filter(
+                Q(code__icontains=search.strip()) | Q(description__icontains=search.strip())
+            )
+        if active is not None:
+            coupons = coupons.filter(is_active=active)
+        page = list(coupons[offset : offset + limit])
+        usage = _coupon_usage(coupon.pk for coupon in page)
+        return [to_coupon_view(coupon, usage.get(coupon.pk)) for coupon in page], coupons.count()
+
+    def coupon(self, coupon_id: int) -> CouponView:
+        coupon = Coupon.objects.filter(pk=coupon_id).first()
+        if coupon is None:
+            raise CouponNotFound
+        return to_coupon_view(coupon, _coupon_usage([coupon.pk]).get(coupon.pk))
+
+
+def to_zone_view(zone: ShippingZone) -> ShippingZoneView:
+    return ShippingZoneView(
+        id=zone.pk,
+        name=zone.name,
+        cities=tuple(zone.cities),
+        fee=zone.fee,
+        free_threshold=zone.free_threshold,
+        delivery_estimate=zone.delivery_estimate,
+        is_default=zone.is_default,
+        is_active=zone.is_active,
+        position=zone.position,
+    )
+
+
+def to_coupon_view(coupon: Coupon, usage: tuple[int, Decimal] | None) -> CouponView:
+    uses, amount = usage or (0, Decimal("0.00"))
+    return CouponView(
+        id=coupon.pk,
+        code=coupon.code,
+        description=coupon.description,
+        kind=coupon.kind,
+        value=coupon.value,
+        max_discount=coupon.max_discount,
+        min_subtotal=coupon.min_subtotal,
+        free_shipping=coupon.free_shipping,
+        starts_at=coupon.starts_at,
+        ends_at=coupon.ends_at,
+        usage_limit=coupon.usage_limit,
+        per_user_limit=coupon.per_user_limit,
+        is_active=coupon.is_active,
+        uses=uses,
+        discount_total=amount,
+        created_at=coupon.created_at,
+    )
+
+
+def _coupon_usage(coupon_ids: Iterable[int]) -> dict[int, tuple[int, Decimal]]:
+    rows = (
+        CouponRedemption.objects.filter(coupon_id__in=list(coupon_ids))
+        .exclude(order__status=OrderStatus.CANCELLED.value)
+        .values("coupon_id")
+        .annotate(uses=Count("pk"), amount=Sum("amount"))
+    )
+    return {row["coupon_id"]: (int(row["uses"]), Decimal(row["amount"] or 0)) for row in rows}

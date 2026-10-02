@@ -5,7 +5,8 @@ from apps.orders.domain.errors import AddressRequired
 from apps.orders.models import Order
 from apps.orders.repositories import OrderRepository
 from apps.orders.services.contracts import AddressBook, Inventory
-from apps.orders.services.pricing import PricingService, stock_line
+from apps.orders.services.coupons import CouponService
+from apps.orders.services.pricing import PricingContext, PricingService, stock_line
 from core.domain.actor import Actor, Role
 
 ORDER_SOURCE = "order"
@@ -18,15 +19,27 @@ class CheckoutService:
         pricing: PricingService,
         inventory: Inventory,
         addresses: AddressBook,
+        coupons: CouponService,
     ) -> None:
         self._orders = orders
         self._pricing = pricing
         self._inventory = inventory
         self._addresses = addresses
+        self._coupons = coupons
 
     def place(self, client_id: int, command: PlaceOrder) -> Order:
-        quote, priced = self._pricing.price(command.lines)
         address = self._address(client_id, command)
+        priced_quote = self._pricing.price(
+            command.lines,
+            PricingContext(
+                city=address.city,
+                coupon_code=command.coupon_code,
+                user_id=client_id,
+                strict=True,
+                lock=True,
+            ),
+        )
+        quote, priced = priced_quote.view, priced_quote.lines
         order = self._orders.create(
             client_id=client_id,
             status=OrderStatus.PENDING.value,
@@ -39,9 +52,16 @@ class CheckoutService:
             payment_method=command.payment_method.value,
             note=" ".join(command.note.split()),
             subtotal=quote.subtotal,
+            discount=quote.discount,
+            coupon_code=quote.coupon_code or "",
+            shipping_zone=quote.shipping_zone,
             shipping_fee=quote.shipping_fee,
             total=quote.total,
         )
+        if priced_quote.coupon is not None:
+            self._coupons.redeem(
+                priced_quote.coupon, order, user_id=client_id, amount=quote.discount
+            )
         self._orders.add_items(
             order,
             (

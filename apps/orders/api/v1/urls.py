@@ -1,5 +1,10 @@
 from django.urls import path
 
+from apps.orders.api.v1.promotion_views import (
+    CouponAdminViewSet,
+    ShippingZoneAdminViewSet,
+    ShippingZonePublicViewSet,
+)
 from apps.orders.api.v1.views import (
     CartMergeViewSet,
     CartViewSet,
@@ -23,6 +28,36 @@ urlpatterns = [
         name="cart-item",
     ),
     path("cart/merge/", CartMergeViewSet.as_view({"post": "create"}), name="cart-merge"),
+    path(
+        "cart/coupon/",
+        CartViewSet.as_view({"post": "apply_coupon", "delete": "remove_coupon"}),
+        name="cart-coupon",
+    ),
+    path(
+        "shipping/zones/", ShippingZonePublicViewSet.as_view({"get": "list"}), name="shipping-zones"
+    ),
+    path(
+        "bo/shipping-zones/",
+        ShippingZoneAdminViewSet.as_view({"get": "list", "post": "create"}),
+        name="bo-shipping-zones",
+    ),
+    path(
+        "bo/shipping-zones/<int:zone_id>/",
+        ShippingZoneAdminViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
+        name="bo-shipping-zone",
+    ),
+    path(
+        "bo/coupons/",
+        CouponAdminViewSet.as_view({"get": "list", "post": "create"}),
+        name="bo-coupons",
+    ),
+    path(
+        "bo/coupons/<int:coupon_id>/",
+        CouponAdminViewSet.as_view(
+            {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}
+        ),
+        name="bo-coupon",
+    ),
     path("checkout/quote/", QuoteViewSet.as_view({"post": "create"}), name="checkout-quote"),
     path("orders/", CheckoutViewSet.as_view({"post": "create"}), name="orders"),
     path("orders/track/", TrackingViewSet.as_view({"post": "create"}), name="order-tracking"),

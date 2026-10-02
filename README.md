@@ -179,6 +179,28 @@ Cancellations and returns put the stock back.
 | `POST /api/v1/bo/orders/<id>/assign/` · `decline/` · `transition/` | Dispatch and status changes |
 | `GET /api/v1/bo/resellers/assignable/` | Resellers with availability and current workload |
 
+**Shipping zones**
+- `ShippingZone` has a name, cities, a fee, an optional free-shipping threshold and a delivery estimate.
+- The delivery city (normalised for case, accents and hyphens) picks the zone. An unlisted city falls back to the `is_default` zone, and a quote without a city uses the `ORDERS` settings.
+- Migration `0003` seeds two zones: Kinshasa ($2.98, free from $199, 24–48 h) and Autres villes ($7.50, the default).
+- Orders store the zone name with the fee.
+
+**Coupons**
+- A `Coupon` is a percentage (optionally capped) or a fixed amount. It can require a minimum subtotal, give free shipping, run between `starts_at` and `ends_at`, and limit uses in total or per user.
+- Carts keep a coupon code and check it again on every view. A coupon that no longer applies shows up as `coupon_error` and stops discounting.
+- Checkout locks the coupon row and records a `CouponRedemption`. Redemptions on cancelled orders don't count against the limits.
+- The discount is stored on the order (`total = subtotal − discount + shipping_fee`, enforced by a check constraint). It isn't spread over the items, so sales converted from a discounted order keep the item prices unless staff override them.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/cart/?city=` | Cart with the zone's shipping for that city |
+| `POST · DELETE /api/v1/cart/coupon/` | Apply (`{code}`) or remove the cart's coupon |
+| `POST /api/v1/checkout/quote/` | Also takes `city` and `coupon_code`; coupon problems come back as `coupon_error` |
+| `POST /api/v1/orders/` | Takes `coupon_code`; an invalid code is a `400 coupon_rejected` with `meta.reason` |
+| `GET /api/v1/shipping/zones/` | Active zones |
+| `/api/v1/bo/shipping-zones/` (+ `<id>/`) | Zone management (`shipping.manage`, managers) |
+| `/api/v1/bo/coupons/` (+ `<id>/`) | Coupons with uses and total discount; `DELETE` deactivates (`coupons.manage`, managers) |
+
 ### `apps.messaging`
 
 Order and support conversations, messages with read tracking, price proposals, and notifications (in-app and email).
