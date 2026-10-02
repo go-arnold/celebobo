@@ -1,8 +1,12 @@
+from datetime import timedelta
 from pathlib import Path
 
+import django_stubs_ext
 import environ
 
 from core.observability.logging import configure_structlog, logging_config
+
+django_stubs_ext.monkeypatch()
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
@@ -25,7 +29,15 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_filters",
     "drf_spectacular",
+    "rest_framework_simplejwt.token_blacklist",
     "core",
+    "apps.accounts",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
 ]
 
 MIDDLEWARE = [
@@ -38,6 +50,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -78,6 +91,12 @@ CACHES = {
     },
 }
 
+AUTH_USER_MODEL = "accounts.User"
+AUTHENTICATION_BACKENDS = (
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+)
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -98,7 +117,7 @@ REST_FRAMEWORK = {
     "DEFAULT_VERSION": "v1",
     "ALLOWED_VERSIONS": ("v1",),
     "VERSION_PARAM": "version",
-    "DEFAULT_AUTHENTICATION_CLASSES": ("rest_framework.authentication.SessionAuthentication",),
+    "DEFAULT_AUTHENTICATION_CLASSES": ("dj_rest_auth.jwt_auth.JWTCookieAuthentication",),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
     "DEFAULT_PARSER_CLASSES": (
@@ -116,8 +135,15 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": (
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
     ),
-    "DEFAULT_THROTTLE_RATES": {"anon": "60/min", "user": "240/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/min",
+        "user": "240/min",
+        "auth": "10/min",
+        "dj_rest_auth": "10/min",
+        "referral": "20/min",
+    },
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
 
@@ -142,6 +168,68 @@ CORS_ALLOW_HEADERS = (
 )
 CORS_EXPOSE_HEADERS = ("x-request-id", "idempotent-replayed", "retry-after")
 CSRF_TRUSTED_ORIGINS: list[str] = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
+FRONTEND_URL = env.str("FRONTEND_URL", default="http://localhost:3000")
+GOOGLE_OAUTH_CALLBACK_URL = env.str("GOOGLE_OAUTH_CALLBACK_URL", default=FRONTEND_URL)
+
+ACCOUNT_ADAPTER = "apps.accounts.adapters.allauth.AccountAdapter"
+SOCIALACCOUNT_ADAPTER = "apps.accounts.adapters.allauth.SocialAccountAdapter"
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*"]
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_EMAIL_VERIFICATION = env.str("ACCOUNT_EMAIL_VERIFICATION", default="mandatory")
+ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
+ACCOUNT_CONFIRM_EMAIL_ON_GET = False
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = False
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APPS": [
+            {
+                "client_id": env.str("GOOGLE_CLIENT_ID", default=""),
+                "secret": env.str("GOOGLE_CLIENT_SECRET", default=""),
+                "key": "",
+            }
+        ],
+        "SCOPE": ["profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+        "EMAIL_AUTHENTICATION": True,
+    },
+}
+
+REST_AUTH = {
+    "USE_JWT": True,
+    "TOKEN_MODEL": None,
+    "SESSION_LOGIN": False,
+    "JWT_AUTH_COOKIE": "cb_access",
+    "JWT_AUTH_REFRESH_COOKIE": "cb_refresh",
+    "JWT_AUTH_REFRESH_COOKIE_PATH": "/api/",
+    "JWT_AUTH_HTTPONLY": True,
+    "JWT_AUTH_SAMESITE": "Lax",
+    "JWT_AUTH_SECURE": env.bool("JWT_AUTH_SECURE", default=False),
+    "JWT_AUTH_COOKIE_DOMAIN": env.str("JWT_AUTH_COOKIE_DOMAIN", default=None),
+    "JWT_AUTH_COOKIE_USE_CSRF": True,
+    "JWT_AUTH_RETURN_EXPIRATION": True,
+    "LOGOUT_ON_PASSWORD_CHANGE": False,
+    "OLD_PASSWORD_FIELD_ENABLED": True,
+    "USER_DETAILS_SERIALIZER": "apps.accounts.api.v1.auth_serializers.SessionUserSerializer",
+    "PASSWORD_RESET_SERIALIZER": (
+        "apps.accounts.api.v1.auth_serializers.FrontendPasswordResetSerializer"
+    ),
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env.int("JWT_ACCESS_MINUTES", default=15)),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=env.int("JWT_REFRESH_DAYS", default=14)),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+}
+
+EMAIL_BACKEND = env.str("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", default="Celebobo <no-reply@celebobo.com>")
 
 CELERY_BROKER_URL = env.str("REDIS_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_TASK_DEFAULT_QUEUE = "default"

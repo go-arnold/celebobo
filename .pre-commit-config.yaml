@@ -36,7 +36,7 @@ repos:
         pass_filenames: false
       - id: bandit
         name: bandit
-        entry: uv run bandit -q -c pyproject.toml -r core config
+        entry: uv run bandit -q -c pyproject.toml -r core config apps
         language: system
         types: [python]
         pass_filenames: false

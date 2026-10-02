@@ -23,7 +23,13 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy .
       - run: uv run lint-imports
-      - run: uv run bandit -q -c pyproject.toml -r core config
+      - run: uv run bandit -q -c pyproject.toml -r core config apps
+      - run: uv run python manage.py makemigrations --check --dry-run
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+      - run: uv run python manage.py spectacular --validate --fail-on-warn --file openapi.yml
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
       - run: uv export --no-dev --no-hashes --locked -o requirements.txt && uv run pip-audit -r requirements.txt
 
   tests:

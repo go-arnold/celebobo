@@ -1,0 +1,10 @@
+{% autoescape off %}Bonjour {{ user.first_name|default:"" }},
+
+Pour confirmer votre adresse e-mail sur {{ site_name }}, ouvrez ce lien :
+
+{{ activate_url }}
+
+Ce lien expire dans {{ expiration_days }} jours.
+
+L'équipe {{ site_name }}
+{% endautoescape %}

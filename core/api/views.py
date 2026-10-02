@@ -1,5 +1,6 @@
-from collections.abc import Mapping
-from typing import Any
+from collections.abc import Mapping, Sequence
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.db.models import Model, QuerySet
 from rest_framework.generics import GenericAPIView
@@ -11,12 +12,25 @@ from rest_framework.viewsets import ViewSetMixin
 
 from core.api.actor import actor_from_user
 from core.api.pagination import MetaPaginationMixin
+from core.api.permissions import requires
 from core.domain.actor import Actor
+from core.domain.errors import Unauthenticated
 from core.observability import context
+
+if TYPE_CHECKING:
+    from rest_framework.permissions import _SupportsHasPermission
 
 
 class ActorAwareView(APIView):
     actor: Actor
+    action_permissions: ClassVar[Mapping[str, Sequence[str]]] = MappingProxyType({})
+
+    def get_permissions(self) -> list["_SupportsHasPermission"]:
+        permissions = list(super().get_permissions())
+        required = self.action_permissions.get(self._permission_key())
+        if required:
+            permissions.append(requires(*required)())
+        return permissions
 
     def perform_authentication(self, request: Request) -> None:
         super().perform_authentication(request)
@@ -29,6 +43,15 @@ class ActorAwareView(APIView):
 
     def serializer_context(self) -> dict[str, Any]:
         return {"request": self.request, "view": self, "actor": self.actor}
+
+    def user_id(self) -> int:
+        if self.actor.user_id is None:
+            raise Unauthenticated
+        return self.actor.user_id
+
+    def _permission_key(self) -> str:
+        action = getattr(self, "action", None)
+        return action if isinstance(action, str) else str(self.request.method).lower()
 
 
 class UseCaseViewSet(ViewSetMixin, ActorAwareView):
