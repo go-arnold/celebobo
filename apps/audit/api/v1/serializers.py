@@ -3,13 +3,14 @@ from typing import Any
 from rest_framework import serializers
 
 from apps.audit.domain.enums import AuditAction
+from core.api.fields import MAX_INTEGER
 
 
 class DateRangeInput(serializers.Serializer[Any]):
     date = serializers.DateField(required=False)
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
-    actor_id = serializers.IntegerField(min_value=1, required=False)
+    actor_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         day = attrs.pop("date", None)

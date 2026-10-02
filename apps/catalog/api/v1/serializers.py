@@ -4,12 +4,15 @@ from rest_framework import serializers
 
 from apps.catalog.conf import catalog_settings
 from apps.catalog.domain.enums import Badge, ProductOrdering
+from core.api.fields import MAX_INTEGER
 
 
 class ProductQueryInput(serializers.Serializer[Any]):
     search = serializers.CharField(source="text", max_length=100, required=False)
     category = serializers.SlugField(max_length=120, required=False)
-    ids = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False)
+    ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1, max_value=MAX_INTEGER), required=False
+    )
     on_sale = serializers.BooleanField(required=False, allow_null=True)
     in_stock = serializers.BooleanField(required=False, allow_null=True)
     badge = serializers.ChoiceField(choices=[item.value for item in Badge], required=False)
@@ -22,8 +25,8 @@ class ProductQueryInput(serializers.Serializer[Any]):
     ordering = serializers.ChoiceField(
         choices=[item.value for item in ProductOrdering], required=False
     )
-    page = serializers.IntegerField(min_value=1, default=1)
-    page_size = serializers.IntegerField(min_value=1, required=False)
+    page = serializers.IntegerField(min_value=1, default=1, max_value=MAX_INTEGER)
+    page_size = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         low, high = attrs.get("min_price"), attrs.get("max_price")
@@ -165,4 +168,4 @@ class ReviewEligibilityOutput(serializers.Serializer[Any]):
 
 
 class FavoriteInput(serializers.Serializer[Any]):
-    product_id = serializers.IntegerField(min_value=1)
+    product_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)

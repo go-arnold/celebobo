@@ -8,7 +8,7 @@ urlpatterns = [
         "me/devices/", DeviceViewSet.as_view({"get": "list", "post": "create"}), name="my-devices"
     ),
     path(
-        "me/devices/<int:device_id>/",
+        "me/devices/<id:device_id>/",
         DeviceViewSet.as_view({"delete": "destroy"}),
         name="my-device",
     ),

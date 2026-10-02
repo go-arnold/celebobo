@@ -6,6 +6,7 @@ from rest_framework import serializers
 from apps.orders.domain.enums import PaymentMethod
 from apps.sales.domain.commands import ConversionLine, RecordSale
 from apps.sales.domain.enums import RefundKind, SalesPeriod, SaleStatus
+from core.api.fields import MAX_INTEGER
 
 MAX_BULK_LINES = 50
 
@@ -27,15 +28,21 @@ class PaymentMethodField(serializers.ChoiceField):
 
 
 class RecordSaleInput(serializers.Serializer[Any]):
-    product_id = serializers.IntegerField(min_value=1)
-    variant_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    product_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
+    variant_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
     quantity = serializers.IntegerField(min_value=1, max_value=10_000)
     unit_price = money(min_value=Decimal("0.01"))
     payment_method = PaymentMethodField()
     sold_at = serializers.DateTimeField(required=False, allow_null=True)
     sold_to = serializers.CharField(max_length=160, required=False, allow_blank=True)
-    buyer_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
-    seller_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    buyer_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
+    seller_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
 
 
 class RecordSaleLine(RecordSaleInput):
@@ -73,8 +80,8 @@ class SaleFiltersInput(serializers.Serializer[Any]):
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
     payment_method = PaymentMethodField(required=False)
-    seller_id = serializers.IntegerField(min_value=1, required=False)
-    product_id = serializers.IntegerField(min_value=1, required=False)
+    seller_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
+    product_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
     status = serializers.ChoiceField(choices=choices(SaleStatus), required=False)
     search = serializers.CharField(max_length=100, required=False, allow_blank=True)
 
@@ -92,7 +99,7 @@ class SaleFiltersInput(serializers.Serializer[Any]):
 
 
 class ConversionLineInput(serializers.Serializer[Any]):
-    item_id = serializers.IntegerField(min_value=1)
+    item_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
     unit_price = money(min_value=Decimal("0.01"))
 
     def validate(self, attrs: dict[str, Any]) -> ConversionLine:
@@ -116,11 +123,11 @@ class ConvertibleSearchInput(serializers.Serializer[Any]):
 
 
 class ResellerScopeInput(serializers.Serializer[Any]):
-    reseller_id = serializers.IntegerField(min_value=1, required=False)
+    reseller_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
 
 
 class RecordPayoutInput(serializers.Serializer[Any]):
-    reseller_id = serializers.IntegerField(min_value=1)
+    reseller_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
     amount = money(min_value=Decimal("0.01"))
     note = serializers.CharField(max_length=500, required=False, allow_blank=True)
     paid_at = serializers.DateTimeField(required=False, allow_null=True)

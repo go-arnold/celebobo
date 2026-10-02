@@ -11,12 +11,12 @@ urlpatterns = [
     path("bo/sales/", SaleViewSet.as_view({"get": "list", "post": "create"}), name="bo-sales"),
     path("bo/sales/bulk/", SaleViewSet.as_view({"post": "bulk"}), name="bo-sales-bulk"),
     path(
-        "bo/sales/<int:sale_id>/",
+        "bo/sales/<id:sale_id>/",
         SaleViewSet.as_view({"get": "retrieve", "patch": "partial_update", "delete": "destroy"}),
         name="bo-sale",
     ),
     path(
-        "bo/sales/<int:sale_id>/refund/",
+        "bo/sales/<id:sale_id>/refund/",
         SaleViewSet.as_view({"post": "refund"}),
         name="bo-sale-refund",
     ),
@@ -26,7 +26,7 @@ urlpatterns = [
         name="bo-orders-convertible",
     ),
     path(
-        "bo/orders/<int:order_id>/convert-to-sales/",
+        "bo/orders/<id:order_id>/convert-to-sales/",
         ConversionViewSet.as_view({"post": "create"}),
         name="bo-order-convert",
     ),

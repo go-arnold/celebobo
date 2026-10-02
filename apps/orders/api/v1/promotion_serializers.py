@@ -4,6 +4,7 @@ from typing import Any
 from rest_framework import serializers
 
 from apps.orders.domain.pricing import CouponKind
+from core.api.fields import MAX_INTEGER
 
 
 def money(**options: Any) -> serializers.DecimalField:
@@ -53,10 +54,10 @@ class CouponInput(serializers.Serializer[Any]):
     starts_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
     ends_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
     usage_limit = serializers.IntegerField(
-        min_value=1, required=False, allow_null=True, default=None
+        max_value=MAX_INTEGER, min_value=1, required=False, allow_null=True, default=None
     )
     per_user_limit = serializers.IntegerField(
-        min_value=1, required=False, allow_null=True, default=None
+        max_value=MAX_INTEGER, min_value=1, required=False, allow_null=True, default=None
     )
     is_active = serializers.BooleanField(default=True)
 

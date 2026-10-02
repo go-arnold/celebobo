@@ -19,17 +19,17 @@ urlpatterns = [
         name="bo-reseller-applications",
     ),
     path(
-        "bo/reseller-applications/<int:application_id>/",
+        "bo/reseller-applications/<id:application_id>/",
         ApplicationReviewViewSet.as_view({"get": "retrieve"}),
         name="bo-reseller-application",
     ),
     path(
-        "bo/reseller-applications/<int:application_id>/approve/",
+        "bo/reseller-applications/<id:application_id>/approve/",
         ApplicationReviewViewSet.as_view({"post": "approve"}),
         name="bo-reseller-application-approve",
     ),
     path(
-        "bo/reseller-applications/<int:application_id>/reject/",
+        "bo/reseller-applications/<id:application_id>/reject/",
         ApplicationReviewViewSet.as_view({"post": "reject"}),
         name="bo-reseller-application-reject",
     ),
@@ -38,22 +38,22 @@ urlpatterns = [
         "bo/resellers/stats/", ResellerViewSet.as_view({"get": "stats"}), name="bo-resellers-stats"
     ),
     path(
-        "bo/resellers/<int:reseller_id>/",
+        "bo/resellers/<id:reseller_id>/",
         ResellerViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
         name="bo-reseller",
     ),
     path(
-        "bo/resellers/<int:reseller_id>/activate/",
+        "bo/resellers/<id:reseller_id>/activate/",
         ResellerViewSet.as_view({"post": "activate"}),
         name="bo-reseller-activate",
     ),
     path(
-        "bo/resellers/<int:reseller_id>/deactivate/",
+        "bo/resellers/<id:reseller_id>/deactivate/",
         ResellerViewSet.as_view({"post": "deactivate"}),
         name="bo-reseller-deactivate",
     ),
     path(
-        "bo/resellers/<int:reseller_id>/invitees/",
+        "bo/resellers/<id:reseller_id>/invitees/",
         ResellerViewSet.as_view({"get": "invitees"}),
         name="bo-reseller-invitees",
     ),

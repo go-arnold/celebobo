@@ -5,7 +5,7 @@ from apps.audit.api.v1.views import AuditViewSet
 urlpatterns = [
     path("bo/audit-logs/", AuditViewSet.as_view({"get": "changes"}), name="bo-audit-logs"),
     path(
-        "bo/audit-logs/<int:entry_id>/",
+        "bo/audit-logs/<id:entry_id>/",
         AuditViewSet.as_view({"get": "change"}),
         name="bo-audit-log",
     ),

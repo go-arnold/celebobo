@@ -30,39 +30,39 @@ backoffice = [
         "bo/products/bulk/", AdminProductViewSet.as_view({"post": "bulk"}), name="bo-products-bulk"
     ),
     path(
-        "bo/products/<int:product_id>/",
+        "bo/products/<id:product_id>/",
         AdminProductViewSet.as_view(
             {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}
         ),
         name="bo-product",
     ),
     path(
-        "bo/products/<int:product_id>/restore/",
+        "bo/products/<id:product_id>/restore/",
         AdminProductViewSet.as_view({"post": "restore"}),
         name="bo-product-restore",
     ),
     path(
-        "bo/products/<int:product_id>/duplicate/",
+        "bo/products/<id:product_id>/duplicate/",
         AdminProductViewSet.as_view({"post": "duplicate"}),
         name="bo-product-duplicate",
     ),
     path(
-        "bo/products/<int:product_id>/variants/",
+        "bo/products/<id:product_id>/variants/",
         AdminVariantViewSet.as_view({"post": "create"}),
         name="bo-product-variants",
     ),
     path(
-        "bo/variants/<int:variant_id>/",
+        "bo/variants/<id:variant_id>/",
         AdminVariantViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
         name="bo-variant",
     ),
     path(
-        "bo/products/<int:product_id>/stock-adjustments/",
+        "bo/products/<id:product_id>/stock-adjustments/",
         AdminStockViewSet.as_view({"post": "adjust"}),
         name="bo-stock-adjust",
     ),
     path(
-        "bo/products/<int:product_id>/stock-movements/",
+        "bo/products/<id:product_id>/stock-movements/",
         AdminStockViewSet.as_view({"get": "movements"}),
         name="bo-stock-movements",
     ),
@@ -78,13 +78,13 @@ backoffice = [
         name="bo-categories-reorder",
     ),
     path(
-        "bo/categories/<int:category_id>/",
+        "bo/categories/<id:category_id>/",
         AdminCategoryViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
         name="bo-category",
     ),
     path("bo/reviews/", AdminReviewViewSet.as_view({"get": "list"}), name="bo-reviews"),
     path(
-        "bo/reviews/<int:review_id>/",
+        "bo/reviews/<id:review_id>/",
         AdminReviewViewSet.as_view({"patch": "partial_update"}),
         name="bo-review",
     ),
@@ -109,7 +109,7 @@ urlpatterns = [
         name="favorites",
     ),
     path(
-        "me/favorites/<int:product_id>/",
+        "me/favorites/<id:product_id>/",
         FavoriteViewSet.as_view({"delete": "destroy"}),
         name="favorite",
     ),

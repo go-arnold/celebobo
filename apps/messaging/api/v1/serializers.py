@@ -3,6 +3,7 @@ from typing import Any
 from rest_framework import serializers
 
 from apps.messaging.domain.enums import ConversationKind, ConversationStatus, NotificationKind
+from core.api.fields import MAX_INTEGER
 
 
 class ConversationFiltersInput(serializers.Serializer[Any]):
@@ -37,15 +38,17 @@ class PostMessageInput(serializers.Serializer[Any]):
 
 
 class ReadInput(serializers.Serializer[Any]):
-    last_message_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    last_message_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
 
 
 class AssignConversationInput(serializers.Serializer[Any]):
-    reseller_id = serializers.IntegerField(min_value=1)
+    reseller_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
 
 
 class ProposePriceInput(serializers.Serializer[Any]):
-    item_id = serializers.IntegerField(min_value=1)
+    item_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
     new_price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0)
     reason = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
 
@@ -55,7 +58,7 @@ class RespondProposalInput(serializers.Serializer[Any]):
 
 
 class MessageQueryInput(serializers.Serializer[Any]):
-    before = serializers.IntegerField(min_value=1, required=False)
+    before = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
     limit = serializers.IntegerField(min_value=1, max_value=100, default=30)
 
 

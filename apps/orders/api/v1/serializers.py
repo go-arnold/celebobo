@@ -6,6 +6,7 @@ from rest_framework import serializers
 from apps.orders.conf import order_settings
 from apps.orders.domain.commands import DeliveryAddress, OrderLineInput
 from apps.orders.domain.enums import CancelReason, OrderStatus, PaymentMethod
+from core.api.fields import MAX_INTEGER
 
 PHONE_PATTERN = r"^\+?[\d\s().-]{7,20}$"
 PHONE_ERROR: dict[str, str | StrPromise] = {"invalid": "Numéro de téléphone invalide."}
@@ -17,9 +18,11 @@ TRANSITION_TARGETS = [
 
 
 class OrderLineInputSerializer(serializers.Serializer[Any]):
-    product_id = serializers.IntegerField(min_value=1)
-    variant_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
-    quantity = serializers.IntegerField(min_value=1)
+    product_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
+    variant_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
+    quantity = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
 
     def validate_quantity(self, value: int) -> int:
         limit = order_settings().max_quantity
@@ -68,7 +71,9 @@ class PlaceOrderInput(QuoteInput):
         max_length=40, required=False, allow_blank=True, allow_null=True, default=None
     )
     payment_method = serializers.ChoiceField(choices=[item.value for item in PaymentMethod])
-    address_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    address_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
     address = DeliveryAddressInput(required=False, allow_null=True)
     note = serializers.CharField(max_length=1000, required=False, allow_blank=True, default="")
 
@@ -81,7 +86,7 @@ class CartItemInput(OrderLineInputSerializer):
 
 
 class CartQuantityInput(serializers.Serializer[Any]):
-    quantity = serializers.IntegerField(min_value=1)
+    quantity = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
 
 
 class CartMergeInput(serializers.Serializer[Any]):
@@ -102,7 +107,7 @@ class TrackInput(serializers.Serializer[Any]):
 
 
 class AssignInput(serializers.Serializer[Any]):
-    reseller_id = serializers.IntegerField(min_value=1)
+    reseller_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
     note = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
 
 
@@ -123,7 +128,7 @@ class OrderFiltersInput(serializers.Serializer[Any]):
     status = serializers.ChoiceField(
         choices=[*[item.value for item in OrderStatus], "unassigned"], required=False
     )
-    reseller_id = serializers.IntegerField(min_value=1, required=False)
+    reseller_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
     payment_method = serializers.ChoiceField(
         choices=[item.value for item in PaymentMethod], required=False
     )

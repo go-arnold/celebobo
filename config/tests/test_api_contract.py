@@ -2,7 +2,7 @@ import pytest
 import schemathesis
 from django.core.signals import request_finished, request_started
 from django.core.wsgi import get_wsgi_application
-from django.db import close_old_connections
+from django.db import close_old_connections, transaction
 from hypothesis import HealthCheck, settings
 from rest_framework_simplejwt.tokens import AccessToken
 from schemathesis.checks import not_a_server_error
@@ -41,7 +41,8 @@ schema = schemathesis.pytest.from_fixture("api_schema")
 @schema.include(method="GET").exclude(path_regex=SKIPPED_PATHS).parametrize()
 @FUZZ
 def test_anonymous_reads_never_fail(case):
-    case.call_and_validate(checks=CHECKS)
+    with transaction.atomic():
+        case.call_and_validate(checks=CHECKS)
 
 
 @pytest.mark.django_db(transaction=False)
@@ -53,4 +54,5 @@ def test_anonymous_reads_never_fail(case):
 @FUZZ
 def test_admin_reads_never_fail(case):
     token = AccessToken.for_user(AdminFactory.create())
-    case.call_and_validate(headers={"Authorization": f"Bearer {token}"}, checks=CHECKS)
+    with transaction.atomic():
+        case.call_and_validate(headers={"Authorization": f"Bearer {token}"}, checks=CHECKS)

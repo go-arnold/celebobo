@@ -1,9 +1,13 @@
 from collections.abc import Iterator, Sequence
 
 from django.apps import apps
-from django.urls import URLResolver, include, path
+from django.urls import URLResolver, include, path, register_converter
 from django.utils.module_loading import module_has_submodule
 from rest_framework.settings import api_settings
+
+from core.api.converters import IdConverter
+
+register_converter(IdConverter, "id")
 
 
 def versioned_urlpatterns() -> list[URLResolver]:
