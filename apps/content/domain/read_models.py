@@ -84,7 +84,7 @@ class BannerView:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ShippingInfo:
-    free_threshold: Decimal
+    free_threshold: Decimal | None
     flat_fee: Decimal
 
 

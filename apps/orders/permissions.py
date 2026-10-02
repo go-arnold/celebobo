@@ -16,3 +16,8 @@ permission_catalog.grant(
     Role.RESELLER, ORDERS_VIEW_ASSIGNED, ORDERS_STATUS_ADVANCE, ORDERS_ASSIGNMENT_DECLINE
 )
 permission_catalog.grant(Role.MANAGER, ORDERS_VIEW_ALL, ORDERS_ASSIGN, ORDERS_STATUS_ANY)
+
+SHIPPING_MANAGE = "shipping.manage"
+COUPONS_MANAGE = "coupons.manage"
+
+permission_catalog.grant(Role.MANAGER, SHIPPING_MANAGE, COUPONS_MANAGE)

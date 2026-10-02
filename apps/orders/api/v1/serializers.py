@@ -50,7 +50,23 @@ class QuoteInput(serializers.Serializer[Any]):
         return tuple(value)
 
 
+class QuoteRequestInput(QuoteInput):
+    city = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    coupon_code = serializers.CharField(max_length=40, required=False, allow_blank=True)
+
+
+class CouponCodeInput(serializers.Serializer[Any]):
+    code = serializers.CharField(max_length=40)
+
+
+class CartContextInput(serializers.Serializer[Any]):
+    city = serializers.CharField(max_length=120, required=False, allow_blank=True)
+
+
 class PlaceOrderInput(QuoteInput):
+    coupon_code = serializers.CharField(
+        max_length=40, required=False, allow_blank=True, allow_null=True, default=None
+    )
     payment_method = serializers.ChoiceField(choices=[item.value for item in PaymentMethod])
     address_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     address = DeliveryAddressInput(required=False, allow_null=True)
@@ -144,9 +160,16 @@ class QuoteLineOutput(serializers.Serializer[Any]):
 class QuoteOutput(serializers.Serializer[Any]):
     lines = QuoteLineOutput(many=True)
     subtotal = serializers.DecimalField(max_digits=10, decimal_places=2)
+    discount = serializers.DecimalField(max_digits=10, decimal_places=2)
     shipping_fee = serializers.DecimalField(max_digits=10, decimal_places=2)
     total = serializers.DecimalField(max_digits=10, decimal_places=2)
-    free_shipping_remaining = serializers.DecimalField(max_digits=10, decimal_places=2)
+    free_shipping_remaining = serializers.DecimalField(
+        max_digits=10, decimal_places=2, allow_null=True
+    )
+    shipping_zone = serializers.CharField()
+    delivery_estimate = serializers.CharField()
+    coupon_code = serializers.CharField(allow_null=True)
+    coupon_error = serializers.CharField(allow_null=True)
 
 
 class CartLineOutput(serializers.Serializer[Any]):
@@ -220,6 +243,9 @@ class OrderDetailOutput(serializers.Serializer[Any]):
     payment_method = serializers.CharField()
     note = serializers.CharField()
     subtotal = serializers.DecimalField(max_digits=10, decimal_places=2)
+    discount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    coupon_code = serializers.CharField()
+    shipping_zone = serializers.CharField()
     shipping_fee = serializers.DecimalField(max_digits=10, decimal_places=2)
     cancel_reason = serializers.CharField()
     history = StatusEntryOutput(many=True)

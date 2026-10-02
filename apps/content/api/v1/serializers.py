@@ -184,7 +184,7 @@ class SettingsInput(serializers.Serializer[Any]):
 
 
 class ShippingOutput(serializers.Serializer[Any]):
-    free_threshold = serializers.DecimalField(max_digits=10, decimal_places=2)
+    free_threshold = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
     flat_fee = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 

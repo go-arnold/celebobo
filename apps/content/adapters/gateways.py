@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from apps.catalog.domain.enums import ProductOrdering
 from apps.catalog.domain.queries import ProductQuery
 from apps.catalog.domain.read_models import CategoryView, ProductCard
@@ -42,6 +40,4 @@ class CatalogShowcase:
 class OrdersShipping:
     def shipping(self) -> ShippingInfo:
         rules = order_settings().shipping_rules
-        return ShippingInfo(
-            free_threshold=Decimal(rules.free_threshold), flat_fee=Decimal(rules.flat_fee)
-        )
+        return ShippingInfo(free_threshold=rules.free_threshold, flat_fee=rules.flat_fee)

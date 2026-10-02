@@ -8,12 +8,16 @@ from django.db import transaction
 from apps.orders.domain.commands import (
     AssignOrder,
     CancelOrder,
+    CouponChanges,
+    CouponFields,
     DeclineAssignment,
     OrderFilters,
     OrderLineInput,
     PlaceOrder,
     TrackOrder,
     TransitionOrder,
+    ZoneChanges,
+    ZoneFields,
 )
 from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.errors import OrderNotFound
@@ -29,20 +33,23 @@ from apps.orders.domain.read_models import (
     AdjustableItem,
     AssignableReseller,
     CartView,
+    CouponView,
     OrderDetail,
     OrderSummary,
     QuoteView,
+    ShippingZoneView,
     TrackingView,
 )
 from apps.orders.models import Order
 from apps.orders.repositories import CartRepository, OrderRepository
-from apps.orders.selectors import OrderSelector, scoped_orders
+from apps.orders.selectors import OrderSelector, PromotionSelector, scoped_orders
 from apps.orders.services.adjustments import AdjustmentService
 from apps.orders.services.cart import CartOwner, CartService
 from apps.orders.services.checkout import CheckoutService
 from apps.orders.services.contracts import OrderThreads, ResellerDirectory
 from apps.orders.services.lifecycle import OrderLifecycleService, StatusChange
-from apps.orders.services.pricing import PricingService
+from apps.orders.services.pricing import PricingContext, PricingService
+from apps.orders.services.promotions import CouponAdminService, ShippingZoneService
 from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
 from core.events.contracts import EventPublisher
@@ -61,8 +68,16 @@ class CartFacade:
     def __init__(self, *, carts: CartService) -> None:
         self._carts = carts
 
-    def view(self, actor: Actor, token: UUID | None) -> CartView:
-        return self._carts.view(_owner(actor, token))
+    def view(self, actor: Actor, token: UUID | None, *, city: str | None = None) -> CartView:
+        return self._carts.view(_owner(actor, token, city=city))
+
+    def apply_coupon(self, actor: Actor, token: UUID | None, code: str) -> CartView:
+        with transaction.atomic():
+            return self._carts.apply_coupon(_owner(actor, token), code)
+
+    def remove_coupon(self, actor: Actor, token: UUID | None) -> CartView:
+        with transaction.atomic():
+            return self._carts.remove_coupon(_owner(actor, token))
 
     def add(self, actor: Actor, token: UUID | None, line: OrderLineInput) -> CartView:
         with transaction.atomic():
@@ -104,8 +119,16 @@ class CheckoutFacade:
         self._threads = threads
         self._publisher = publisher
 
-    def quote(self, lines: Sequence[OrderLineInput]) -> QuoteView:
-        return self._pricing.price(lines)[0]
+    def quote(
+        self,
+        actor: Actor,
+        lines: Sequence[OrderLineInput],
+        *,
+        city: str | None = None,
+        coupon_code: str | None = None,
+    ) -> QuoteView:
+        context = PricingContext(city=city, coupon_code=coupon_code, user_id=actor.user_id)
+        return self._pricing.price(lines, context).view
 
     def place(self, actor: Actor, command: PlaceOrder) -> OrderDetail:
         client_id = _user_id(actor)
@@ -290,10 +313,10 @@ def _existing(order: Order | None) -> Order:
     return order
 
 
-def _owner(actor: Actor, token: UUID | None) -> CartOwner:
+def _owner(actor: Actor, token: UUID | None, *, city: str | None = None) -> CartOwner:
     if actor.user_id is not None:
-        return CartOwner(user_id=actor.user_id)
-    return CartOwner(token=token)
+        return CartOwner(user_id=actor.user_id, city=city)
+    return CartOwner(token=token, city=city)
 
 
 def _user_id(actor: Actor) -> int:
@@ -325,3 +348,57 @@ class OrderAdjustmentFacade:
                 )
             )
         return self._adjustments.adjustable(Actor.system(), order_id, item_id)
+
+
+@logged_facade
+class PromotionFacade:
+    def __init__(
+        self,
+        *,
+        zones: ShippingZoneService,
+        coupons: CouponAdminService,
+        selector: PromotionSelector,
+    ) -> None:
+        self._zones = zones
+        self._coupons = coupons
+        self._selector = selector
+
+    def shipping_zones(self, *, active_only: bool) -> list[ShippingZoneView]:
+        return self._selector.zones(active_only=active_only)
+
+    def create_zone(self, fields: ZoneFields) -> ShippingZoneView:
+        with transaction.atomic():
+            zone = self._zones.create(fields)
+        return self._selector.zone(zone.pk)
+
+    def update_zone(self, zone_id: int, changes: ZoneChanges) -> ShippingZoneView:
+        with transaction.atomic():
+            self._zones.update(zone_id, changes)
+        return self._selector.zone(zone_id)
+
+    def delete_zone(self, zone_id: int) -> None:
+        with transaction.atomic():
+            self._zones.delete(zone_id)
+
+    def coupons(
+        self, *, search: str | None, active: bool | None, offset: int, limit: int
+    ) -> tuple[list[CouponView], int]:
+        return self._selector.coupons(search=search, active=active, offset=offset, limit=limit)
+
+    def coupon(self, coupon_id: int) -> CouponView:
+        return self._selector.coupon(coupon_id)
+
+    def create_coupon(self, fields: CouponFields) -> CouponView:
+        with transaction.atomic():
+            coupon = self._coupons.create(fields)
+        return self._selector.coupon(coupon.pk)
+
+    def update_coupon(self, coupon_id: int, changes: CouponChanges) -> CouponView:
+        with transaction.atomic():
+            self._coupons.update(coupon_id, changes)
+        return self._selector.coupon(coupon_id)
+
+    def deactivate_coupon(self, coupon_id: int) -> CouponView:
+        with transaction.atomic():
+            self._coupons.deactivate(coupon_id)
+        return self._selector.coupon(coupon_id)

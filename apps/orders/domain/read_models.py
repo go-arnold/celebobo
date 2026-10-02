@@ -23,7 +23,12 @@ class QuoteView:
     subtotal: Decimal
     shipping_fee: Decimal
     total: Decimal
-    free_shipping_remaining: Decimal
+    free_shipping_remaining: Decimal | None
+    discount: Decimal = Decimal("0.00")
+    shipping_zone: str = ""
+    delivery_estimate: str = ""
+    coupon_code: str | None = None
+    coupon_error: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -108,6 +113,9 @@ class OrderDetail:
     subtotal: Decimal
     shipping_fee: Decimal
     cancel_reason: str
+    discount: Decimal = Decimal("0.00")
+    coupon_code: str = ""
+    shipping_zone: str = ""
     history: tuple[StatusEntry, ...]
     allowed_transitions: tuple[OrderStatus, ...]
     client: PersonBrief
@@ -198,3 +206,36 @@ class ConvertibleOrder:
 class ClientOrderTotals:
     count: int
     total: Decimal
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ShippingZoneView:
+    id: int
+    name: str
+    cities: tuple[str, ...]
+    fee: Decimal
+    free_threshold: Decimal | None
+    delivery_estimate: str
+    is_default: bool
+    is_active: bool
+    position: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CouponView:
+    id: int
+    code: str
+    description: str
+    kind: str
+    value: Decimal
+    max_discount: Decimal | None
+    min_subtotal: Decimal
+    free_shipping: bool
+    starts_at: datetime | None
+    ends_at: datetime | None
+    usage_limit: int | None
+    per_user_limit: int | None
+    is_active: bool
+    uses: int
+    discount_total: Decimal
+    created_at: datetime

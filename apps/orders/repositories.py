@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -6,7 +7,16 @@ from django.db import IntegrityError, transaction
 
 from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.numbers import new_order_number
-from apps.orders.models import Cart, CartItem, Order, OrderItem, OrderStatusEvent
+from apps.orders.models import (
+    Cart,
+    CartItem,
+    Coupon,
+    CouponRedemption,
+    Order,
+    OrderItem,
+    OrderStatusEvent,
+    ShippingZone,
+)
 
 NUMBER_ATTEMPTS = 5
 
@@ -50,6 +60,9 @@ class CartRepository:
         item.quantity = quantity
         item.save(update_fields=["quantity"])
         return item
+
+    def save_cart(self, cart: Cart, *, fields: Iterable[str]) -> None:
+        cart.save(update_fields=[*fields, "updated_at"])
 
     def remove(self, item: CartItem) -> None:
         item.delete()
@@ -113,3 +126,23 @@ class OrderRepository:
 
     def save_item(self, item: OrderItem, *, fields: Iterable[str]) -> None:
         item.save(update_fields=[*fields])
+
+
+class ShippingZoneRepository:
+    def active(self) -> list[ShippingZone]:
+        return list(ShippingZone.objects.filter(is_active=True))
+
+
+class CouponRepository:
+    def by_code(self, code: str, *, for_update: bool = False) -> Coupon | None:
+        queryset = Coupon.objects.select_for_update() if for_update else Coupon.objects.all()
+        return queryset.filter(code__iexact=code.strip()).first()
+
+    def usage(self, coupon: Coupon, user_id: int | None) -> tuple[int, int]:
+        live = CouponRedemption.objects.filter(coupon=coupon).exclude(
+            order__status=OrderStatus.CANCELLED.value
+        )
+        return live.count(), live.filter(user_id=user_id).count() if user_id else 0
+
+    def redeem(self, coupon: Coupon, order: Order, *, user_id: int, amount: Decimal) -> None:
+        CouponRedemption.objects.create(coupon=coupon, order=order, user_id=user_id, amount=amount)

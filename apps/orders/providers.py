@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from apps.catalog.services.contracts import PurchaseVerifier
 from apps.orders.adapters.gateways import (
     AccountsAddressBook,
@@ -14,15 +16,24 @@ from apps.orders.facades import (
     ClientOrderFacade,
     DispatchFacade,
     OrderAdjustmentFacade,
+    PromotionFacade,
 )
-from apps.orders.repositories import CartRepository, OrderRepository
-from apps.orders.selectors import OrderSelector
+from apps.orders.repositories import (
+    CartRepository,
+    CouponRepository,
+    OrderRepository,
+    ShippingZoneRepository,
+)
+from apps.orders.selectors import OrderSelector, PromotionSelector
 from apps.orders.services.adjustments import AdjustmentService
 from apps.orders.services.cart import CartService
 from apps.orders.services.checkout import CheckoutService
 from apps.orders.services.contracts import AddressBook, Inventory, OrderThreads, ResellerDirectory
+from apps.orders.services.coupons import CouponService
 from apps.orders.services.lifecycle import OrderLifecycleService
 from apps.orders.services.pricing import PricingService
+from apps.orders.services.promotions import CouponAdminService, ShippingZoneService
+from apps.orders.services.shipping import ShippingResolver
 from core.container import Container, Lifetime
 from core.events.contracts import EventPublisher
 
@@ -40,12 +51,20 @@ def register(container: Container) -> None:
     container.register(ClientOrderFacade, _client_facade, lifetime=Lifetime.TRANSIENT)
     container.register(DispatchFacade, _dispatch_facade, lifetime=Lifetime.TRANSIENT)
     container.register(OrderAdjustmentFacade, _adjustment_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(PromotionFacade, _promotion_facade, lifetime=Lifetime.TRANSIENT)
+
+
+def _coupons() -> CouponService:
+    return CouponService(CouponRepository(), clock=timezone.now)
 
 
 def _pricing(container: Container) -> PricingService:
     settings = order_settings()
     return PricingService(
-        container.resolve(Inventory), settings.shipping_rules, max_lines=settings.max_lines
+        container.resolve(Inventory),
+        ShippingResolver(ShippingZoneRepository(), settings.shipping_rules),
+        _coupons(),
+        max_lines=settings.max_lines,
     )
 
 
@@ -73,7 +92,11 @@ def _checkout_facade(container: Container) -> CheckoutFacade:
     pricing = _pricing(container)
     return CheckoutFacade(
         checkout=CheckoutService(
-            OrderRepository(), pricing, container.resolve(Inventory), container.resolve(AddressBook)
+            OrderRepository(),
+            pricing,
+            container.resolve(Inventory),
+            container.resolve(AddressBook),
+            _coupons(),
         ),
         pricing=pricing,
         carts=CartRepository(),
@@ -108,4 +131,12 @@ def _adjustment_facade(container: Container) -> OrderAdjustmentFacade:
     return OrderAdjustmentFacade(
         adjustments=AdjustmentService(OrderRepository()),
         publisher=container.resolve(EventPublisher),
+    )
+
+
+def _promotion_facade(_: Container) -> PromotionFacade:
+    return PromotionFacade(
+        zones=ShippingZoneService(),
+        coupons=CouponAdminService(clock=timezone.now),
+        selector=PromotionSelector(),
     )
