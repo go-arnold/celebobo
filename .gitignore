@@ -13,3 +13,4 @@ htmlcov/
 *.sqlite3
 dump.rdb
 openapi.yml
+/var/

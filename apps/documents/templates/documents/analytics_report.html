@@ -1,0 +1,28 @@
+{% extends "documents/base.html" %}
+{% block title %}Rapport d'activité{% endblock %}
+{% block stamp %}Du {{ summary.start|date:"d/m/Y" }} au {{ summary.end|date:"d/m/Y" }}<br>Généré le {{ generated_at|date:"d/m/Y H:i" }}{% endblock %}
+{% block content %}
+<h1>Rapport d'activité</h1>
+<div class="grid">
+  <div class="card">Chiffre d'affaires<strong>{{ summary.revenue.value }} $</strong><span class="muted">{% if summary.revenue.change is not None %}{{ summary.revenue.change }} % vs période précédente{% else %}—{% endif %}</span></div>
+  <div class="card">Marge<strong>{{ summary.profit.value }} $</strong><span class="muted">{% if summary.margin_rate is not None %}{{ summary.margin_rate }} %{% else %}—{% endif %}</span></div>
+  <div class="card">Ventes<strong>{{ summary.sales_count.value|floatformat:0 }}</strong><span class="muted">Panier moyen {{ summary.average_basket.value }} $</span></div>
+</div>
+<h2>Catégories</h2>
+<table>
+  <thead><tr><th>Catégorie</th><th class="num">CA</th><th class="num">Marge</th><th class="num">Taux</th><th class="num">Part</th></tr></thead>
+  <tbody>{% for row in categories %}<tr><td>{{ row.name }}</td><td class="num">{{ row.revenue }}</td><td class="num">{{ row.profit }}</td><td class="num">{{ row.margin_rate|default:"—" }}</td><td class="num">{{ row.share }} %</td></tr>{% empty %}<tr><td colspan="5" class="muted">Aucune vente.</td></tr>{% endfor %}</tbody>
+</table>
+<h2>Meilleurs produits</h2>
+<table>
+  <thead><tr><th>Produit</th><th class="num">Unités</th><th class="num">CA</th><th class="num">Marge</th></tr></thead>
+  <tbody>{% for row in products %}<tr><td>{{ row.name }}</td><td class="num">{{ row.units }}</td><td class="num">{{ row.revenue }}</td><td class="num">{{ row.profit }}</td></tr>{% empty %}<tr><td colspan="4" class="muted">Aucune vente.</td></tr>{% endfor %}</tbody>
+</table>
+{% if sellers %}
+<h2>Vendeurs</h2>
+<table>
+  <thead><tr><th>Vendeur</th><th class="num">Ventes</th><th class="num">CA</th><th class="num">Part</th></tr></thead>
+  <tbody>{% for row in sellers %}<tr><td>{{ row.name }}</td><td class="num">{{ row.sales_count }}</td><td class="num">{{ row.revenue }}</td><td class="num">{{ row.share }} %</td></tr>{% endfor %}</tbody>
+</table>
+{% endif %}
+{% endblock %}

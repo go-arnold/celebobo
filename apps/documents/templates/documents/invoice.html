@@ -1,0 +1,32 @@
+{% extends "documents/base.html" %}
+{% block title %}Facture {{ order.summary.number }}{% endblock %}
+{% block stamp %}Facture n° {{ order.summary.number }}<br>Émise le {{ issued_at|date:"d/m/Y" }}{% endblock %}
+{% block content %}
+<table style="margin-bottom: 14px;">
+  <tr>
+    <td style="width: 50%; border: none;">
+      <strong>Client</strong><br>{{ order.client.name }}<br>{{ order.client.email }}{% if order.client.phone %}<br>{{ order.client.phone }}{% endif %}
+    </td>
+    <td style="border: none;">
+      <strong>Livraison</strong><br>{{ order.address.recipient }} · {{ order.address.phone }}<br>
+      {{ order.address.line1 }}, {{ order.address.quarter }}<br>{{ order.address.city }}, {{ order.address.country }}
+    </td>
+  </tr>
+</table>
+<p class="muted">Commande du {{ order.summary.created_at|date:"d/m/Y" }} · Paiement : {{ order.payment_method }}{% if order.reseller %} · Conseiller : {{ order.reseller.name }}{% endif %}</p>
+<table>
+  <thead><tr><th>Article</th><th>Réf.</th><th class="num">Qté</th><th class="num">Prix unitaire</th><th class="num">Total</th></tr></thead>
+  <tbody>
+  {% for item in order.items %}
+    <tr><td>{{ item.name }}{% if item.variant_label %} — {{ item.variant_label }}{% endif %}</td><td>{{ item.sku }}</td>
+      <td class="num">{{ item.quantity }}</td><td class="num">{{ item.unit_price }} $</td><td class="num">{{ item.total }} $</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr><td colspan="4" class="num">Sous-total</td><td class="num">{{ order.subtotal }} $</td></tr>
+    <tr><td colspan="4" class="num">Livraison</td><td class="num">{{ order.shipping_fee }} $</td></tr>
+    <tr class="totals"><td colspan="4" class="num">Total</td><td class="num">{{ order.summary.total }} $</td></tr>
+  </tfoot>
+</table>
+<p class="muted" style="margin-top: 18px;">Merci pour votre confiance.</p>
+{% endblock %}

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>{% block title %}{{ company_name }}{% endblock %}</title>
+<style>
+  @page { size: {% block page_size %}A4{% endblock %}; margin: 16mm 14mm 18mm;
+    @bottom-right { content: "Page " counter(page) " / " counter(pages); font-size: 8pt; color: #6b7280; } }
+  body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 9pt; color: #111827; }
+  header { display: flex; justify-content: space-between; align-items: flex-start;
+    border-bottom: 2px solid #111827; padding-bottom: 8px; margin-bottom: 14px; }
+  .brand { font-size: 16pt; font-weight: 700; }
+  .muted { color: #6b7280; }
+  h1 { font-size: 13pt; margin: 0 0 4px; }
+  h2 { font-size: 11pt; margin: 18px 0 6px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; background: #f3f4f6; font-weight: 600; }
+  th, td { padding: 4px 6px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  .num { text-align: right; white-space: nowrap; }
+  .totals td { font-weight: 700; border-top: 2px solid #111827; }
+  .grid { display: flex; gap: 8px; flex-wrap: wrap; }
+  .card { border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px 8px; width: 30%; }
+  .card strong { display: block; font-size: 12pt; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="brand">{{ company_name }}</div>
+    <div class="muted">{{ company_address }} · {{ company_contact }}</div>
+  </div>
+  <div class="muted">{% block stamp %}{% endblock %}</div>
+</header>
+{% block content %}{% endblock %}
+</body>
+</html>

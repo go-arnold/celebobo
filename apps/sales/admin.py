@@ -1,4 +1,5 @@
 from django.contrib import admin
+from import_export.admin import ExportMixin
 
 from apps.sales.models import CommissionEntry, Payout, Refund, Sale
 
@@ -11,7 +12,7 @@ class RefundInline(admin.TabularInline[Refund, Sale]):
 
 
 @admin.register(Sale)
-class SaleAdmin(admin.ModelAdmin[Sale]):
+class SaleAdmin(ExportMixin, admin.ModelAdmin[Sale]):
     list_display = ("product_name", "quantity", "unit_price", "seller", "status", "sold_at")
     list_filter = ("status", "payment_method")
     search_fields = ("product_name", "sold_to")

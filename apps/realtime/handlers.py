@@ -1,6 +1,7 @@
 from apps.accounts.domain.events import AvailabilityChanged
 from apps.analytics.domain.events import SalesFactsRefreshed
 from apps.catalog.domain.events import StockLow
+from apps.documents.domain.events import JobFinished
 from apps.messaging.domain.events import (
     ConversationAssigned,
     ConversationClosed,
@@ -145,3 +146,14 @@ def push_reseller_application(event: ApplicationSubmitted) -> None:
 @event_bus.on(SalesFactsRefreshed)
 def push_dashboard_refresh(_event: SalesFactsRefreshed) -> None:
     _relay().staff_event(ServerEvent.DASHBOARD_UPDATED)
+
+
+@event_bus.on(JobFinished)
+def push_job_completed(event: JobFinished) -> None:
+    _relay().user_event(
+        ServerEvent.JOB_COMPLETED,
+        event.owner_id,
+        job_id=event.job_id,
+        kind=event.kind.value,
+        status=event.status.value,
+    )

@@ -233,6 +233,7 @@ The consumer only parses envelopes, checks access, and calls the same facades as
 - commissions (the reseller): `commission.updated`, `payout.created`;
 - reseller programme (staff): `reseller_application.created`;
 - dashboard (staff): `dashboard.updated` after each refresh of the analytics facts;
+- documents (the requester): `job.completed` when an export, import or report finishes;
 - errors: `error`, carrying the same `code` values as the REST API.
 
 **Limits and presence**
@@ -361,3 +362,38 @@ Dashboard KPIs and analytics, read from the `analytics_sales_fact` materialized 
 Permissions: `dashboard.view` for resellers, `analytics.view` for managers.
 
 The analytics page uses the dashboard endpoints with filters; `revenue-series` also carries the average-basket series, and `categories` the margin by category.
+
+### `apps.documents`
+
+Exports, the CSV product import, PDF reports and invoices.
+
+**Jobs**
+- Exports, imports and reports run as background jobs. A request answers `202` with the job, and the handler for `JobRequested` runs it through `generator_registry`, a factory per `JobKind`.
+- When a job finishes, its owner gets `job.completed`. `GET /jobs/<id>/` is the fallback when that event is missed.
+- Files are written to the private `documents` storage (`DOCUMENTS_ROOT`, default `var/documents`) and only reach the owner through `GET /jobs/<id>/download/`.
+- Jobs and their files are purged after `DOCUMENTS_RETENTION_DAYS` by the `documents.purge_jobs` beat task.
+- Writers come from `writer_registry`:
+  - CSV is UTF-8 with a BOM and `;`, with formula-like cells escaped;
+  - XLSX uses openpyxl;
+  - PDF uses WeasyPrint, which needs Pango on the host (CI installs it).
+- Exports reuse the requester's scope, so a reseller only exports their own sales.
+
+**Product import**
+- The file is checked before the job is queued: UTF-8, `name`, `category` (slug) and `price` columns, and the row and size limits.
+- Each row goes through `ProductAdminFacade`, so stock movements, events and search indexing still happen.
+  - A row whose `slug` exists updates that product; any other row creates one.
+  - `stock` sets the stock with an inventory movement.
+- Errors are reported per row in the job summary, and `dry_run=true` only reports.
+- The products export uses the same columns, so an exported file can be edited and imported back.
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/v1/bo/sales/export/` | `format`: `csv`, `xlsx` or `pdf`, plus the sales list filters |
+| `POST /api/v1/bo/products/export/` | `csv` or `xlsx` (managers) |
+| `POST /api/v1/bo/products/import/` | Multipart `file` and `dry_run` (managers) |
+| `POST /api/v1/bo/analytics/export/` | PDF activity report with the analytics filters |
+| `GET /api/v1/jobs/` · `<id>/` · `<id>/download/` | The requester's jobs, status and file |
+| `GET /api/v1/me/orders/<number>/invoice/` | The client's invoice as a PDF |
+| `GET /api/v1/bo/orders/<id>/invoice/` | Invoice for staff and the assigned reseller |
+
+Invoices are rendered on request, and cancelled orders have none. In the Django admin, products and sales can be exported with django-import-export (export only, so changes keep going through the domain).
