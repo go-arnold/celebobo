@@ -7,23 +7,29 @@ from apps.accounts.domain.commands import (
     AddressChanges,
     AddressFields,
     ChangeRole,
+    CreateUser,
+    EditUser,
     OnboardReseller,
     RegisterUser,
     ResellerChanges,
     SetAvailability,
     UpdatePreferences,
     UpdateProfile,
+    UserFilters,
 )
-from apps.accounts.domain.errors import UserNotFound
+from apps.accounts.domain.errors import InactiveAccount, UserNotFound
 from apps.accounts.domain.events import (
     AccountDeleted,
     AvailabilityChanged,
+    PasswordResetRequested,
     ProfileUpdated,
     ReferralAttached,
-    ResellerActivationChanged,
     ResellerOnboarded,
     ResellerUpdated,
     RoleChanged,
+    UserActivationChanged,
+    UserCreated,
+    UserEdited,
     UserRegistered,
 )
 from apps.accounts.domain.read_models import (
@@ -31,12 +37,14 @@ from apps.accounts.domain.read_models import (
     OnboardedReseller,
     Profile,
     ResellerAccount,
+    UserRow,
     WsTicket,
 )
 from apps.accounts.selectors import (
     AddressSelector,
     ProfileSelector,
     ResellerDirectorySelector,
+    UserDirectorySelector,
     to_address_view,
 )
 from apps.accounts.services.addresses import AddressBookService
@@ -52,6 +60,7 @@ from apps.accounts.services.registration import RegistrationService
 from apps.accounts.services.resellers import ResellerAccountService
 from apps.accounts.services.roles import RoleService
 from apps.accounts.services.tickets import TicketService
+from apps.accounts.services.user_admin import UserAdminService
 from core.domain.actor import Actor, Role
 from core.domain.errors import Unauthenticated
 from core.events.contracts import EventPublisher
@@ -205,7 +214,7 @@ class ResellerAccountFacade:
         with transaction.atomic():
             if self._accounts.set_active(reseller_id, active=active):
                 self._publisher.publish(
-                    ResellerActivationChanged(
+                    UserActivationChanged(
                         user_id=reseller_id, active=active, actor_id=actor.user_id
                     )
                 )
@@ -216,6 +225,63 @@ class ResellerAccountFacade:
         if user is None:
             raise UserNotFound
         return self._links.link_for(user)
+
+
+@logged_facade
+class UserAdminFacade:
+    def __init__(
+        self,
+        *,
+        admin: UserAdminService,
+        selector: UserDirectorySelector,
+        verifier: EmailVerifier,
+        publisher: EventPublisher,
+    ) -> None:
+        self._admin = admin
+        self._selector = selector
+        self._verifier = verifier
+        self._publisher = publisher
+
+    def page(
+        self, filters: UserFilters, *, offset: int, limit: int
+    ) -> tuple[list[UserRow], int, dict[str, int]]:
+        return self._selector.page(filters, offset=offset, limit=limit)
+
+    def detail(self, user_id: int) -> UserRow:
+        return self._selector.one(user_id)
+
+    def create(self, actor: Actor, command: CreateUser) -> UserRow:
+        with transaction.atomic():
+            user = self._admin.create(command)
+            self._verifier.register_address(user, verified=True)
+            self._publisher.publish(
+                UserCreated(user_id=user.pk, role=command.role, actor_id=actor.user_id)
+            )
+        return self._selector.one(user.pk)
+
+    def edit(self, actor: Actor, user_id: int, command: EditUser) -> UserRow:
+        with transaction.atomic():
+            user, fields = self._admin.edit(user_id, command)
+            if "email" in fields:
+                self._verifier.register_address(user, verified=True)
+            if fields:
+                self._publisher.publish(
+                    UserEdited(user_id=user_id, fields=fields, actor_id=actor.user_id)
+                )
+        return self._selector.one(user_id)
+
+    def set_active(self, actor: Actor, user_id: int, *, active: bool) -> UserRow:
+        with transaction.atomic():
+            if self._admin.set_active(actor, user_id, active=active):
+                self._publisher.publish(
+                    UserActivationChanged(user_id=user_id, active=active, actor_id=actor.user_id)
+                )
+        return self._selector.one(user_id)
+
+    def send_password_reset(self, actor: Actor, user_id: int) -> None:
+        if not self._admin.get(user_id).is_active:
+            raise InactiveAccount
+        self._publisher.publish(PasswordResetRequested(user_id=user_id, actor_id=actor.user_id))
 
 
 @logged_facade

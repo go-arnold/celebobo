@@ -13,9 +13,16 @@ from apps.accounts.facades import (
     PreferencesFacade,
     RealtimeAccessFacade,
     ResellerAccountFacade,
+    UserAdminFacade,
 )
 from apps.accounts.repositories import AddressRepository, PreferenceRepository, UserRepository
-from apps.accounts.selectors import AddressSelector, ProfileSelector, ResellerDirectorySelector
+from apps.accounts.selectors import (
+    AddressSelector,
+    ProfileSelector,
+    ResellerDirectorySelector,
+    UserDirectorySelector,
+)
+from apps.accounts.services.access import AccessService
 from apps.accounts.services.addresses import AddressBookService
 from apps.accounts.services.contracts import (
     EmailVerifier,
@@ -25,6 +32,7 @@ from apps.accounts.services.contracts import (
     TicketStore,
     TokenRevoker,
 )
+from apps.accounts.services.mailer import AccountMailer
 from apps.accounts.services.preferences import PreferenceService
 from apps.accounts.services.profiles import ProfileService
 from apps.accounts.services.referrals import ReferralService
@@ -32,6 +40,7 @@ from apps.accounts.services.registration import RegistrationService
 from apps.accounts.services.resellers import ResellerAccountService
 from apps.accounts.services.roles import RoleService
 from apps.accounts.services.tickets import TicketService
+from apps.accounts.services.user_admin import UserAdminService
 from core.authz.catalog import permission_catalog
 from core.container import Container, Lifetime
 from core.events.contracts import EventPublisher
@@ -50,6 +59,12 @@ def register(container: Container) -> None:
     container.register(PreferencesFacade, _preferences_facade, lifetime=Lifetime.TRANSIENT)
     container.register(RealtimeAccessFacade, _realtime_facade, lifetime=Lifetime.TRANSIENT)
     container.register(ResellerAccountFacade, _reseller_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(UserAdminFacade, _user_admin_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(
+        AccountMailer,
+        lambda c: AccountMailer(UserRepository(), c.resolve(PasswordSetupLinks)),
+        lifetime=Lifetime.TRANSIENT,
+    )
 
 
 def _account_facade(container: Container) -> AccountFacade:
@@ -91,11 +106,25 @@ def _reseller_facade(container: Container) -> ResellerAccountFacade:
             users,
             ReferralService(users),
             container.resolve(GroupSync),
-            container.resolve(TokenRevoker),
+            AccessService(users, container.resolve(TokenRevoker)),
         ),
         selector=ResellerDirectorySelector(),
         verifier=container.resolve(EmailVerifier),
         links=container.resolve(PasswordSetupLinks),
         users=users,
+        publisher=container.resolve(EventPublisher),
+    )
+
+
+def _user_admin_facade(container: Container) -> UserAdminFacade:
+    users = UserRepository()
+    return UserAdminFacade(
+        admin=UserAdminService(
+            users,
+            RoleService(users, ReferralService(users), container.resolve(GroupSync)),
+            AccessService(users, container.resolve(TokenRevoker)),
+        ),
+        selector=UserDirectorySelector(),
+        verifier=container.resolve(EmailVerifier),
         publisher=container.resolve(EventPublisher),
     )

@@ -113,3 +113,13 @@ class InvalidManager(ValidationFailed):
 
     def __init__(self) -> None:
         super().__init__(errors={"manager_id": [self.default_detail]})
+
+
+class OwnAccountDeactivation(Forbidden):
+    default_code = "own_account_deactivation"
+    default_detail = "Vous ne pouvez pas désactiver votre propre compte."
+
+
+class InactiveAccount(BusinessRuleViolation):
+    default_code = "inactive_account"
+    default_detail = "Ce compte est désactivé."

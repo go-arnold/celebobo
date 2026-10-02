@@ -1,0 +1,6 @@
+{% autoescape off %}Bonjour {{ first_name }},
+
+Un compte Celebobo vient d'être créé pour vous. Choisissez votre mot de passe pour y accéder :
+{{ url }}
+
+L'équipe Celebobo{% endautoescape %}

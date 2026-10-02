@@ -1,10 +1,11 @@
 from collections.abc import Iterable
 
 from allauth.account.models import EmailAddress
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, Exists, OuterRef, Q, QuerySet
 
-from apps.accounts.domain.commands import ResellerFilters
+from apps.accounts.domain.commands import ResellerFilters, UserFilters
 from apps.accounts.domain.enums import (
+    ACCOUNT_ROLES,
     AddressLabel,
     Availability,
     NotificationChannel,
@@ -17,6 +18,7 @@ from apps.accounts.domain.read_models import (
     AddressView,
     Contact,
     Invitee,
+    InviterRef,
     ManagerRef,
     Profile,
     ReferralCheck,
@@ -25,6 +27,7 @@ from apps.accounts.domain.read_models import (
     ResellerProfile,
     ResellerRef,
     SellerProfile,
+    UserRow,
 )
 from apps.accounts.models import Address, NotificationPreference, User
 from core.authz.catalog import PermissionCatalog
@@ -303,4 +306,77 @@ def _invitee(user: User) -> Invitee:
         name=user.get_full_name() or user.email,
         email=user.email,
         joined_at=user.date_joined,
+    )
+
+
+class UserDirectorySelector:
+    def page(
+        self, filters: UserFilters, *, offset: int, limit: int
+    ) -> tuple[list[UserRow], int, dict[str, int]]:
+        users = self._filtered(filters)
+        page = users.order_by("-date_joined", "-pk")[offset : offset + limit]
+        return [to_user_row(user) for user in page], users.count(), self.counts()
+
+    def one(self, user_id: int) -> UserRow:
+        user = self._users().filter(pk=user_id).first()
+        if user is None:
+            raise UserNotFound
+        return to_user_row(user)
+
+    def counts(self) -> dict[str, int]:
+        totals = User.objects.filter(deleted_at__isnull=True).aggregate(
+            **{role.value: Count("pk", filter=Q(role=role.value)) for role in ACCOUNT_ROLES}
+        )
+        return {name: int(value) for name, value in totals.items()}
+
+    def _filtered(self, filters: UserFilters) -> QuerySet[User]:
+        users = self._users()
+        if filters.role is not None:
+            users = users.filter(role=filters.role.value)
+        if filters.active is not None:
+            users = users.filter(is_active=filters.active)
+        if filters.search:
+            term = filters.search.strip()
+            users = users.filter(
+                Q(first_name__icontains=term)
+                | Q(last_name__icontains=term)
+                | Q(email__icontains=term)
+                | Q(phone_number__icontains=term)
+                | Q(referral_code=term)
+            )
+        return users
+
+    @staticmethod
+    def _users() -> QuerySet[User]:
+        verified = EmailAddress.objects.filter(user=OuterRef("pk"), verified=True)
+        return (
+            User.objects.filter(deleted_at__isnull=True)
+            .select_related("invited_by")
+            .annotate(email_verified=Exists(verified))
+        )
+
+
+def to_user_row(user: User) -> UserRow:
+    inviter = user.invited_by
+    return UserRow(
+        id=user.pk,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        name=user.get_full_name() or user.email,
+        email=user.email,
+        phone_number=user.phone_number,
+        avatar=user.avatar,
+        role=user.account_role,
+        referral_code=user.referral_code,
+        invited_by=InviterRef(
+            id=inviter.pk,
+            name=inviter.get_full_name() or inviter.email,
+            referral_code=inviter.referral_code,
+        )
+        if inviter
+        else None,
+        is_active=user.is_active,
+        email_verified=bool(getattr(user, "email_verified", False)),
+        date_joined=user.date_joined,
+        last_login=user.last_login,
     )

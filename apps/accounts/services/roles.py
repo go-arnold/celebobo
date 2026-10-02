@@ -34,14 +34,17 @@ class RoleService:
         if previous is command.role:
             return RoleChange(user, previous, changed=False)
 
-        user.role = command.role.value
-        user.is_staff = command.role in STAFF_ROLES
+        self.apply(user, command.role)
+        return RoleChange(user, previous, changed=True)
+
+    def apply(self, user: User, role: Role) -> None:
+        user.role = role.value
+        user.is_staff = role in STAFF_ROLES
         fields = ["role", "is_staff"]
-        if command.role is Role.RESELLER:
+        if role is Role.RESELLER:
             fields += self._prepare_reseller(user)
         self._users.save(user, fields=fields)
-        self._groups.sync(user, command.role)
-        return RoleChange(user, previous, changed=True)
+        self._groups.sync(user, role)
 
     def set_availability(self, user_id: int, command: SetAvailability) -> User:
         user = self._users.get(user_id, for_update=True)

@@ -53,6 +53,23 @@ class ResellerUpdated(DomainEvent):
 
 
 @domain_event
-class ResellerActivationChanged(DomainEvent):
+class UserActivationChanged(DomainEvent):
     user_id: int
     active: bool
+
+
+@domain_event
+class UserCreated(DomainEvent):
+    user_id: int
+    role: Role
+
+
+@domain_event
+class UserEdited(DomainEvent):
+    user_id: int
+    fields: tuple[str, ...]
+
+
+@domain_event
+class PasswordResetRequested(DomainEvent):
+    user_id: int

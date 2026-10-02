@@ -84,6 +84,7 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
 
 class AllauthEmailVerifier:
     def register_address(self, user: User, *, verified: bool = False) -> None:
+        EmailAddress.objects.filter(user=user).exclude(email=user.email).delete()
         EmailAddress.objects.update_or_create(
             user=user,
             email=user.email,

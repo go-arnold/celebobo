@@ -4,7 +4,7 @@ import pytest
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.accounts.domain.events import ResellerActivationChanged, ResellerUpdated
+from apps.accounts.domain.events import ResellerUpdated, UserActivationChanged
 from apps.accounts.tests.factories import ResellerFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -139,7 +139,7 @@ class TestManagement:
         assert not OutstandingToken.objects.filter(
             user=reseller, blacklistedtoken__isnull=True
         ).exists()
-        changes = [e for e in published_events.events if isinstance(e, ResellerActivationChanged)]
+        changes = [e for e in published_events.events if isinstance(e, UserActivationChanged)]
         assert len(changes) == 1
 
     def test_reactivation(self, as_user, manager):

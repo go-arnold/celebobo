@@ -95,3 +95,27 @@ class ResellerFilters:
     active: bool | None = None
     manager_id: int | None = None
     ordering: ResellerOrdering = ResellerOrdering.NAME
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CreateUser:
+    first_name: str
+    last_name: str
+    email: str
+    role: Role
+    phone_number: str | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class EditUser:
+    first_name: Maybe[str] = UNSET
+    last_name: Maybe[str] = UNSET
+    email: Maybe[str] = UNSET
+    phone_number: Maybe[str | None] = UNSET
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class UserFilters:
+    role: Role | None = None
+    search: str | None = None
+    active: bool | None = None
