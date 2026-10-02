@@ -1,29 +1,41 @@
 from django.utils import timezone
 
-from apps.catalog.adapters import database, meilisearch
+from apps.catalog.adapters import postgres
+from apps.catalog.adapters.media import UploadedMediaUrls
 from apps.catalog.conf import catalog_settings
 from apps.catalog.facades import (
     CatalogCache,
     CatalogFacade,
+    CategoryAdminFacade,
     FavoriteFacade,
     InventoryFacade,
+    ProductAdminFacade,
     ReviewFacade,
+    ReviewModerationFacade,
 )
 from apps.catalog.repositories import (
+    CategoryAdminRepository,
     FavoriteRepository,
+    ProductAdminRepository,
     ProductRepository,
+    ReviewAdminRepository,
     ReviewRepository,
     StockRepository,
 )
 from apps.catalog.selectors import (
+    AdminCategorySelector,
+    AdminProductSelector,
+    AdminReviewSelector,
     CategorySelector,
     FavoriteSelector,
     ProductCardSelector,
     ProductDetailSelector,
     ProductDocumentSelector,
     ReviewSelector,
+    StockSelector,
 )
 from apps.catalog.services.contracts import (
+    MediaUrls,
     PurchaseVerifier,
     RelatedProducts,
     SearchEngine,
@@ -32,26 +44,29 @@ from apps.catalog.services.contracts import (
 from apps.catalog.services.engagement import FavoriteService, ReviewService
 from apps.catalog.services.indexing import ProductIndexer
 from apps.catalog.services.inventory import InventoryService
-from apps.catalog.services.search import (
-    CatalogSearchService,
-    ResilientSearch,
-    search_engines,
-    search_indexes,
+from apps.catalog.services.management import (
+    CategoryAdminService,
+    ProductAdminService,
+    ReviewModerationService,
+    StockAdjustmentService,
+    VariantAdminService,
 )
+from apps.catalog.services.search import CatalogSearchService, search_engines, search_indexes
 from core.container import Container, Lifetime
 from core.events.contracts import EventPublisher
 
-DATABASE_ENGINE = "database"
-ADAPTER_MODULES = (database, meilisearch)
+ADAPTER_MODULES = (postgres,)
 
 
 def register(container: Container) -> None:
-    container.register(SearchEngine, lambda _: _search_engine())
+    container.register(
+        SearchEngine, lambda _: search_engines.create(catalog_settings().search_engine)
+    )
     container.register(
         SearchIndex, lambda _: search_indexes.create(catalog_settings().search_index)
     )
-    container.register(RelatedProducts, lambda _: database.SameCategoryRelated())
-    container.register(PurchaseVerifier, lambda _: database.NoPurchaseHistory())
+    container.register(RelatedProducts, lambda _: postgres.SameCategoryRelated())
+    container.register(PurchaseVerifier, lambda _: postgres.NoPurchaseHistory())
     container.register(
         CatalogCache, lambda _: CatalogCache("catalog", ttl=catalog_settings().cache_ttl)
     )
@@ -60,14 +75,10 @@ def register(container: Container) -> None:
     container.register(ReviewFacade, _review_facade, lifetime=Lifetime.TRANSIENT)
     container.register(FavoriteFacade, _favorite_facade, lifetime=Lifetime.TRANSIENT)
     container.register(InventoryFacade, _inventory_facade, lifetime=Lifetime.TRANSIENT)
-
-
-def _search_engine() -> SearchEngine:
-    name = catalog_settings().search_engine
-    engine = search_engines.create(name)
-    if name == DATABASE_ENGINE:
-        return engine
-    return ResilientSearch(primary=engine, fallback=search_engines.create(DATABASE_ENGINE))
+    container.register(MediaUrls, lambda _: UploadedMediaUrls())
+    container.register(ProductAdminFacade, _product_admin_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(CategoryAdminFacade, _category_admin_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(ReviewModerationFacade, _moderation_facade, lifetime=Lifetime.TRANSIENT)
 
 
 def _indexer(container: Container) -> ProductIndexer:
@@ -121,7 +132,46 @@ def _favorite_facade(container: Container) -> FavoriteFacade:
 
 
 def _inventory_facade(container: Container) -> InventoryFacade:
+    stock = StockRepository()
     return InventoryFacade(
-        inventory=InventoryService(StockRepository()),
+        inventory=InventoryService(stock),
+        stock=stock,
+        publisher=container.resolve(EventPublisher),
+    )
+
+
+def _product_admin_facade(container: Container) -> ProductAdminFacade:
+    products = ProductAdminRepository()
+    stock = StockRepository()
+    media = container.resolve(MediaUrls)
+    return ProductAdminFacade(
+        products=ProductAdminService(
+            products, CategoryAdminRepository(), media, today=timezone.localdate
+        ),
+        variants=VariantAdminService(products, stock, media),
+        stock=StockAdjustmentService(products, stock),
+        repository=products,
+        stock_repository=stock,
+        selector=AdminProductSelector(),
+        stock_selector=StockSelector(),
+        publisher=container.resolve(EventPublisher),
+    )
+
+
+def _category_admin_facade(container: Container) -> CategoryAdminFacade:
+    categories = CategoryAdminRepository()
+    return CategoryAdminFacade(
+        categories=CategoryAdminService(categories, container.resolve(MediaUrls)),
+        repository=categories,
+        selector=AdminCategorySelector(),
+        publisher=container.resolve(EventPublisher),
+    )
+
+
+def _moderation_facade(container: Container) -> ReviewModerationFacade:
+    return ReviewModerationFacade(
+        moderation=ReviewModerationService(ReviewAdminRepository(), ProductRepository()),
+        repository=ReviewAdminRepository(),
+        selector=AdminReviewSelector(),
         publisher=container.resolve(EventPublisher),
     )

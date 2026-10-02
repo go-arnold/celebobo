@@ -4,7 +4,6 @@ from decimal import Decimal
 import pytest
 
 from apps.catalog.domain.enums import Badge
-from apps.catalog.domain.errors import SearchUnavailable
 from apps.catalog.domain.queries import ProductQuery
 from apps.catalog.domain.read_models import FacetCount, Facets, SearchPage
 from apps.catalog.domain.rules import (
@@ -14,7 +13,7 @@ from apps.catalog.domain.rules import (
     displayed_badge,
     rating_distribution,
 )
-from apps.catalog.services.search import CatalogSearchService, ResilientSearch
+from apps.catalog.services.search import CatalogSearchService
 
 NOW = datetime(2026, 10, 2, 12, tzinfo=UTC)
 
@@ -53,17 +52,14 @@ class TestRules:
 
 
 class StubEngine:
-    def __init__(self, *, fail: bool = False) -> None:
-        self.fail = fail
+    def __init__(self) -> None:
         self.queries: list[ProductQuery] = []
 
     def search(self, query: ProductQuery) -> SearchPage:
-        self._maybe_fail()
         self.queries.append(query)
         return SearchPage(ids=(1, 2), total=2)
 
     def facets(self, query: ProductQuery) -> Facets:
-        self._maybe_fail()
         return Facets(
             categories=(
                 FacetCount(value="smartphones", label="smartphones", count=4),
@@ -77,12 +73,7 @@ class StubEngine:
         )
 
     def suggest(self, text: str, *, limit: int) -> tuple[int, ...]:
-        self._maybe_fail()
         return (9,)
-
-    def _maybe_fail(self) -> None:
-        if self.fail:
-            raise SearchUnavailable
 
 
 def service(engine: StubEngine) -> CatalogSearchService:
@@ -128,20 +119,3 @@ class TestCatalogSearchService:
         service(engine).search(ProductQuery(text="   "))
 
         assert engine.queries[0].text is None
-
-
-class TestResilientSearch:
-    def test_falls_back_when_primary_is_down(self, recorded_metrics):
-        search = ResilientSearch(primary=StubEngine(fail=True), fallback=StubEngine())
-
-        assert search.search(ProductQuery()).ids == (1, 2)
-        assert search.facets(ProductQuery()).in_stock == 3
-        assert search.suggest("iphone", limit=3) == (9,)
-        assert len(recorded_metrics.named("catalog.search_degraded")) == 3
-
-    def test_uses_primary_when_healthy(self, recorded_metrics):
-        primary = StubEngine()
-        ResilientSearch(primary=primary, fallback=StubEngine(fail=True)).search(ProductQuery())
-
-        assert len(primary.queries) == 1
-        assert recorded_metrics.records == []

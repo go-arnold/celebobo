@@ -5,7 +5,9 @@ SECRET_KEY = "test-secret-key-for-celebobo-api-suite-0001"
 DEBUG = False
 
 DATABASES = {
-    "default": env.db("TEST_DATABASE_URL", default="sqlite://:memory:"),
+    "default": env.db(
+        "TEST_DATABASE_URL", default="postgres://celebobo:celebobo@localhost:5432/celebobo"
+    ),
 }
 
 CACHES = {
@@ -27,6 +29,13 @@ WEBSOCKET_ALLOWED_ORIGINS = ["https://app.test"]
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_BROKER_URL = "memory://"
+
+MEDIA = {
+    "CLOUD_NAME": "demo",
+    "API_KEY": "123456789",
+    "API_SECRET": "test-cloudinary-secret",
+    "ROOT_FOLDER": "celebobo-test",
+}
 
 CORE = {
     **CORE,

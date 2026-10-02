@@ -34,3 +34,11 @@ class FavoriteAdded(DomainEvent):
 class FavoriteRemoved(DomainEvent):
     user_id: int
     product_id: int
+
+
+@domain_event
+class StockLow(DomainEvent):
+    product_id: int
+    variant_id: int | None
+    stock: int
+    threshold: int

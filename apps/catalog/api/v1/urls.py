@@ -1,6 +1,13 @@
 from django.urls import path
 from rest_framework.routers import SimpleRouter
 
+from apps.catalog.api.v1.backoffice_views import (
+    AdminCategoryViewSet,
+    AdminProductViewSet,
+    AdminReviewViewSet,
+    AdminStockViewSet,
+    AdminVariantViewSet,
+)
 from apps.catalog.api.v1.views import (
     CategoryViewSet,
     FavoriteViewSet,
@@ -13,7 +20,78 @@ router = SimpleRouter(use_regex_path=False)
 router.register("categories", CategoryViewSet, basename="category")
 router.register("products", ProductViewSet, basename="product")
 
+backoffice = [
+    path(
+        "bo/products/",
+        AdminProductViewSet.as_view({"get": "list", "post": "create"}),
+        name="bo-products",
+    ),
+    path(
+        "bo/products/bulk/", AdminProductViewSet.as_view({"post": "bulk"}), name="bo-products-bulk"
+    ),
+    path(
+        "bo/products/<int:product_id>/",
+        AdminProductViewSet.as_view(
+            {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}
+        ),
+        name="bo-product",
+    ),
+    path(
+        "bo/products/<int:product_id>/restore/",
+        AdminProductViewSet.as_view({"post": "restore"}),
+        name="bo-product-restore",
+    ),
+    path(
+        "bo/products/<int:product_id>/duplicate/",
+        AdminProductViewSet.as_view({"post": "duplicate"}),
+        name="bo-product-duplicate",
+    ),
+    path(
+        "bo/products/<int:product_id>/variants/",
+        AdminVariantViewSet.as_view({"post": "create"}),
+        name="bo-product-variants",
+    ),
+    path(
+        "bo/variants/<int:variant_id>/",
+        AdminVariantViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
+        name="bo-variant",
+    ),
+    path(
+        "bo/products/<int:product_id>/stock-adjustments/",
+        AdminStockViewSet.as_view({"post": "adjust"}),
+        name="bo-stock-adjust",
+    ),
+    path(
+        "bo/products/<int:product_id>/stock-movements/",
+        AdminStockViewSet.as_view({"get": "movements"}),
+        name="bo-stock-movements",
+    ),
+    path("bo/stock/alerts/", AdminStockViewSet.as_view({"get": "alerts"}), name="bo-stock-alerts"),
+    path(
+        "bo/categories/",
+        AdminCategoryViewSet.as_view({"get": "list", "post": "create"}),
+        name="bo-categories",
+    ),
+    path(
+        "bo/categories/reorder/",
+        AdminCategoryViewSet.as_view({"post": "reorder"}),
+        name="bo-categories-reorder",
+    ),
+    path(
+        "bo/categories/<int:category_id>/",
+        AdminCategoryViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
+        name="bo-category",
+    ),
+    path("bo/reviews/", AdminReviewViewSet.as_view({"get": "list"}), name="bo-reviews"),
+    path(
+        "bo/reviews/<int:review_id>/",
+        AdminReviewViewSet.as_view({"patch": "partial_update"}),
+        name="bo-review",
+    ),
+]
+
 urlpatterns = [
+    *backoffice,
     path("search/suggest/", SuggestViewSet.as_view({"get": "list"}), name="search-suggest"),
     path(
         "products/<slug:slug>/reviews/",

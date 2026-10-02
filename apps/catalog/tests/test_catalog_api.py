@@ -182,7 +182,9 @@ class TestCaching:
 
 
 class TestSuggest:
-    def test_suggestions(self, api: APIClient, iphone):
+    def test_suggestions(self, api: APIClient, iphone, reindex):
+        reindex()
+
         body = api.get("/api/v1/search/suggest/", {"q": "iph"}).json()
 
         assert body == [

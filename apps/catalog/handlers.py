@@ -16,12 +16,12 @@ def invalidate_catalog_cache(_: DomainEvent) -> None:
     container.resolve(CatalogCache).bump()
 
 
-@event_bus.on(ProductChanged, background=True)
+@event_bus.on(ProductChanged)
 def index_product(event: ProductChanged) -> None:
     container.resolve(ProductIndexer).sync([event.product_id])
 
 
-@event_bus.on(ProductRemoved, background=True)
+@event_bus.on(ProductRemoved)
 def unindex_product(event: ProductRemoved) -> None:
     container.resolve(ProductIndexer).remove([event.product_id])
 

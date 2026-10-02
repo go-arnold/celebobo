@@ -21,7 +21,6 @@ dependencies = [
     "djangorestframework-simplejwt>=5.5",
     "django-stubs-ext>=5.2",
     "django-safedelete>=1.4",
-    "meilisearch>=0.34",
     "channels>=4.2",
     "channels-redis>=4.2",
     "uvicorn[standard]>=0.34",
@@ -100,13 +99,12 @@ module = [
     "allauth.*",
     "dj_rest_auth.*",
     "safedelete.*",
-    "meilisearch.*",
     "channels.*",
 ]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["apps.catalog.models"]
+module = ["apps.catalog.models", "apps.catalog.repositories"]
 disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]
@@ -185,13 +183,20 @@ source_modules = [
     "apps.orders.domain",
     "apps.messaging.domain",
     "apps.realtime.domain",
+    "apps.media.domain",
 ]
 forbidden_modules = ["django", "rest_framework", "celery", "allauth", "dj_rest_auth"]
 
 [[tool.importlinter.contracts]]
 name = "app layers"
 type = "layers"
-containers = ["apps.accounts", "apps.catalog", "apps.orders", "apps.messaging"]
+containers = [
+    "apps.accounts",
+    "apps.catalog",
+    "apps.orders",
+    "apps.messaging",
+    "apps.media",
+]
 layers = [
     "api",
     "facades",
@@ -265,7 +270,10 @@ forbidden_modules = [
     "apps.orders.repositories",
     "apps.orders.services",
     "apps.orders.adapters",
-    "apps.catalog",
+    "apps.catalog.models",
+    "apps.catalog.repositories",
+    "apps.catalog.services",
+    "apps.catalog.adapters",
 ]
 ignore_imports = ["apps.realtime.tests.** -> apps.**"]
 allow_indirect_imports = true

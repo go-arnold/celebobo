@@ -7,6 +7,7 @@ from apps.accounts.models import User
 from apps.accounts.tests.factories import UserFactory
 from apps.catalog.domain.read_models import ProductDocument
 from apps.catalog.services.contracts import PurchaseVerifier, SearchIndex
+from apps.catalog.services.indexing import ProductIndexer
 from core.container import container
 
 
@@ -67,3 +68,11 @@ def purchases() -> Iterator[AllowListPurchases]:
     verifier = AllowListPurchases()
     with container.override(PurchaseVerifier, verifier):
         yield verifier
+
+
+@pytest.fixture
+def reindex():
+    def run() -> int:
+        return container.resolve(ProductIndexer).rebuild()
+
+    return run

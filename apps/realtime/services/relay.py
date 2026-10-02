@@ -109,3 +109,17 @@ class RealtimeRelay:
             ServerEvent.PRESENCE_CHANGED,
             {"user_id": user_id, "online": online, "availability": availability},
         )
+
+    def stock_low(
+        self, product_id: int, variant_id: int | None, stock: int, threshold: int
+    ) -> None:
+        self._broadcaster.send(
+            [STAFF],
+            ServerEvent.STOCK_LOW,
+            {
+                "product_id": product_id,
+                "variant_id": variant_id,
+                "stock": stock,
+                "threshold": threshold,
+            },
+        )

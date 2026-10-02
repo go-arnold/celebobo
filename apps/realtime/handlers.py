@@ -1,4 +1,5 @@
 from apps.accounts.domain.events import AvailabilityChanged
+from apps.catalog.domain.events import StockLow
 from apps.messaging.domain.events import (
     ConversationAssigned,
     ConversationClosed,
@@ -87,3 +88,8 @@ def push_order_repriced(event: OrderRepriced) -> None:
 @event_bus.on(AvailabilityChanged)
 def push_availability(event: AvailabilityChanged) -> None:
     _relay().presence_changed(event.user_id, online=True, availability=event.availability.value)
+
+
+@event_bus.on(StockLow)
+def push_low_stock(event: StockLow) -> None:
+    _relay().stock_low(event.product_id, event.variant_id, event.stock, event.threshold)

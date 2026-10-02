@@ -33,7 +33,7 @@ Sources:
 | `contracts.py` | `Protocol`s for services and adapters | domain, DTOs |
 | `repositories.py` / `selectors.py` | Writes on aggregates (with locking) / optimised reads (querysets, annotations) | models |
 | `domain/` | DTOs (`@dataclass(frozen=True, slots=True)`), enums, value objects (`Money`), `DomainError`s, events | stdlib only |
-| `adapters/` | Cloudinary, Gemini, Meilisearch, SMTP/SES, WebPush, WeasyPrint, openpyxl | contracts, third-party SDKs |
+| `adapters/` | Cloudinary, Gemini, PostgreSQL full-text search, SMTP/SES, WebPush, WeasyPrint, openpyxl | contracts, third-party SDKs |
 | `handlers.py` | Observers subscribed to events | facades/services of their own app, celery tasks |
 | `tasks.py` | Celery entry points. Thin: they resolve a facade and call it. | facades |
 
@@ -119,7 +119,7 @@ class ServiceFactory:
     @cached_property
     def search(self) -> SearchEngine:
         return FallbackSearch(
-            primary=search_registry.create("meilisearch"),
+            primary=search_registry.create("postgres"),
             fallback=search_registry.create("postgres"),
         )
 
@@ -269,7 +269,7 @@ class EventBus:
 | `OrderStatusChanged` | Timeline · WS · close the conversation on a final status · release stock if cancelled · commission on `livree` |
 | `SaleRecorded` | Update aggregates · commission ledger · WS `sale.created` · `stock.low` check |
 | `SaleRefunded` | Reverse aggregates and commission · restock if it's a return |
-| `ProductChanged` | Meilisearch upsert · re-embed · invalidate cache |
+| `ProductChanged` | Refresh `search_vector` · re-embed · invalidate cache |
 | `MessagePosted` | WS · unread counts · offline notification (email/push) |
 | `PriceProposalAnswered` | Recompute the order total · WS `order.updated` |
 | `ResellerApplicationSubmitted` | Notify staff · email acknowledgement |
@@ -300,7 +300,7 @@ class OrderViewSet(UseCaseViewSet):
 
 - **Domain and services:** pure unit tests with in-memory fakes that implement the contracts (`FakeStorage`, `FakeSearch`, `FakeLLM`, `RecordingBus`), no DB.
 - **Facades:** `pytest-django` + `factory_boy`, with `container.override(...)`. Assert on the events published, not on side effects.
-- **Contract tests:** one parametrised suite per `Protocol`, run against every adapter (Cloudinary is mocked by `respx`/`responses`; Meilisearch runs in a CI service container).
+- **Contract tests:** one parametrised suite per `Protocol`, run against every adapter (Cloudinary is mocked; full-text search runs on the CI Postgres service).
 - **API:** `APIClient` tests per endpoint for permissions × roles (a matrix test generated from `permissions.py`), plus Schemathesis on `/schema/`.
 - **Guards:** `import-linter` (layers and app independence), `mypy --strict` with django-stubs/drf-stubs, a coverage gate on `services/` and `domain/`.
 
@@ -323,7 +323,7 @@ core/
 apps/
   accounts/       User, Address, Preferences, Push, ResellerApplication
   catalog/        Category, Product, Variant, Image, Review, Favorite, StockMovement
-  search/         SearchEngine adapters (meilisearch, postgres), indexer
+  search/         SearchEngine adapter (PostgreSQL full-text), indexer
   orders/         Cart, Order, OrderItem, StatusEvent, PriceProposal, state machine
   messaging/      Conversation, Participant, Message, Notification, consumers
   sales/          Sale, Refund, CommissionLedger, Payout
@@ -390,7 +390,7 @@ Use a **custom User model from day 1**; the old project used `auth.User` + `Prof
   - lifecycle: `is_active`, `date_added`;
   - denormalised counters `rating_avg`, `reviews_count`, `sales_count`, updated by signals or Celery. They remove the old N+1 queries;
   - **safedelete** (`deleted_at`) drives the trash/restore actions the UI already has;
-  - `search_vector`, if you want a Postgres search fallback next to Meilisearch.
+  - `search_vector` (`SearchVectorField` + GIN index) for PostgreSQL full-text search.
 - **ProductImage**: `product`, `image`, `position` (0–3).
   - The serializer exposes `image` and `images[]` and accepts the 4 multipart slot fields.
 - **ProductFeature**: `product`, `name`, `position`.
@@ -582,12 +582,12 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
 
 | Tool | Use |
 |---|---|
-| **Meilisearch** | Index `products` (name, description, category, features, current price, `in_stock`, `is_active`). Used by `products/?search=` and `suggest/`. Sync it with an `on_commit` Celery task. If Meilisearch is down, fall back to Postgres `SearchVector` + `pg_trgm`, and never return a 500 (the old search did). |
+| **PostgreSQL full-text search** | Pre-computed weighted `search_vector` (name A, category B, features C, description D) with a GIN index and a `french_unaccent` text configuration. Used by `products/?search=` (`websearch_to_tsquery` + `ts_rank`) and `suggest/` (prefix tsqueries). The vector is refreshed inline on `ProductChanged`. No separate search service to run or keep in sync. |
 | **pgvector** | `related/` and RAG for the assistant. Embed with Celery, never inside the request (the old search did). The assistant gets a tool `search_products(query, category, on_sale, max_price)` and returns `products[]`. |
 | **Gemini** | `google-genai` async streaming. Keep the old history summary (Redis) and the ProductQuestion sentiment analysis (Celery follow-up task). |
 | **Materialized views / aggregate tables** | `sales_daily(date, seller, category, method, revenue, cost, units, count)` and `sales_hourly(weekday, hour)`. `dashboard/` and `analytics/` read only from these. Refresh them with Celery beat every 5 min plus a targeted update in `on_commit` of a sale. Calculate "stock value over 22 weeks" with a weekly snapshot task, because history can't be rebuilt from the current stock. |
 | **Redis** | Django cache (catalogue, `home/`, facets), Celery broker, the channel layer, presence, throttling. Use separate databases, e.g. db0 cache / db1 broker / db2 channels. |
-| **Celery** | Emails (never synchronous SMTP, which the old project used), embeddings, Meilisearch sync, exports, imports, aggregates, low-stock alerts, assistant analytics. Use separate queues: `default`, `ai`, `exports`. |
+| **Celery** | Emails (never synchronous SMTP, which the old project used), embeddings, exports, imports, aggregates, low-stock alerts, assistant analytics. Use separate queues: `default`, `ai`, `exports`. |
 | **pgbouncer** | Supabase's pooler on port 6543 in *transaction* mode. Set `DISABLE_SERVER_SIDE_CURSORS=True` and `CONN_MAX_AGE=0`. Run migrations over the direct connection on 5432. |
 | **Cloudinary** | Signed direct uploads (`sign_upload`) behind `MediaStorage`; `django-cloudinary-storage` only for Django admin. Resize and compress with Pillow (max 1600 px, WebP) before upload, or use Cloudinary's `eager` transformations. Set `NEXT_PUBLIC_MEDIA_HOST=res.cloudinary.com`. |
 | **django-safedelete** | Product and Category: `SOFT_DELETE_CASCADE` off for products, and `all_objects` for the trash view. |
@@ -666,10 +666,10 @@ Media are already on Cloudinary, so keep the same `public_id`s.
 
 1. **Core:**
    - `core/` (registry, container, event bus, observability, `UseCaseViewSet`, errors, pagination factory, versioning);
-   - settings split, Docker Compose (api, worker, beat, redis, meilisearch, pgbouncer), CI;
+   - settings split, Docker Compose (api, worker, beat, redis, pgbouncer), CI;
    - quality tooling: ruff, mypy, import-linter, pytest, pip-audit, bandit, pre-commit.
 2. **Accounts:** auth (JWT cookies + Google), roles, permissions matrix, `/me/`.
-3. **Catalogue:** read side, Meilisearch adapter + Postgres fallback, cache.
+3. **Catalogue:** read side, PostgreSQL full-text search, cache.
 4. **Orders:** cart, pricing, checkout facade, state machine, messaging, notifications, WS gateway.
 5. **Back office:** products, variants, stock, categories, uploads.
 6. **Sales:** sales, conversion, refunds, commissions, payouts.

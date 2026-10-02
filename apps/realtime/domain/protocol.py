@@ -39,6 +39,7 @@ class ServerEvent(StrEnum):
     ORDER_STATUS_CHANGED = "order.status_changed"
     ORDER_UPDATED = "order.updated"
     PRESENCE_CHANGED = "presence.changed"
+    STOCK_LOW = "stock.low"
 
 
 class InvalidEnvelope(ValidationFailed):

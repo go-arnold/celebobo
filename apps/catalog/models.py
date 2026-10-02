@@ -2,6 +2,8 @@ from decimal import Decimal
 from typing import Any
 
 from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models.functions import Lower
@@ -87,6 +89,7 @@ class Product(SafeDeleteModel, TimestampedModel):
     rating_avg = models.DecimalField(max_digits=3, decimal_places=2, default=Decimal(0))
     reviews_count = models.PositiveIntegerField(default=0)
     sales_count = models.PositiveIntegerField(default=0, db_index=True)
+    search_vector = SearchVectorField(null=True, editable=False)
 
     class Meta:
         verbose_name = "produit"
@@ -95,6 +98,7 @@ class Product(SafeDeleteModel, TimestampedModel):
         indexes = (
             models.Index(fields=("is_active", "category"), name="catalog_product_active_cat"),
             models.Index(fields=("rating_avg",), name="catalog_product_rating"),
+            GinIndex(fields=("search_vector",), name="catalog_product_search"),
         )
         constraints = (
             models.CheckConstraint(
@@ -124,6 +128,10 @@ class Product(SafeDeleteModel, TimestampedModel):
     @property
     def in_stock(self) -> bool:
         return self.stock > 0
+
+    @property
+    def is_trashed(self) -> bool:
+        return getattr(self, "deleted", None) is not None
 
 
 class ProductImage(models.Model):

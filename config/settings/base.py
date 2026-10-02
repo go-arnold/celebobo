@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.postgres",
     "corsheaders",
     "channels",
     "rest_framework",
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     "apps.orders",
     "apps.messaging",
     "apps.realtime",
+    "apps.media",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -153,6 +155,7 @@ REST_FRAMEWORK = {
         "referral": "20/min",
         "search": "120/min",
         "tracking": "10/min",
+        "uploads": "60/min",
     },
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
@@ -261,21 +264,21 @@ EMAIL_BACKEND = env.str("EMAIL_BACKEND", default="django.core.mail.backends.cons
 DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", default="Celebobo <no-reply@celebobo.com>")
 
 CATALOG = {
-    "SEARCH_ENGINE": env.str("CATALOG_SEARCH_ENGINE", default="database"),
-    "SEARCH_INDEX": env.str("CATALOG_SEARCH_INDEX", default="null"),
+    "SEARCH_ENGINE": env.str("CATALOG_SEARCH_ENGINE", default="postgres"),
+    "SEARCH_INDEX": env.str("CATALOG_SEARCH_INDEX", default="postgres"),
     "NEW_PRODUCT_DAYS": env.int("CATALOG_NEW_PRODUCT_DAYS", default=20),
     "CACHE_TTL": env.int("CATALOG_CACHE_TTL", default=300),
+}
+MEDIA = {
+    "CLOUD_NAME": env.str("CLOUDINARY_CLOUD_NAME", default=""),
+    "API_KEY": env.str("CLOUDINARY_API_KEY", default=""),
+    "API_SECRET": env.str("CLOUDINARY_API_SECRET", default=""),
+    "ROOT_FOLDER": env.str("CLOUDINARY_ROOT_FOLDER", default="celebobo"),
 }
 ORDERS = {
     "FREE_SHIPPING_THRESHOLD": env.str("ORDERS_FREE_SHIPPING_THRESHOLD", default="199.00"),
     "FLAT_SHIPPING_FEE": env.str("ORDERS_FLAT_SHIPPING_FEE", default="2.98"),
 }
-MEILISEARCH = {
-    "URL": env.str("MEILISEARCH_URL", default="http://localhost:7700"),
-    "API_KEY": env.str("MEILISEARCH_API_KEY", default=""),
-    "INDEX": env.str("MEILISEARCH_INDEX", default="products"),
-}
-
 CELERY_BROKER_URL = env.str("REDIS_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_TASK_ACKS_LATE = True
