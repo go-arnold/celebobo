@@ -6,6 +6,8 @@ from types import MappingProxyType
 from typing import Any
 
 from django.core.exceptions import ImproperlyConfigured
+from drf_spectacular.utils import extend_schema_serializer
+from rest_framework import serializers
 from rest_framework.pagination import CursorPagination, PageNumberPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -182,3 +184,32 @@ def _previous_link(url: str, page: int) -> str | None:
     if page - 1 == 1:
         return remove_query_param(url, "page")
     return replace_query_param(url, "page", page - 1)
+
+
+class PageMetaOutput(serializers.Serializer[Any]):
+    count = serializers.IntegerField()
+    page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+    total_pages = serializers.IntegerField()
+
+
+_PAGES: dict[type[serializers.BaseSerializer[Any]], type[serializers.Serializer[Any]]] = {}
+
+
+def page_of(
+    serializer_class: type[serializers.BaseSerializer[Any]],
+) -> type[serializers.Serializer[Any]]:
+    if serializer_class not in _PAGES:
+        name = serializer_class.__name__.removesuffix("Output")
+        page = type(
+            f"{name}Page",
+            (serializers.Serializer,),
+            {
+                "results": serializer_class(many=True),
+                "next": serializers.URLField(allow_null=True),
+                "previous": serializers.URLField(allow_null=True),
+                "meta": PageMetaOutput(),
+            },
+        )
+        _PAGES[serializer_class] = extend_schema_serializer(many=False)(page)
+    return _PAGES[serializer_class]

@@ -28,7 +28,7 @@ from apps.documents.permissions import (
     JOBS_VIEW_OWN,
     REPORTS_ANALYTICS,
 )
-from core.api.pagination import page_request, page_response
+from core.api.pagination import page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
 
@@ -107,7 +107,7 @@ class JobViewSet(UseCaseViewSet):
     }
     documents = Inject(DocumentJobFacade)
 
-    @extend_schema(responses=JobOutput(many=True))
+    @extend_schema(responses=page_of(JobOutput))
     def list(self, request: Request) -> Response:
         page = page_request(request, default_size=20, max_size=100)
         jobs, total = self.documents.page(self.actor, offset=page.offset, limit=page.page_size)

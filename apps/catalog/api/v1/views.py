@@ -20,7 +20,7 @@ from apps.catalog.api.v1.serializers import (
 from apps.catalog.domain.queries import PostReview, ProductQuery
 from apps.catalog.facades import CatalogFacade, FavoriteFacade, ReviewFacade
 from apps.catalog.permissions import FAVORITES_MANAGE, REVIEWS_CREATE
-from core.api.pagination import PageRequest, page_request, page_response
+from core.api.pagination import PageRequest, page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
 
@@ -48,7 +48,7 @@ class ProductViewSet(UseCaseViewSet):
     lookup_value_converter = "slug"
     catalog = Inject(CatalogFacade)
 
-    @extend_schema(parameters=[ProductQueryInput], responses=ProductCardOutput(many=True))
+    @extend_schema(parameters=[ProductQueryInput], responses=page_of(ProductCardOutput))
     def list(self, request: Request) -> Response:
         query = self._query()
         page = self.catalog.browse(self.actor, query)
@@ -68,7 +68,7 @@ class ProductViewSet(UseCaseViewSet):
     def retrieve(self, request: Request, slug: str) -> Response:
         return self.respond(ProductDetailOutput, self.catalog.product(self.actor, slug))
 
-    @extend_schema(responses=ProductCardOutput(many=True))
+    @extend_schema(responses=page_of(ProductCardOutput))
     @action(detail=True, methods=["get"])
     def related(self, request: Request, slug: str) -> Response:
         return self.respond(ProductCardOutput, self.catalog.related(self.actor, slug), many=True)
@@ -93,7 +93,7 @@ class ReviewViewSet(UseCaseViewSet):
     permission_classes = (AllowAny,)
     reviews = Inject(ReviewFacade)
 
-    @extend_schema(responses=ReviewOutput(many=True))
+    @extend_schema(responses=page_of(ReviewOutput))
     def list(self, request: Request, slug: str) -> Response:
         page = page_request(request, default_size=10, max_size=50)
         result = self.reviews.page(slug, offset=page.offset, limit=page.page_size)

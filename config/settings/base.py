@@ -3,6 +3,7 @@ from pathlib import Path
 
 import django_stubs_ext
 import environ
+from csp.constants import NONE, SELF, UNSAFE_INLINE
 
 from core.observability.logging import configure_structlog, logging_config
 
@@ -35,6 +36,8 @@ INSTALLED_APPS = [
     "safedelete",
     "import_export",
     "auditlog",
+    "axes",
+    "csp",
     "core",
     "apps.accounts",
     "apps.catalog",
@@ -70,6 +73,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "csp.middleware.CSPMiddleware",
+    "axes.middleware.AxesMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -112,9 +117,34 @@ CACHES = {
 
 AUTH_USER_MODEL = "accounts.User"
 AUTHENTICATION_BACKENDS = (
+    "axes.backends.AxesStandaloneBackend",
     "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
 )
+
+AXES_FAILURE_LIMIT = env.int("AXES_FAILURE_LIMIT", default=5)
+AXES_COOLOFF_TIME = timedelta(minutes=env.int("AXES_COOLOFF_MINUTES", default=15))
+AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
+AXES_USERNAME_FORM_FIELD = "email"
+AXES_RESET_ON_SUCCESS = True
+AXES_IPWARE_PROXY_COUNT = env.int("AXES_PROXY_COUNT", default=0) or None
+AXES_IPWARE_META_PRECEDENCE_ORDER = ["HTTP_X_FORWARDED_FOR", "REMOTE_ADDR"]
+
+CONTENT_SECURITY_POLICY = {
+    "EXCLUDE_URL_PREFIXES": ("/api/v1/docs/", "/api/v1/redoc/"),
+    "DIRECTIVES": {
+        "default-src": [SELF],
+        "script-src": [SELF],
+        "style-src": [SELF, UNSAFE_INLINE],
+        "img-src": [SELF, "data:", "https://res.cloudinary.com"],
+        "connect-src": [SELF],
+        "font-src": [SELF],
+        "object-src": [NONE],
+        "base-uri": [SELF],
+        "form-action": [SELF],
+        "frame-ancestors": [NONE],
+    },
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -176,6 +206,7 @@ REST_FRAMEWORK = {
         "referral": "20/min",
         "assistant": "12/min",
         "contact": "5/hour",
+        "coupons": "20/hour",
         "newsletter": "10/hour",
         "reseller_applications": "5/hour",
         "search": "120/min",
@@ -272,6 +303,7 @@ REST_AUTH = {
     "LOGOUT_ON_PASSWORD_CHANGE": False,
     "OLD_PASSWORD_FIELD_ENABLED": True,
     "USER_DETAILS_SERIALIZER": "apps.accounts.api.v1.auth_serializers.SessionUserSerializer",
+    "LOGIN_SERIALIZER": "apps.accounts.api.v1.auth_serializers.LockoutAwareLoginSerializer",
     "PASSWORD_RESET_SERIALIZER": (
         "apps.accounts.api.v1.auth_serializers.FrontendPasswordResetSerializer"
     ),
@@ -324,6 +356,10 @@ CELERY_BEAT_SCHEDULE = {
     },
     "purge-audit-trail": {
         "task": "audit.purge",
+        "schedule": 24 * 60 * 60,
+    },
+    "sweep-orphan-media": {
+        "task": "media.sweep_orphans",
         "schedule": 24 * 60 * 60,
     },
 }

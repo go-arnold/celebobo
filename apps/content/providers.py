@@ -1,6 +1,7 @@
 from django.utils import timezone
 
 from apps.content.adapters.gateways import CatalogShowcase, OrdersShipping
+from apps.content.adapters.media_references import ContentMediaReferences
 from apps.content.domain.errors import BannerNotFound, FaqEntryNotFound, PageNotFound
 from apps.content.facades import ContactFacade, NewsletterFacade, SiteContentFacade
 from apps.content.models import Banner, ContactMessage, FaqEntry, Page
@@ -21,6 +22,7 @@ from apps.content.services.mailer import ContentMailer
 from apps.content.services.newsletter import NewsletterService
 from apps.content.services.rules import UniqueSlug, valid_schedule
 from apps.content.services.site import SiteSettingsService
+from apps.media.services.references import media_references
 from core.container import Container, Lifetime
 from core.events.contracts import EventPublisher
 
@@ -29,6 +31,7 @@ HOME_CATEGORY_BLOCKS = 4
 
 
 def register(container: Container) -> None:
+    media_references.add("content", ContentMediaReferences, replace=True)
     container.register(ContentCache, lambda _: ContentCache())
     container.register(Showcase, lambda _: CatalogShowcase())
     container.register(ShippingSource, lambda _: OrdersShipping())

@@ -1,7 +1,9 @@
 from django.utils import timezone
 
+from apps.media.services.references import media_references
 from apps.messaging.adapters import notifiers
 from apps.messaging.adapters.gateways import AccountsDirectory, MessagingOrderThreads, OrdersGateway
+from apps.messaging.adapters.media_references import MessagingMediaReferences
 from apps.messaging.conf import messaging_settings
 from apps.messaging.facades import (
     ConversationFacade,
@@ -34,6 +36,7 @@ ADAPTER_MODULES = (notifiers,)
 
 
 def register(container: Container) -> None:
+    media_references.add("messaging", MessagingMediaReferences, replace=True)
     container.register(Directory, lambda _: AccountsDirectory())
     container.register(OrderGateway, lambda _: OrdersGateway())
     container.register(OrderThreads, lambda _: MessagingOrderThreads(), replace=True)

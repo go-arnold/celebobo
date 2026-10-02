@@ -544,3 +544,28 @@ Browser push notifications (Web Push with VAPID), the third notification channel
 | `GET /api/v1/push/public-key/` | VAPID public key and whether push is enabled |
 | `GET · POST /api/v1/me/devices/` | The user's devices; register `{endpoint, keys: {p256dh, auth}, user_agent}` |
 | `DELETE /api/v1/me/devices/<id>/` | Remove a device |
+
+## Security hardening
+
+**Login lockout (django-axes)**
+- `AXES_FAILURE_LIMIT` failed logins (5) for the same email from the same IP lock that pair for `AXES_COOLOFF_MINUTES` (15).
+- The JSON login answers `429 too_many_login_attempts`; the Django admin login is covered too.
+- `LockoutAwareLoginSerializer` reads the lockout flag that axes sets on the DRF request. It also sends `user_logged_in` on success, so the counter resets and `last_login` is updated, which dj-rest-auth skips when session login is off.
+- Behind a proxy, set `AXES_PROXY_COUNT` so the client IP is read from `X-Forwarded-For`.
+
+**Headers and rate limits**
+- django-csp sends a strict `Content-Security-Policy`:
+  - `default-src 'self'`, no plugins, `frame-ancestors 'none'`;
+  - images also from Cloudinary.
+  - The Swagger and ReDoc pages are excluded because they load assets from a CDN.
+- Production already sets HSTS, secure cookies, `nosniff`, `DENY` framing and a strict referrer policy.
+- Scoped throttles cover authentication (`auth`, `dj_rest_auth`), referral checks, tracking, uploads, the assistant, contact, the newsletter, reseller applications and coupon attempts (`coupons`, 20/hour).
+
+**Media**
+- Avatars are set with `avatar_upload_id`. The upload must be an avatar uploaded by the same user, so arbitrary URLs can no longer be stored.
+- The daily `media.sweep_orphans` task deletes Cloudinary uploads older than 24 h that nothing references any more, using a signed `destroy` call.
+- Apps say what they still reference through the `media_references` registry: catalog images, avatars, banners and message attachments.
+
+**API contract tests**
+- `config/tests/test_api_contract.py` runs Schemathesis against the generated OpenAPI schema. It fuzzes every GET operation anonymously and every back-office GET as an admin.
+- It fails on any 5xx and on any response that doesn't match its documented schema. Paginated endpoints document their envelope with `core.api.pagination.page_of`.

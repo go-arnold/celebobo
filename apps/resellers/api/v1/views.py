@@ -33,7 +33,7 @@ from apps.resellers.permissions import (
     RESELLERS_MANAGE,
     RESELLERS_VIEW,
 )
-from core.api.pagination import PageRequest, page_request, page_response
+from core.api.pagination import PageRequest, page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
 
@@ -71,7 +71,7 @@ class ApplicationReviewViewSet(UseCaseViewSet):
     }
     applications = Inject(ApplicationFacade)
 
-    @extend_schema(parameters=[ApplicationFiltersInput], responses=ApplicationOutput(many=True))
+    @extend_schema(parameters=[ApplicationFiltersInput], responses=page_of(ApplicationOutput))
     def list(self, request: Request) -> Response:
         filters = self.parse(
             ApplicationFiltersInput, into=ApplicationFilters, data=request.query_params
@@ -119,7 +119,7 @@ class ResellerViewSet(UseCaseViewSet):
     }
     program = Inject(ResellerProgramFacade)
 
-    @extend_schema(parameters=[ResellerFiltersInput], responses=ResellerOutput(many=True))
+    @extend_schema(parameters=[ResellerFiltersInput], responses=page_of(ResellerOutput))
     def list(self, request: Request) -> Response:
         filters = self.parse(ResellerFiltersInput, into=ResellerFilters, data=request.query_params)
         page = page_request(request, default_size=20, max_size=100)
@@ -153,7 +153,7 @@ class ResellerViewSet(UseCaseViewSet):
             ResellerOutput, self.program.set_active(self.actor, reseller_id, active=False)
         )
 
-    @extend_schema(responses=InviteeOutput(many=True))
+    @extend_schema(responses=page_of(InviteeOutput))
     def invitees(self, request: Request, reseller_id: int) -> Response:
         page = page_request(request, default_size=20, max_size=100)
         result, total = self.program.invitees(reseller_id, offset=page.offset, limit=page.page_size)
@@ -168,7 +168,7 @@ class ReferralViewSet(UseCaseViewSet):
     def retrieve(self, request: Request) -> Response:
         return self.respond(ReferralKitOutput, self.referrals.kit(self.actor))
 
-    @extend_schema(responses=InviteeOutput(many=True))
+    @extend_schema(responses=page_of(InviteeOutput))
     def invitees(self, request: Request) -> Response:
         page = page_request(request, default_size=20, max_size=100)
         result, total = self.referrals.invitees(

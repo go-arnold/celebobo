@@ -67,3 +67,8 @@ class InsufficientStock(BusinessRuleViolation):
 class ServiceUnavailable(DomainError):
     default_code = "service_unavailable"
     default_detail = "Service momentanément indisponible. Réessayez plus tard."
+
+
+class RateLimited(DomainError):
+    default_code = "rate_limited"
+    default_detail = "Trop de requêtes. Réessayez plus tard."

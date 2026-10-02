@@ -36,7 +36,7 @@ from apps.messaging.permissions import (
     NOTIFICATIONS_VIEW,
     PRICE_ADJUST,
 )
-from core.api.pagination import page_request, page_response
+from core.api.pagination import page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
 
@@ -55,7 +55,7 @@ class ConversationViewSet(UseCaseViewSet):
     }
     conversations = Inject(ConversationFacade)
 
-    @extend_schema(parameters=[ConversationFiltersInput], responses=ConversationOutput(many=True))
+    @extend_schema(parameters=[ConversationFiltersInput], responses=page_of(ConversationOutput))
     def list(self, request: Request) -> Response:
         filters = self.parse(
             ConversationFiltersInput, into=ConversationFilters, data=request.query_params
@@ -157,7 +157,7 @@ class NotificationViewSet(UseCaseViewSet):
     )
     notifications = Inject(NotificationFacade)
 
-    @extend_schema(parameters=[NotificationQueryInput], responses=NotificationOutput(many=True))
+    @extend_schema(parameters=[NotificationQueryInput], responses=page_of(NotificationOutput))
     def list(self, request: Request) -> Response:
         query = self.validated(NotificationQueryInput, data=request.query_params)
         page = page_request(request, default_size=20, max_size=100)

@@ -42,7 +42,7 @@ from apps.sales.permissions import (
     SALES_VIEW_OWN,
 )
 from core.api.idempotency import idempotent
-from core.api.pagination import page_request, page_response
+from core.api.pagination import page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
 
@@ -59,7 +59,7 @@ class SaleViewSet(UseCaseViewSet):
     }
     sales = Inject(SalesFacade)
 
-    @extend_schema(parameters=[SaleFiltersInput], responses=SaleOutput(many=True))
+    @extend_schema(parameters=[SaleFiltersInput], responses=page_of(SaleOutput))
     def list(self, request: Request) -> Response:
         filters = self.parse(SaleFiltersInput, into=SaleFilters, data=request.query_params)
         page = page_request(request, default_size=20, max_size=100)
@@ -138,7 +138,7 @@ class CommissionViewSet(UseCaseViewSet):
         summary = self.commissions.summary(self.actor, self._reseller_id())
         return self.respond(CommissionSummaryOutput, summary)
 
-    @extend_schema(parameters=[ResellerScopeInput], responses=CommissionEntryOutput(many=True))
+    @extend_schema(parameters=[ResellerScopeInput], responses=page_of(CommissionEntryOutput))
     def list(self, request: Request) -> Response:
         page = page_request(request, default_size=20, max_size=100)
         entries, total = self.commissions.entries(
@@ -167,7 +167,7 @@ class PayoutViewSet(UseCaseViewSet):
     action_permissions = {"list": (COMMISSIONS_VIEW_OWN,), "create": (COMMISSIONS_PAY,)}
     commissions = Inject(CommissionFacade)
 
-    @extend_schema(parameters=[ResellerScopeInput], responses=PayoutOutput(many=True))
+    @extend_schema(parameters=[ResellerScopeInput], responses=page_of(PayoutOutput))
     def list(self, request: Request) -> Response:
         scope = self.validated(ResellerScopeInput, data=request.query_params)
         page = page_request(request, default_size=20, max_size=100)

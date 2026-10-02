@@ -12,7 +12,7 @@ from apps.audit.api.v1.serializers import (
 from apps.audit.domain.queries import ChangeFilters, EventFilters
 from apps.audit.facades import AuditFacade
 from apps.audit.permissions import AUDIT_VIEW
-from core.api.pagination import page_request, page_response
+from core.api.pagination import page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
 
@@ -23,7 +23,11 @@ class AuditViewSet(UseCaseViewSet):
     )
     audit = Inject(AuditFacade)
 
-    @extend_schema(parameters=[ChangeFiltersInput], responses=ChangeOutput(many=True))
+    @extend_schema(
+        operation_id="bo_audit_logs_list",
+        parameters=[ChangeFiltersInput],
+        responses=page_of(ChangeOutput),
+    )
     def changes(self, request: Request) -> Response:
         filters = self.parse(ChangeFiltersInput, into=ChangeFilters, data=request.query_params)
         page = page_request(request, default_size=50, max_size=200)
@@ -36,7 +40,7 @@ class AuditViewSet(UseCaseViewSet):
     def change(self, request: Request, entry_id: int) -> Response:
         return self.respond(ChangeOutput, self.audit.change(entry_id))
 
-    @extend_schema(parameters=[EventFiltersInput], responses=EventOutput(many=True))
+    @extend_schema(parameters=[EventFiltersInput], responses=page_of(EventOutput))
     def events(self, request: Request) -> Response:
         filters = self.parse(EventFiltersInput, into=EventFilters, data=request.query_params)
         page = page_request(request, default_size=50, max_size=200)

@@ -13,6 +13,13 @@ class MediaSelector:
             )
         )
 
+    def owned_url(self, media_id: int, *, owner_id: int, purpose: UploadPurpose) -> str | None:
+        return (
+            UploadedMedia.objects.filter(pk=media_id, owner_id=owner_id, purpose=purpose.value)
+            .values_list("url", flat=True)
+            .first()
+        )
+
 
 def to_stored(media: UploadedMedia) -> StoredMedia:
     return StoredMedia(

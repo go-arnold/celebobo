@@ -85,3 +85,7 @@ class TicketStore(Protocol):
 
 class PasswordSetupLinks(Protocol):
     def link_for(self, user: User) -> str: ...
+
+
+class AvatarSource(Protocol):
+    def url_for(self, owner_id: int, upload_id: int) -> str | None: ...

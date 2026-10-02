@@ -7,6 +7,7 @@ from apps.analytics.api.v1.serializers import (
     CategoryPerformanceOutput,
     HeatCellOutput,
     OpenOrderOutput,
+    OpenOrdersOutput,
     PaymentShareOutput,
     ProductPerformanceOutput,
     RankingInput,
@@ -67,7 +68,7 @@ class DashboardViewSet(InsightViewSet):
     def recent_sales(self, request: Request) -> Response:
         return self.respond(RecentSaleOutput, self.analytics.recent_sales(self.actor), many=True)
 
-    @extend_schema(responses=OpenOrderOutput(many=True))
+    @extend_schema(responses=OpenOrdersOutput)
     def open_orders(self, request: Request) -> Response:
         orders, total = self.analytics.open_orders(self.actor)
         return Response({"count": total, "results": OpenOrderOutput(orders, many=True).data})

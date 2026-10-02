@@ -45,7 +45,7 @@ class UpdateProfileInput(serializers.Serializer[Any]):
     phone_number = serializers.RegexField(
         PHONE_PATTERN, allow_null=True, error_messages=PHONE_ERROR
     )
-    avatar = serializers.URLField(max_length=500, allow_blank=True)
+    avatar_upload_id = serializers.IntegerField(min_value=1, allow_null=True)
     referral_code = serializers.RegexField(REFERRAL_PATTERN, error_messages=REFERRAL_ERROR)
 
 

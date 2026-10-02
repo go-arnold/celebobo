@@ -25,7 +25,7 @@ from apps.assistant.permissions import (
     ASSISTANT_LOGS,
     EMBEDDINGS_REINDEX,
 )
-from core.api.pagination import page_request, page_response
+from core.api.pagination import page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
 
@@ -53,7 +53,7 @@ class AssistantSessionViewSet(UseCaseViewSet):
     def create(self, request: Request) -> Response:
         return self.respond(AssistantSessionOutput, self.assistant.open(self.actor), status=201)
 
-    @extend_schema(responses=AssistantSessionOutput(many=True))
+    @extend_schema(responses=page_of(AssistantSessionOutput))
     def list(self, request: Request) -> Response:
         page = page_request(request, default_size=20, max_size=50)
         sessions, total = self.assistant.sessions(
@@ -95,7 +95,7 @@ class AssistantBackofficeViewSet(UseCaseViewSet):
     action_permissions = {"logs": (ASSISTANT_LOGS,), "reindex": (EMBEDDINGS_REINDEX,)}
     insights = Inject(AssistantInsightsFacade)
 
-    @extend_schema(parameters=[LogFiltersInput], responses=QuestionLogOutput(many=True))
+    @extend_schema(parameters=[LogFiltersInput], responses=page_of(QuestionLogOutput))
     def logs(self, request: Request) -> Response:
         filters = self.parse(LogFiltersInput, into=LogFilters, data=request.query_params)
         page = page_request(request, default_size=50, max_size=200)
