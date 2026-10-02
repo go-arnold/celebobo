@@ -1,0 +1,131 @@
+[project]
+name = "celebobo-api"
+version = "0.1.0"
+description = "Celebobo e-commerce API"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "django>=5.2,<6.0",
+    "djangorestframework>=3.16",
+    "drf-spectacular>=0.28",
+    "django-filter>=25.1",
+    "django-cors-headers>=4.7",
+    "django-environ>=0.12",
+    "rules>=3.5",
+    "structlog>=25.1",
+    "celery[redis]>=5.5",
+    "redis>=5.2",
+    "psycopg[binary]>=3.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.11",
+    "pytest-cov>=6.0",
+    "factory-boy>=3.3",
+    "faker>=33.0",
+    "ruff>=0.11",
+    "mypy>=1.15",
+    "django-stubs[compatible-mypy]>=5.2",
+    "djangorestframework-stubs[compatible-mypy]>=3.16",
+    "celery-types>=0.23",
+    "import-linter>=2.3",
+    "pre-commit>=4.0",
+    "pip-audit>=2.8",
+    "bandit>=1.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "N", "B", "UP", "S", "SIM", "C4", "DJ", "PT", "RET",
+    "ARG", "PTH", "PL", "RUF", "TID", "BLE", "T20", "ERA", "PIE", "PERF",
+]
+ignore = ["PLR0913", "PLR0911", "PLC0415", "N818"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "PLR2004", "ARG001", "ARG002", "S105", "S106"]
+"config/settings/*" = ["F403", "F405", "S105"]
+"core/api/**" = ["ARG001", "ARG002"]
+"core/health/**" = ["ARG002", "BLE001"]
+"core/observability/metrics.py" = ["ARG002"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "core", "apps"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+disable_error_code = ["type-abstract"]
+exclude = ["^docs/", "^\\.venv/"]
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"
+
+[[tool.mypy.overrides]]
+module = ["environ.*", "rules.*", "django_filters.*", "drf_spectacular.*", "corsheaders.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["*.tests.*", "conftest"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_untyped_decorators = false
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers --strict-config"
+
+[tool.coverage.run]
+source = ["core", "config"]
+branch = true
+omit = ["*/tests/*", "*/migrations/*", "config/asgi.py", "config/wsgi.py"]
+
+[tool.coverage.report]
+skip_covered = true
+show_missing = true
+
+[tool.bandit]
+exclude_dirs = [".venv", "docs", "core/tests", "config/settings/test.py"]
+skips = ["B101"]
+
+[tool.importlinter]
+root_packages = ["core", "config"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "core is independent from config"
+type = "forbidden"
+source_modules = ["core"]
+forbidden_modules = ["config"]
+
+[[tool.importlinter.contracts]]
+name = "core.domain is framework-free"
+type = "forbidden"
+source_modules = ["core.domain"]
+forbidden_modules = ["django", "rest_framework", "celery", "structlog", "redis"]
+
+[[tool.importlinter.contracts]]
+name = "core layers"
+type = "layers"
+layers = [
+    "core.bootstrap | core.testing",
+    "core.api | core.health",
+    "core.authz | core.events | core.observability",
+    "core.container | core.registry | core.conf",
+    "core.domain",
+]
