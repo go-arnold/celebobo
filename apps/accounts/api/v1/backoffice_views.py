@@ -11,7 +11,7 @@ from apps.accounts.api.v1.backoffice_serializers import (
 from apps.accounts.domain.commands import CreateUser, EditUser, UserFilters
 from apps.accounts.facades import UserAdminFacade
 from apps.accounts.permissions import USERS_MANAGE, USERS_VIEW
-from core.api.pagination import page_request, page_response
+from core.api.pagination import page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
 
@@ -28,7 +28,7 @@ class UserAdminViewSet(UseCaseViewSet):
     }
     users = Inject(UserAdminFacade)
 
-    @extend_schema(parameters=[UserFiltersInput], responses=UserRowOutput(many=True))
+    @extend_schema(parameters=[UserFiltersInput], responses=page_of(UserRowOutput))
     def list(self, request: Request) -> Response:
         filters = self.parse(UserFiltersInput, into=UserFilters, data=request.query_params)
         page = page_request(request, default_size=20, max_size=100)

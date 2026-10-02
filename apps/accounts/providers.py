@@ -1,6 +1,8 @@
 from allauth.account import app_settings as account_settings
 
 from apps.accounts.adapters.allauth import AllauthEmailVerifier, AllauthPasswordSetupLinks
+from apps.accounts.adapters.media import MediaAvatars
+from apps.accounts.adapters.media_references import AccountMediaReferences
 from apps.accounts.adapters.security import (
     CacheTicketStore,
     DjangoGroupSync,
@@ -25,6 +27,7 @@ from apps.accounts.selectors import (
 from apps.accounts.services.access import AccessService
 from apps.accounts.services.addresses import AddressBookService
 from apps.accounts.services.contracts import (
+    AvatarSource,
     EmailVerifier,
     GroupSync,
     PasswordPolicy,
@@ -41,17 +44,20 @@ from apps.accounts.services.resellers import ResellerAccountService
 from apps.accounts.services.roles import RoleService
 from apps.accounts.services.tickets import TicketService
 from apps.accounts.services.user_admin import UserAdminService
+from apps.media.services.references import media_references
 from core.authz.catalog import permission_catalog
 from core.container import Container, Lifetime
 from core.events.contracts import EventPublisher
 
 
 def register(container: Container) -> None:
+    media_references.add("accounts", AccountMediaReferences, replace=True)
     container.register(PasswordPolicy, lambda _: DjangoPasswordPolicy())
     container.register(TokenRevoker, lambda _: SimpleJwtTokenRevoker())
     container.register(EmailVerifier, lambda _: AllauthEmailVerifier())
     container.register(GroupSync, lambda _: DjangoGroupSync())
     container.register(TicketStore, lambda _: CacheTicketStore())
+    container.register(AvatarSource, lambda _: MediaAvatars())
     container.register(PasswordSetupLinks, lambda _: AllauthPasswordSetupLinks())
 
     container.register(AccountFacade, _account_facade, lifetime=Lifetime.TRANSIENT)
@@ -72,7 +78,9 @@ def _account_facade(container: Container) -> AccountFacade:
     referrals = ReferralService(users)
     return AccountFacade(
         registration=RegistrationService(users, referrals, container.resolve(PasswordPolicy)),
-        profiles=ProfileService(users, AddressRepository(), referrals),
+        profiles=ProfileService(
+            users, AddressRepository(), referrals, container.resolve(AvatarSource)
+        ),
         roles=RoleService(users, referrals, container.resolve(GroupSync)),
         selector=ProfileSelector(permission_catalog),
         verifier=container.resolve(EmailVerifier),

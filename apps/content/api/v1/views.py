@@ -53,7 +53,7 @@ from apps.content.permissions import (
     NEWSLETTER_VIEW,
     SETTINGS_MANAGE,
 )
-from core.api.pagination import page_request, page_response
+from core.api.pagination import page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
 
@@ -117,7 +117,7 @@ class ContactInboxViewSet(UseCaseViewSet):
     action_permissions = dict.fromkeys(("list", "retrieve", "partial_update"), (CONTACT_INBOX,))
     contact = Inject(ContactFacade)
 
-    @extend_schema(parameters=[ContactFiltersInput], responses=ContactMessageOutput(many=True))
+    @extend_schema(parameters=[ContactFiltersInput], responses=page_of(ContactMessageOutput))
     def list(self, request: Request) -> Response:
         filters = self.parse(ContactFiltersInput, into=ContactFilters, data=request.query_params)
         page = page_request(request, default_size=20, max_size=100)
@@ -148,7 +148,7 @@ class SubscriberViewSet(UseCaseViewSet):
     action_permissions = dict.fromkeys(("list", "export"), (NEWSLETTER_VIEW,))
     newsletter = Inject(NewsletterFacade)
 
-    @extend_schema(parameters=[SubscriberFiltersInput], responses=SubscriberOutput(many=True))
+    @extend_schema(parameters=[SubscriberFiltersInput], responses=page_of(SubscriberOutput))
     def list(self, request: Request) -> Response:
         filters = self.validated(SubscriberFiltersInput, data=request.query_params)
         page = page_request(request, default_size=50, max_size=200)

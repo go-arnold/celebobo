@@ -75,6 +75,7 @@ def _custom(now: datetime, date_from: date | None, date_to: date | None) -> Wind
     first = date_from or last - timedelta(days=29)
     start = _midnight(now, first)
     end = min(_midnight(now, last + timedelta(days=1)), now)
+    start = min(start, end)
     granularity = Granularity.DAY if end - start <= MAX_DAILY_SPAN else Granularity.MONTH
     return Window(start, end, granularity)
 

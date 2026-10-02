@@ -3,6 +3,7 @@ from datetime import datetime
 
 from apps.accounts.domain.commands import UpdateProfile
 from apps.accounts.domain.errors import (
+    InvalidAvatar,
     PhoneAlreadyUsed,
     ReferralAlreadySet,
     SelfReferral,
@@ -11,7 +12,7 @@ from apps.accounts.domain.errors import (
 )
 from apps.accounts.domain.normalization import clean_text, normalize_phone
 from apps.accounts.models import User
-from apps.accounts.services.contracts import AddressStore, UserStore
+from apps.accounts.services.contracts import AddressStore, AvatarSource, UserStore
 from apps.accounts.services.referrals import ReferralService
 from core.domain.actor import Role
 from core.domain.values import provided
@@ -26,11 +27,16 @@ class ProfileChange:
 
 class ProfileService:
     def __init__(
-        self, users: UserStore, addresses: AddressStore, referrals: ReferralService
+        self,
+        users: UserStore,
+        addresses: AddressStore,
+        referrals: ReferralService,
+        avatars: AvatarSource,
     ) -> None:
         self._users = users
         self._addresses = addresses
         self._referrals = referrals
+        self._avatars = avatars
 
     def update(self, user_id: int, command: UpdateProfile) -> ProfileChange:
         user = self._locked(user_id)
@@ -48,13 +54,21 @@ class ProfileService:
         if "phone_number" in changes:
             user.phone_number = self._available_phone(user, changes["phone_number"])
             updated.append("phone_number")
-        if "avatar" in changes:
-            user.avatar = changes["avatar"]
+        if "avatar_upload_id" in changes:
+            user.avatar = self._avatar(user.pk, changes["avatar_upload_id"])
             updated.append("avatar")
 
         if updated:
             self._users.save(user, fields=updated)
         return ProfileChange(user, tuple(updated), attached_reseller_id)
+
+    def _avatar(self, user_id: int, upload_id: int | None) -> str:
+        if upload_id is None:
+            return ""
+        url = self._avatars.url_for(user_id, upload_id)
+        if url is None:
+            raise InvalidAvatar
+        return url
 
     def anonymize(self, user_id: int, *, now: datetime) -> User:
         user = self._locked(user_id)

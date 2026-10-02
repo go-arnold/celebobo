@@ -4,6 +4,7 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.throttling import BaseThrottle
 
 from apps.orders.api.v1.serializers import (
     AssignableResellerOutput,
@@ -49,7 +50,7 @@ from apps.orders.permissions import (
     ORDERS_VIEW_MINE,
 )
 from core.api.idempotency import idempotent
-from core.api.pagination import page_request, page_response
+from core.api.pagination import page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
 from core.domain.errors import ValidationFailed
@@ -61,6 +62,10 @@ CART_PARAMETER = OpenApiParameter(CART_HEADER, str, OpenApiParameter.HEADER, req
 class CartViewSet(UseCaseViewSet):
     permission_classes = (AllowAny,)
     carts = Inject(CartFacade)
+
+    def get_throttles(self) -> list[BaseThrottle]:
+        self.throttle_scope = "coupons" if getattr(self, "action", None) == "apply_coupon" else ""
+        return list(super().get_throttles())
 
     @extend_schema(parameters=[CART_PARAMETER, CartContextInput], responses=CartOutput)
     def retrieve(self, request: Request) -> Response:
@@ -165,7 +170,7 @@ class ClientOrderViewSet(UseCaseViewSet):
     }
     orders = Inject(ClientOrderFacade)
 
-    @extend_schema(parameters=[ClientStatusInput], responses=OrderSummaryOutput(many=True))
+    @extend_schema(parameters=[ClientStatusInput], responses=page_of(OrderSummaryOutput))
     def list(self, request: Request) -> Response:
         status = self.validated(ClientStatusInput, data=request.query_params).get("status")
         page = page_request(request, default_size=10, max_size=50)
@@ -205,7 +210,7 @@ class DispatchViewSet(UseCaseViewSet):
     }
     dispatch_orders = Inject(DispatchFacade)
 
-    @extend_schema(parameters=[OrderFiltersInput], responses=OrderSummaryOutput(many=True))
+    @extend_schema(parameters=[OrderFiltersInput], responses=page_of(OrderSummaryOutput))
     def list(self, request: Request) -> Response:
         filters = self.parse(OrderFiltersInput, into=OrderFilters, data=request.query_params)
         page = page_request(request, default_size=10, max_size=100)

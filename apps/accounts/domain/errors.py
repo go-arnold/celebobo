@@ -3,6 +3,7 @@ from core.domain.errors import (
     Conflict,
     Forbidden,
     NotFound,
+    RateLimited,
     ServiceUnavailable,
     ValidationFailed,
 )
@@ -123,3 +124,16 @@ class OwnAccountDeactivation(Forbidden):
 class InactiveAccount(BusinessRuleViolation):
     default_code = "inactive_account"
     default_detail = "Ce compte est désactivé."
+
+
+class TooManyLoginAttempts(RateLimited):
+    default_code = "too_many_login_attempts"
+    default_detail = "Trop de tentatives de connexion. Réessayez dans quelques minutes."
+
+
+class InvalidAvatar(ValidationFailed):
+    default_code = "invalid_avatar"
+    default_detail = "Cette photo est introuvable ou ne vous appartient pas."
+
+    def __init__(self) -> None:
+        super().__init__(errors={"avatar_upload_id": [self.default_detail]})

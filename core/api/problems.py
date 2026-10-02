@@ -11,6 +11,7 @@ from core.domain.errors import (
     DomainError,
     Forbidden,
     NotFound,
+    RateLimited,
     ServiceUnavailable,
     Unauthenticated,
     ValidationFailed,
@@ -27,6 +28,7 @@ _STATUS_BY_ERROR: Mapping[type[DomainError], int] = MappingProxyType(
         NotFound: HTTPStatus.NOT_FOUND,
         Conflict: HTTPStatus.CONFLICT,
         BusinessRuleViolation: HTTPStatus.UNPROCESSABLE_ENTITY,
+        RateLimited: HTTPStatus.TOO_MANY_REQUESTS,
         ServiceUnavailable: HTTPStatus.SERVICE_UNAVAILABLE,
         DomainError: HTTPStatus.BAD_REQUEST,
     }

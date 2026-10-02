@@ -2,6 +2,7 @@ from django.utils import timezone
 
 from apps.catalog.adapters import postgres
 from apps.catalog.adapters.media import UploadedMediaUrls
+from apps.catalog.adapters.media_references import CatalogMediaReferences
 from apps.catalog.conf import catalog_settings
 from apps.catalog.facades import (
     CatalogCache,
@@ -52,6 +53,7 @@ from apps.catalog.services.management import (
     VariantAdminService,
 )
 from apps.catalog.services.search import CatalogSearchService, search_engines, search_indexes
+from apps.media.services.references import media_references
 from core.container import Container, Lifetime
 from core.events.contracts import EventPublisher
 
@@ -59,6 +61,7 @@ ADAPTER_MODULES = (postgres,)
 
 
 def register(container: Container) -> None:
+    media_references.add("catalog", CatalogMediaReferences, replace=True)
     container.register(
         SearchEngine, lambda _: search_engines.create(catalog_settings().search_engine)
     )

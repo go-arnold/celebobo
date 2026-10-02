@@ -28,7 +28,7 @@ class UpdateProfile:
     first_name: Maybe[str] = UNSET
     last_name: Maybe[str] = UNSET
     phone_number: Maybe[str | None] = UNSET
-    avatar: Maybe[str] = UNSET
+    avatar_upload_id: Maybe[int | None] = UNSET
     referral_code: Maybe[str] = UNSET
 
 

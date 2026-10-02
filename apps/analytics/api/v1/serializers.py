@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Any
 
 from rest_framework import serializers
@@ -6,6 +7,8 @@ from apps.analytics.domain.periods import Period
 from apps.orders.domain.enums import PaymentMethod
 
 RANKINGS = ("revenue", "units", "profit")
+EARLIEST_DATE = date(2000, 1, 1)
+LATEST_DATE = date(2100, 12, 31)
 
 
 def money(**options: Any) -> serializers.DecimalField:
@@ -30,6 +33,10 @@ class AnalyticsFiltersInput(serializers.Serializer[Any]):
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         start, end = attrs.get("date_from"), attrs.get("date_to")
+        for name in ("date_from", "date_to"):
+            day = attrs.get(name)
+            if day is not None and not EARLIEST_DATE <= day <= LATEST_DATE:
+                raise serializers.ValidationError({name: ["Date hors de la période autorisée."]})
         if start and end and start > end:
             raise serializers.ValidationError({"date_to": ["Doit suivre la date de début."]})
         return attrs
@@ -145,3 +152,8 @@ class OpenOrderOutput(serializers.Serializer[Any]):
     items_count = serializers.IntegerField()
     client_name = serializers.CharField()
     reseller_name = serializers.CharField(allow_null=True)
+
+
+class OpenOrdersOutput(serializers.Serializer[Any]):
+    count = serializers.IntegerField()
+    results = OpenOrderOutput(many=True)

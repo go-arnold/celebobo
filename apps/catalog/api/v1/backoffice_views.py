@@ -45,7 +45,7 @@ from apps.catalog.permissions import (
     REVIEWS_MODERATE,
     STOCK_ADJUST,
 )
-from core.api.pagination import page_request, page_response
+from core.api.pagination import page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
 
@@ -65,9 +65,7 @@ class AdminProductViewSet(UseCaseViewSet):
     }
     products = Inject(ProductAdminFacade)
 
-    @extend_schema(
-        parameters=[AdminProductFiltersInput], responses=AdminProductRowOutput(many=True)
-    )
+    @extend_schema(parameters=[AdminProductFiltersInput], responses=page_of(AdminProductRowOutput))
     def list(self, request: Request) -> Response:
         filters = self.parse(
             AdminProductFiltersInput, into=BackofficeProductFilters, data=request.query_params
@@ -165,7 +163,7 @@ class AdminStockViewSet(UseCaseViewSet):
             status=201,
         )
 
-    @extend_schema(responses=StockMovementOutput(many=True))
+    @extend_schema(responses=page_of(StockMovementOutput))
     def movements(self, request: Request, product_id: int) -> Response:
         page = page_request(request, default_size=20, max_size=100)
         movements, total = self.products.movements(
@@ -222,7 +220,7 @@ class AdminReviewViewSet(UseCaseViewSet):
     action_permissions = {"list": (REVIEWS_MODERATE,), "partial_update": (REVIEWS_MODERATE,)}
     reviews = Inject(ReviewModerationFacade)
 
-    @extend_schema(parameters=[ReviewFiltersInput], responses=AdminReviewOutput(many=True))
+    @extend_schema(parameters=[ReviewFiltersInput], responses=page_of(AdminReviewOutput))
     def list(self, request: Request) -> Response:
         filters = self.parse(ReviewFiltersInput, into=ReviewFilters, data=request.query_params)
         page = page_request(request, default_size=20, max_size=100)

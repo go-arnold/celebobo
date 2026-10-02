@@ -1,10 +1,12 @@
 from typing import Any
 
-from dj_rest_auth.serializers import PasswordResetSerializer
+from dj_rest_auth.serializers import LoginSerializer, PasswordResetSerializer
+from django.contrib.auth.signals import user_logged_in
 from rest_framework import serializers
 
 from apps.accounts.adapters.allauth import password_reset_url
 from apps.accounts.api.v1.serializers import ProfileOutput
+from apps.accounts.domain.errors import TooManyLoginAttempts
 from apps.accounts.models import User
 from apps.accounts.selectors import ProfileSelector
 from core.authz.catalog import permission_catalog
@@ -13,6 +15,17 @@ from core.authz.catalog import permission_catalog
 class FrontendPasswordResetSerializer(PasswordResetSerializer):
     def get_email_options(self) -> dict[str, Any]:
         return {"url_generator": password_reset_url}
+
+
+class LockoutAwareLoginSerializer(LoginSerializer):
+    def authenticate(self, **kwargs: Any) -> Any:
+        request = self.context.get("request")
+        user = super().authenticate(**kwargs)
+        if user is None and getattr(request, "axes_locked_out", False):
+            raise TooManyLoginAttempts
+        if user is not None:
+            user_logged_in.send(sender=type(user), request=request, user=user)
+        return user
 
 
 class SessionUserSerializer(serializers.Serializer[User]):

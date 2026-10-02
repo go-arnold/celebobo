@@ -4,6 +4,7 @@ from apps.media.domain.errors import UploadNotAllowed
 from apps.media.domain.policies import UploadPolicy, UploadPurpose, policy_for
 from apps.media.domain.uploads import CompletedUpload, StoredMedia, UploadSignature
 from apps.media.selectors import to_stored
+from apps.media.services.cleanup import OrphanSweeper, SweepResult
 from apps.media.services.uploads import UploadService
 from core.authz.catalog import PermissionCatalog
 from core.domain.actor import Actor
@@ -32,3 +33,12 @@ class MediaFacade:
         if not self._permissions.allows(actor, policy.permission):
             raise UploadNotAllowed
         return policy
+
+
+@logged_facade
+class MediaMaintenanceFacade:
+    def __init__(self, *, sweeper: OrphanSweeper) -> None:
+        self._sweeper = sweeper
+
+    def sweep_orphans(self) -> SweepResult:
+        return self._sweeper.sweep()

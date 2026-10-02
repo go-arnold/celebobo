@@ -13,7 +13,7 @@ from apps.orders.api.v1.promotion_serializers import (
 from apps.orders.domain.commands import CouponChanges, CouponFields, ZoneChanges, ZoneFields
 from apps.orders.facades import PromotionFacade
 from apps.orders.permissions import COUPONS_MANAGE, SHIPPING_MANAGE
-from core.api.pagination import page_request, page_response
+from core.api.pagination import page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
 
@@ -61,7 +61,7 @@ class CouponAdminViewSet(UseCaseViewSet):
     )
     promotions = Inject(PromotionFacade)
 
-    @extend_schema(parameters=[CouponFiltersInput], responses=CouponOutput(many=True))
+    @extend_schema(parameters=[CouponFiltersInput], responses=page_of(CouponOutput))
     def list(self, request: Request) -> Response:
         filters = self.validated(CouponFiltersInput, data=request.query_params)
         page = page_request(request, default_size=20, max_size=100)

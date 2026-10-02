@@ -29,3 +29,8 @@ class MediaNotFound(NotFound):
 class StorageNotConfigured(ServiceUnavailable):
     default_code = "storage_not_configured"
     default_detail = "Le stockage des fichiers n'est pas configuré."
+
+
+class StorageUnavailable(ServiceUnavailable):
+    default_code = "media_storage_unavailable"
+    default_detail = "Le stockage des fichiers est momentanément indisponible."
