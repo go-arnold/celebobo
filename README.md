@@ -234,6 +234,7 @@ The consumer only parses envelopes, checks access, and calls the same facades as
 - reseller programme (staff): `reseller_application.created`;
 - dashboard (staff): `dashboard.updated` after each refresh of the analytics facts;
 - documents (the requester): `job.completed` when an export, import or report finishes;
+- contact (staff): `contact_message.created`;
 - errors: `error`, carrying the same `code` values as the REST API.
 
 **Limits and presence**
@@ -463,3 +464,38 @@ A shopping assistant grounded in the catalogue. It uses pgvector retrieval and G
 | `POST /api/v1/bo/embeddings/reindex/` | Rebuild product vectors (admins) |
 
 The first migration creates the `vector` extension (`pgvector.django.VectorExtension`). Supabase and the `pgvector/pgvector` image both provide it.
+
+### `apps.content`
+
+The public site content and its back-office editors.
+
+**Home and site content**
+- `GET /home/` assembles the live banners (active and within `starts_at`/`ends_at`), deals, new arrivals, best sellers, and the best sellers of the first four categories. Products come from the catalogue through the `Showcase` port, so favourites and caching still apply.
+- `SiteSettings` is a single row:
+  - exchange rate (`usd_to_cdf`), hotline, WhatsApp, e-mail, address;
+  - opening hours, enabled payment methods (checked against `PaymentMethod`), social links;
+  - the newsletter welcome code.
+- Public settings add the shipping rules from `ORDERS` (read-only) and never expose the newsletter code.
+- Pages, the FAQ and public settings are cached in `ContentCache`. Any `SiteContentChanged` or `CategoryChanged` bumps its version.
+- Pages, the FAQ and banners share one generic `Editor` service, with validators for unique slugs and banner schedules. The back-office endpoints come from a single `editor_viewset` factory.
+
+**Contact and newsletter**
+- The contact form is throttled to 5 per hour. A hidden `website` field catches bots: those messages are filed as `spam` and send nothing.
+- Every real message emails an acknowledgement to the sender and an alert to the site e-mail, in the background, and pushes `contact_message.created` to staff.
+- The newsletter is throttled to 10 per hour. Subscribing returns the welcome code and emails it with an unsubscribe link (`FRONTEND_URL/newsletter/desinscription?token=…`). Subscribing again is idempotent, and an unsubscribed address can come back.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/home/` | Home sections |
+| `GET /api/v1/settings/public/` | Exchange rate, contacts, hours, payment methods, social links, shipping rules |
+| `GET /api/v1/pages/` · `pages/<slug>/` · `faq/` | Published pages and the FAQ grouped by category |
+| `POST /api/v1/contact/` | Contact form (`202`) |
+| `POST /api/v1/newsletter/subscribe/` · `unsubscribe/` | Newsletter |
+| `GET · PATCH /api/v1/bo/settings/` | Site settings (admins) |
+| `GET /api/v1/bo/contact-messages/` · `GET · PATCH <id>/` | Inbox with `meta.counts`; set `status` (new, handled, spam) and an internal `note` |
+| `GET /api/v1/bo/newsletter/subscribers/` · `export/` | Subscribers (`active`, `search`) and a CSV export |
+| `/api/v1/bo/pages/` · `bo/faq/` · `bo/banners/` (+ `<id>/`) | Content editors (managers) |
+
+Permissions:
+- managers: `contact.inbox`, `newsletter.view`, `content.manage`;
+- admins: `settings.manage`.

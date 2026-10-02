@@ -79,3 +79,20 @@ def test_finished_jobs_reach_their_owner(broadcaster):
     assert sent[0] == (user_group(owner.pk),)
     assert sent[2]["status"] == "done"
     assert sent[2]["kind"] == "sales_export"
+
+
+def test_contact_messages_reach_staff(broadcaster):
+    APIClient().post(
+        "/api/v1/contact/",
+        {
+            "name": "Aline",
+            "email": "aline@example.com",
+            "subject": "other",
+            "message": "Bonjour, une question rapide.",
+        },
+        format="json",
+    )
+
+    created = ServerEvent.CONTACT_MESSAGE_CREATED
+    (sent,) = [item for item in broadcaster.sent if item[1] is created]
+    assert sent[0] == (STAFF,)
