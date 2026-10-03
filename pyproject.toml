@@ -86,6 +86,7 @@ ignore = ["PLR0913", "PLR0911", "PLC0415", "N818"]
 "**/admin.py" = ["RUF012", "ARG002"]
 "**/domain/state_machine.py" = ["ARG002"]
 "core/health/**" = ["ARG002", "BLE001"]
+"apps/demo/**" = ["S311", "E501"]
 "core/observability/metrics.py" = ["ARG002"]
 
 [tool.ruff.lint.isort]
