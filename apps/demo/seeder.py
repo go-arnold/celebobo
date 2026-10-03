@@ -117,7 +117,7 @@ class DemoSeeder:
         self._password = password
         self._images_enabled = images
         self._log = log
-        self._random = random.Random(2026)
+        self._random = random.Random(2026)  # nosec B311
         self._now = timezone.now()
         self.report = SeedReport()
 
