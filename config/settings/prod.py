@@ -24,6 +24,10 @@ CSRF_COOKIE_DOMAIN = env.str("CSRF_COOKIE_DOMAIN", default=None)
 REST_AUTH["JWT_AUTH_SECURE"] = True
 
 SPECTACULAR_SETTINGS["SERVE_PERMISSIONS"] = ["rest_framework.permissions.IsAdminUser"]
+SPECTACULAR_SETTINGS["SERVE_AUTHENTICATION"] = [
+    "rest_framework.authentication.SessionAuthentication",
+    "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
+]
 
 LOGGING = logging_config(json_logs=env.bool("LOG_JSON", default=True), level=LOG_LEVEL)
 
