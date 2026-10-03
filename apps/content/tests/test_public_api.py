@@ -45,6 +45,10 @@ def test_public_settings_hide_the_newsletter_code(api, site):
     assert "newsletter_code" not in body
 
 
+def test_public_settings_are_cacheable(api):
+    assert "public" in api.get("/api/v1/settings/public/")["Cache-Control"]
+
+
 def test_public_settings_have_defaults(api):
     assert api.get("/api/v1/settings/public/").json()["usd_to_cdf"] == "2800.00"
 

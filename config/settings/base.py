@@ -107,9 +107,19 @@ DATABASES["default"]["CONN_MAX_AGE"] = env.int("DATABASE_CONN_MAX_AGE", default=
 DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 DATABASE_POOLER = env.bool("DATABASE_POOLER", default=False)
 DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = DATABASE_POOLER
+DATABASES["default"].setdefault("OPTIONS", {})["connect_timeout"] = env.int(
+    "DATABASE_CONNECT_TIMEOUT", default=5
+)
 if DATABASE_POOLER:
-    DATABASES["default"].setdefault("OPTIONS", {})["prepare_threshold"] = None
+    DATABASES["default"]["OPTIONS"]["prepare_threshold"] = None
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+REDIS_TIMEOUT = env.float("REDIS_TIMEOUT", default=5.0)
+REDIS_CONNECTION_OPTIONS = {
+    "socket_connect_timeout": REDIS_TIMEOUT,
+    "socket_keepalive": True,
+    "health_check_interval": 30,
+}
 
 CACHES = {
     "default": {
@@ -117,6 +127,7 @@ CACHES = {
         "LOCATION": env.str("REDIS_CACHE_URL", default="redis://localhost:6379/0"),
         "KEY_PREFIX": "celebobo",
         "TIMEOUT": 300,
+        "OPTIONS": {**REDIS_CONNECTION_OPTIONS, "socket_timeout": REDIS_TIMEOUT},
     },
 }
 
@@ -251,7 +262,12 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [env.str("REDIS_CHANNELS_URL", default="redis://localhost:6379/2")],
+            "hosts": [
+                {
+                    "address": env.str("REDIS_CHANNELS_URL", default="redis://localhost:6379/2"),
+                    **REDIS_CONNECTION_OPTIONS,
+                }
+            ],
             "capacity": 1500,
             "expiry": 30,
         },
@@ -323,6 +339,7 @@ SIMPLE_JWT = {
 }
 
 vars().update(env.email_url("EMAIL_URL", default="consolemail://"))
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
 DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", default="Celebobo <no-reply@celebobo.com>")
 
 CATALOG = {
@@ -342,6 +359,14 @@ ORDERS = {
     "FLAT_SHIPPING_FEE": env.str("ORDERS_FLAT_SHIPPING_FEE", default="2.98"),
 }
 CELERY_BROKER_URL = env.str("REDIS_BROKER_URL", default="redis://localhost:6379/1")
+CELERY_BROKER_CONNECTION_TIMEOUT = REDIS_TIMEOUT
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    **REDIS_CONNECTION_OPTIONS,
+    "socket_timeout": REDIS_TIMEOUT * 2,
+}
+CELERY_TASK_PUBLISH_RETRY_POLICY = {"max_retries": 2, "interval_start": 0, "interval_step": 0.5}
+CELERY_TASK_SOFT_TIME_LIMIT = env.int("CELERY_TASK_SOFT_TIME_LIMIT", default=240)
+CELERY_TASK_TIME_LIMIT = env.int("CELERY_TASK_TIME_LIMIT", default=270)
 CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_TASK_ROUTES = ("config.celery_routes.route_task",)
 CELERY_TASK_ACKS_LATE = True

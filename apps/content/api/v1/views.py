@@ -53,6 +53,7 @@ from apps.content.permissions import (
     NEWSLETTER_VIEW,
     SETTINGS_MANAGE,
 )
+from core.api.caching import public_cache
 from core.api.pagination import page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
@@ -67,18 +68,22 @@ class PublicSiteViewSet(UseCaseViewSet):
         return self.respond(HomeOutput, self.content.home(self.actor))
 
     @extend_schema(responses=PublicSettingsOutput)
+    @public_cache
     def site_settings(self, request: Request) -> Response:
         return self.respond(PublicSettingsOutput, self.content.public_settings())
 
     @extend_schema(responses=PageSummaryOutput(many=True))
+    @public_cache
     def pages(self, request: Request) -> Response:
         return self.respond(PageSummaryOutput, self.content.pages(published_only=True), many=True)
 
     @extend_schema(responses=PageOutput)
+    @public_cache
     def page(self, request: Request, slug: str) -> Response:
         return self.respond(PageOutput, self.content.page(slug))
 
     @extend_schema(responses=FaqGroupOutput(many=True))
+    @public_cache
     def faq(self, request: Request) -> Response:
         return self.respond(FaqGroupOutput, self.content.faq(), many=True)
 

@@ -53,15 +53,13 @@ def _start(request: HttpRequest) -> float:
 
 def _finish(request: HttpRequest, response: HttpResponseBase, started: float) -> HttpResponseBase:
     settings = core_settings()
+    duration_ms = round((perf_counter() - started) * 1000, 2)
     request_id = context.current_request_id()
     if request_id:
         response[settings.request_id_header] = request_id
+    response["Server-Timing"] = f"app;dur={duration_ms}"
     if not request.path.startswith(settings.quiet_paths):
-        logger.info(
-            "http.request",
-            status=response.status_code,
-            duration_ms=round((perf_counter() - started) * 1000, 2),
-        )
+        logger.info("http.request", status=response.status_code, duration_ms=duration_ms)
     return response
 
 

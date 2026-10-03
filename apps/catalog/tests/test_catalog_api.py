@@ -64,6 +64,12 @@ class TestCategories:
             }
         ]
 
+    def test_categories_are_cacheable(self, api: APIClient, phones):
+        response = api.get("/api/v1/categories/")
+
+        assert "public" in response["Cache-Control"]
+        assert "s-maxage=60" in response["Cache-Control"]
+
     def test_unknown_category(self, api: APIClient):
         response = api.get("/api/v1/categories/nope/")
 

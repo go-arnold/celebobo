@@ -110,6 +110,11 @@ class TestRequestContextMiddleware:
         assert response["X-Request-ID"] == seen["request_id"]
         assert len(str(seen["request_id"])) == 32
 
+    def test_reports_server_time(self, rf: RequestFactory):
+        response = sync_chain(lambda _: HttpResponse())(rf.get("/api/v1/products/"))
+
+        assert response["Server-Timing"].startswith("app;dur=")
+
     def test_reuses_valid_incoming_request_id(self, rf: RequestFactory):
         middleware = sync_chain(lambda _: HttpResponse())
 
