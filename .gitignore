@@ -15,3 +15,5 @@ dump.rdb
 openapi.yml
 /var/
 deploy-real-prod/.env.prod
+public_key.pem
+private_key.pem
