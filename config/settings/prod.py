@@ -2,6 +2,7 @@ from config.settings.base import *
 from core.observability.logging import logging_config
 
 SECRET_KEY = env.str("DJANGO_SECRET_KEY")
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("DATABASE_CONN_MAX_AGE", default=60)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

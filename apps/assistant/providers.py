@@ -16,6 +16,8 @@ from core.container import Container, Lifetime
 from core.events.contracts import EventPublisher
 from core.registry import Registry
 
+GEMINI_TIMEOUT_MS = 30_000
+
 chat_models: Registry[ChatModel] = Registry("assistant chat model")
 embedders: Registry[Embedder] = Registry("assistant embedder")
 
@@ -23,7 +25,7 @@ embedders: Registry[Embedder] = Registry("assistant embedder")
 def _gemini_client(settings: AssistantSettings):  # type: ignore[no-untyped-def]
     from google import genai
 
-    return genai.Client(api_key=settings.api_key)
+    return genai.Client(api_key=settings.api_key, http_options={"timeout": GEMINI_TIMEOUT_MS})
 
 
 def _gemini_chat() -> ChatModel:

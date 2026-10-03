@@ -20,6 +20,7 @@ from apps.catalog.api.v1.serializers import (
 from apps.catalog.domain.queries import PostReview, ProductQuery
 from apps.catalog.facades import CatalogFacade, FavoriteFacade, ReviewFacade
 from apps.catalog.permissions import FAVORITES_MANAGE, REVIEWS_CREATE
+from core.api.caching import public_cache
 from core.api.pagination import PageRequest, page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
 from core.container import Inject
@@ -34,10 +35,12 @@ class CategoryViewSet(UseCaseViewSet):
     catalog = Inject(CatalogFacade)
 
     @extend_schema(responses=CategoryOutput(many=True))
+    @public_cache
     def list(self, request: Request) -> Response:
         return self.respond(CategoryOutput, self.catalog.categories(), many=True)
 
     @extend_schema(responses=CategoryOutput)
+    @public_cache
     def retrieve(self, request: Request, slug: str) -> Response:
         return self.respond(CategoryOutput, self.catalog.category(slug))
 

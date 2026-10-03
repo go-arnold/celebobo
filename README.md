@@ -573,11 +573,22 @@ Browser push notifications (Web Push with VAPID), the third notification channel
 ## Deployment
 
 **Single container (Koyeb)**
-- The root `Dockerfile` and `entrypoint.sh` run everything in one container:
+- The root `Dockerfile` and `entrypoint.sh` run everything in one container (`PROCESS_TYPE=all`, the default):
   - migrations (skipped with `RUN_MIGRATIONS=false`);
   - a Celery worker on all queues (`CELERY_CONCURRENCY`, default 1);
   - Celery beat;
-  - Gunicorn with Uvicorn workers on `config.asgi` (`WEB_CONCURRENCY`, default 1), so WebSockets and SSE work.
+  - Gunicorn with Uvicorn workers on `config.asgi` (`WEB_CONCURRENCY`, default 3; `WEB_TIMEOUT`, default 30 s), so WebSockets and SSE work.
+  - Under ASGI each worker serves one synchronous request at a time: `WEB_CONCURRENCY` is the number of parallel requests. Size it to the instance memory (~150 MB per worker).
+  - If any of these processes dies, the container exits so the platform restarts it.
+- The same image splits into separate services with `PROCESS_TYPE`:
+  - `web`: ASGI only (REST, WebSockets, assistant stream);
+  - `rest`: threaded WSGI (`WEB_CONCURRENCY` × `WEB_THREADS` parallel requests) for REST only, with `/ws` and `/api/v1/assistant` routed to a `web` service;
+  - `worker` (`CELERY_QUEUES`, `CELERY_CONCURRENCY`) and `beat` (exactly one instance).
+- Every network call is bounded: Redis (`REDIS_TIMEOUT`, default 5 s, with keep-alive and health checks), Postgres connect (`DATABASE_CONNECT_TIMEOUT`, default 5 s), SMTP (`EMAIL_TIMEOUT`, default 10 s), Gemini (30 s), Celery tasks (`CELERY_TASK_SOFT_TIME_LIMIT` / `CELERY_TASK_TIME_LIMIT`).
+- Production reuses database connections for 60 s (`DATABASE_CONN_MAX_AGE`); this also works through the Supabase pooler.
+- For a per-query limit, set it on the database role (startup options are not passed through the pooler):
+  `alter role postgres set statement_timeout = '15s';`
+- Every response carries `Server-Timing: app;dur=…` (server time in ms) to separate server time from network time in the browser's Network tab.
 - `Procfile`, `runtime.txt` and `.python-version` cover buildpack builds, but the Docker builder is preferred: WeasyPrint needs Pango from the system.
 - Use a TCP health check, or HTTP on `/health/live/` only if the probe sends a `Host` header that is listed in `DJANGO_ALLOWED_HOSTS`.
 
