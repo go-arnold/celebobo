@@ -1,0 +1,43 @@
+# Production on a VPS: nginx terminates TLS (Let's Encrypt); Postgres (Supabase) and Redis (Aiven) stay hosted.
+services:
+  api:
+    logging: &logs
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+  worker:
+    logging: *logs
+
+  beat:
+    logging: *logs
+
+  frontend:
+    logging: *logs
+
+  nginx:
+    logging: *logs
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env.prod}
+      EXTRA_DOMAINS: ${EXTRA_DOMAINS:-}
+      FRONTEND_UPSTREAM: ${FRONTEND_UPSTREAM:-http://frontend:3000}
+    volumes:
+      - ./nginx/templates-prod:/etc/nginx/templates:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+    # reload every 6 h to pick up renewed certificates
+    command: ["/bin/sh", "-c", "while :; do sleep 6h; nginx -s reload; done & exec /docker-entrypoint.sh nginx -g 'daemon off;'"]
+
+  certbot:
+    image: certbot/certbot:v4.2.0
+    restart: unless-stopped
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    entrypoint: ["/bin/sh", "-c", "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"]
+
+volumes:
+  letsencrypt:
+  certbot-www:

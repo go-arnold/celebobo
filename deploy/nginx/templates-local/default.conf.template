@@ -1,0 +1,15 @@
+# Local stack: plain http on http://localhost:${NGINX_PORT}
+# The frontend is the Next dev server on the host (npm run dev), or the `frontend` container (--profile frontend).
+upstream frontend_app {
+    server ${FRONTEND_HOST};
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    set $forwarded_proto http;
+    set $api http://api:8000;
+    set $frontend http://frontend_app;
+    include /etc/nginx/snippets/celebobo-routes.conf;
+}

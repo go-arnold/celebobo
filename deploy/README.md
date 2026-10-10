@@ -1,0 +1,144 @@
+# Deployment
+
+One Docker image for Django, one for the Next.js frontend, nginx in front. The same files run in two places:
+
+| | `./deploy/local.sh` (your machine) | `./deploy/prod.sh` (VPS) |
+|---|---|---|
+| Address | `http://localhost:8080` | `https://DOMAIN` |
+| Postgres | container (pgvector, port 55432 on the host) | Supabase (unchanged) |
+| Redis | container | Aiven (unchanged) |
+| Email | Mailpit, inbox at `http://localhost:8025` | your SMTP relay |
+| TLS | none | Let's Encrypt, renewed automatically |
+| Frontend | `npm run dev` on the host (hot reload), or the container | container (or Vercel) |
+| Django settings | `config.settings.prod` | `config.settings.prod` |
+
+```
+browser ──► nginx ──► /api/ /ws/ /django-admin/ /static/ /health/ ──► api (gunicorn + uvicorn: REST, SSE, WebSockets)
+                 └──► everything else ─────────────────────────────► frontend (Next.js)
+            worker (Celery: default, ai, exports) · beat (schedule) · migrate (runs once, before the others)
+```
+
+The site and the API share one origin: cookies stay first-party, no CORS, and the WebSocket uses the same host.
+
+## Services
+
+| Service | Image / command | Notes |
+|---|---|---|
+| `migrate` | api `migrate` | `migrate` then `check --deploy`; every app container waits for it |
+| `api` | api `api` | `WEB_CONCURRENCY` workers (one request at a time each, ~140 MB each), 30 s timeout (`WEB_TIMEOUT`) |
+| `worker` | api `worker` | queues `default,ai,exports` (`CELERY_QUEUES`), `CELERY_CONCURRENCY` processes |
+| `beat` | api `beat` | periodic tasks; run exactly one |
+| `frontend` | frontend | profile `frontend`; built from `FRONTEND_DIR` (default `../../shopproject_v2_frontend`) |
+| `nginx` | nginx 1.29 | routing in `nginx/snippets/celebobo-routes.conf`, servers in `nginx/templates-*` |
+| `certbot` | certbot (prod) | renews certificates every 12 h; nginx reloads every 6 h |
+
+Measured memory with `WEB_CONCURRENCY=2`, `CELERY_CONCURRENCY=1`: api 180 MB, worker 115 MB, beat 90 MB,
+frontend 60 MB, nginx 12 MB — about 460 MB for the whole application.
+
+## Local
+
+Requirements: Docker with Compose v2, both repositories side by side:
+
+```
+Documents/
+  shopproject_v2/            # this repository
+  shopproject_v2_frontend/
+```
+
+```bash
+./deploy/local.sh up          # builds the image, starts everything, runs migrations
+./deploy/local.sh seed        # demo catalogue, orders, sales, accounts (password: Boutique-Kin#2026)
+cd ../shopproject_v2_frontend && npm run dev   # then open http://localhost:8080
+```
+
+- `deploy/.env.local` is created from `.env.local.example` on the first run. It works as-is; add the
+  Cloudinary keys to test image uploads, a Gemini key (`ASSISTANT_PROVIDER=gemini`) to test the real assistant.
+- Open the site at **http://localhost:8080**, not :3000: nginx sends `/api` and `/ws` to Django and the rest
+  to the Next dev server, exactly like production. Frontend `.env.local`: `NEXT_PUBLIC_API_URL=/api/v1`,
+  `NEXT_PUBLIC_WS_URL=/ws/`, `API_PROXY_TARGET` empty.
+- To run the built frontend instead of the dev server:
+  `FRONTEND_HOST=frontend:3000 ./deploy/local.sh --profile frontend up -d --build`.
+- Emails (verification, password reset, notifications) land in Mailpit: http://localhost:8025.
+- Postgres is reachable from the host on port 55432 (`celebobo` / `celebobo`).
+
+| Command | Effect |
+|---|---|
+| `./deploy/local.sh logs api` | follow one service (`worker`, `nginx`…) |
+| `./deploy/local.sh ps` | status |
+| `./deploy/local.sh manage createsuperuser` | any `manage.py` command |
+| `./deploy/local.sh up` | rebuild after backend changes (migrations run automatically) |
+| `./deploy/local.sh down` | stop, keep the data |
+| `./deploy/local.sh reset` | stop and delete the database, Redis and documents |
+
+## Production on a VPS
+
+### 1. Server
+
+- **Size:** 2 vCPU / 4 GB RAM is comfortable (`WEB_CONCURRENCY=3`, `CELERY_CONCURRENCY=2`, about 1 GB used);
+  2 GB works with `WEB_CONCURRENCY=2`. Never below 1 GB.
+- **Region:** close to the database and Redis, because every request talks to them. Supabase is in
+  `eu-west-1` (Ireland) and Aiven Redis in Amsterdam: a server in **Amsterdam** or **Frankfurt** keeps each
+  round trip at a few milliseconds (DigitalOcean AMS3 sits next to the Aiven instance).
+- Ubuntu 24.04, Docker Engine with the Compose plugin
+  (`curl -fsSL https://get.docker.com | sh`), a firewall allowing only 22, 80 and 443:
+  `ufw allow OpenSSH && ufw allow 80,443/tcp && ufw enable`.
+
+### 2. DNS
+
+Point an `A` record for `DOMAIN` (and every name in `EXTRA_DOMAINS`, e.g. `www`) to the server's IP.
+If you use Cloudflare, keep the records **DNS only** (grey cloud) for the first certificate.
+
+### 3. Code and configuration
+
+```bash
+git clone <backend repo> shopproject_v2
+git clone <frontend repo> shopproject_v2_frontend
+cd shopproject_v2
+cp deploy/.env.prod.example deploy/.env.prod   # fill every empty value
+```
+
+- `DOMAIN`, `EXTRA_DOMAINS`, `LETSENCRYPT_EMAIL`, and `DJANGO_ALLOWED_HOSTS` / the three `*_ORIGINS` lists with the same names.
+- Database and Redis: the same Supabase pooler and Aiven URLs as before.
+- `DJANGO_SECRET_KEY`: `python3 -c "import secrets; print(secrets.token_urlsafe(64))"`.
+- Google sign-in: add `https://DOMAIN/connexion/google` as an authorised redirect URI in the Google console.
+- Frontend on Vercel instead: remove `COMPOSE_PROFILES=frontend`, give the API its own name
+  (`DOMAIN=api.celebobo.com`) and set the Vercel project's `API_PROXY_TARGET=https://api.celebobo.com`
+  and `NEXT_PUBLIC_WS_URL=wss://api.celebobo.com/ws/`. The single-domain setup above is faster and simpler.
+
+### 4. Start
+
+```bash
+./deploy/prod.sh certs     # first time only: Let's Encrypt certificate (ports 80/443 must be free)
+./deploy/prod.sh up        # builds both images, migrates, starts everything
+./deploy/prod.sh ps
+curl https://DOMAIN/health/ready/
+```
+
+Then, once:
+- `./deploy/prod.sh manage createsuperuser` (or keep the existing accounts: the database is the same);
+- `POST /api/v1/bo/embeddings/reindex/` as an admin, if the assistant index is empty;
+- run once in the Supabase SQL editor (the pooler ignores per-connection options):
+  `alter role postgres set statement_timeout = '15s';`
+
+### 5. Update
+
+```bash
+git -C ../shopproject_v2_frontend pull && git pull
+./deploy/prod.sh up        # rebuilds, runs new migrations, restarts changed containers
+```
+
+Roll back by checking out the previous commit and running `./deploy/prod.sh up` again.
+
+### Operations
+
+| Task | Command |
+|---|---|
+| Logs | `./deploy/prod.sh logs api` (`worker`, `nginx`, `frontend`…); rotated at 5 × 20 MB per service |
+| Django shell | `./deploy/prod.sh manage shell` |
+| Restart one service | `./deploy/prod.sh restart worker` |
+| Health | `/health/live/` (process up), `/health/ready/` (database, cache, broker) |
+| Certificates | renewed automatically; check with `./deploy/prod.sh logs certbot` |
+| Backups | the data lives in Supabase (daily backups on its side) and Cloudinary; the server only keeps generated documents for 7 days |
+
+Every response carries `Server-Timing: app;dur=…`: the time spent in Django, to compare with the total time
+in the browser's Network tab.

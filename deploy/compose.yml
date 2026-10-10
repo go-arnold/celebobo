@@ -1,0 +1,61 @@
+# Shared stack. Run it through ./local.sh or ./prod.sh, which add the environment file and the matching override.
+x-app: &app
+  image: celebobo-api:${CELEBOBO_TAG:-latest}
+  env_file: ${ENV_FILE:?run through local.sh or prod.sh}
+  restart: unless-stopped
+  volumes:
+    - documents:/app/var/documents
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  migrate:
+    image: celebobo-api:${CELEBOBO_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    env_file: ${ENV_FILE:?run through local.sh or prod.sh}
+    command: ["migrate"]
+    restart: "no"
+    healthcheck:
+      disable: true
+
+  api:
+    <<: *app
+    command: ["api"]
+
+  worker:
+    <<: *app
+    command: ["worker"]
+    healthcheck:
+      disable: true
+
+  beat:
+    <<: *app
+    command: ["beat"]
+    healthcheck:
+      disable: true
+
+  frontend:
+    profiles: ["frontend"]
+    image: celebobo-frontend:${CELEBOBO_TAG:-latest}
+    build:
+      context: ${FRONTEND_DIR:-../../shopproject_v2_frontend}
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+        NEXT_PUBLIC_WS_URL: /ws/
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+        NEXT_PUBLIC_GOOGLE_OAUTH_CALLBACK_URL: ${GOOGLE_OAUTH_CALLBACK_URL:-}
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    volumes:
+      - ./nginx/snippets:/etc/nginx/snippets:ro
+    depends_on:
+      - api
+
+volumes:
+  documents:
