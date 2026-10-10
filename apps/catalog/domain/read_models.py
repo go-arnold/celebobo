@@ -84,6 +84,18 @@ class ProductDetail:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class SitemapEntry:
+    slug: str
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CatalogSitemap:
+    products: tuple[SitemapEntry, ...]
+    categories: tuple[SitemapEntry, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SearchPage:
     ids: tuple[int, ...]
     total: int

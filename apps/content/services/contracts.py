@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from apps.catalog.domain.read_models import CategoryView, ProductCard
+from apps.catalog.domain.read_models import CatalogSitemap, CategoryView, ProductCard
 from apps.content.domain.read_models import ShippingInfo
 from core.domain.actor import Actor
 
@@ -15,6 +15,8 @@ class Showcase(Protocol):
     def categories(self) -> list[CategoryView]: ...
 
     def in_category(self, actor: Actor, slug: str, *, limit: int) -> list[ProductCard]: ...
+
+    def sitemap(self) -> CatalogSitemap: ...
 
 
 class ShippingSource(Protocol):

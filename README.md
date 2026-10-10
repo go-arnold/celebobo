@@ -509,7 +509,8 @@ The public site content and its back-office editors.
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/v1/home/` | Home sections |
-| `GET /api/v1/settings/public/` | Exchange rate, contacts, hours, payment methods, social links, shipping rules |
+| `GET /api/v1/settings/public/` | Currency (`USD`), exchange rate, contacts, hours, payment methods, social links, shipping rules |
+| `GET /api/v1/sitemap/` | `{products, categories, pages}`: `slug` and `updated_at` of everything public, unpaginated (50,000 per list) |
 | `GET /api/v1/pages/` · `pages/<slug>/` · `faq/` | Published pages and the FAQ grouped by category |
 | `POST /api/v1/contact/` | Contact form (`202`) |
 | `POST /api/v1/newsletter/subscribe/` · `unsubscribe/` | Newsletter |

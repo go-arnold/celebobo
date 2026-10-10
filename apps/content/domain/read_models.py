@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from apps.catalog.domain.read_models import CategoryView, ProductCard
+from apps.catalog.domain.read_models import CategoryView, ProductCard, SitemapEntry
 from apps.content.domain.enums import ContactStatus, ContactSubject
 
 
@@ -118,3 +118,10 @@ class HomePage:
     new_arrivals: list[ProductCard]
     best_sellers: list[ProductCard]
     categories: list[CategoryBlock]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Sitemap:
+    products: tuple[SitemapEntry, ...]
+    categories: tuple[SitemapEntry, ...]
+    pages: tuple[SitemapEntry, ...]

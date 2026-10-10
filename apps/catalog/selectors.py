@@ -1,4 +1,4 @@
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from datetime import datetime
 from decimal import Decimal
 
@@ -32,6 +32,7 @@ from apps.catalog.domain.errors import CategoryNotFound, ProductNotFound, Review
 from apps.catalog.domain.management import BackofficeProductFilters, ProductStatus, ReviewFilters
 from apps.catalog.domain.management_rules import margin
 from apps.catalog.domain.read_models import (
+    CatalogSitemap,
     CategoryRef,
     CategoryView,
     OptionView,
@@ -42,6 +43,7 @@ from apps.catalog.domain.read_models import (
     ReviewAuthor,
     ReviewSummary,
     ReviewView,
+    SitemapEntry,
     VariantView,
 )
 from apps.catalog.domain.rules import (
@@ -82,6 +84,19 @@ class CategorySelector:
             products_count=Count("products", filter=visible, distinct=True)
         )
         return categories
+
+
+class SitemapSelector:
+    def __init__(self, *, limit: int) -> None:
+        self._limit = limit
+
+    def catalog(self) -> CatalogSitemap:
+        products = visible_products().order_by("pk").values_list("slug", "updated_at")
+        categories = Category.objects.filter(is_active=True).values_list("slug", "updated_at")
+        return CatalogSitemap(
+            products=_entries(products[: self._limit]),
+            categories=_entries(categories[: self._limit]),
+        )
 
 
 class ProductCardSelector:
@@ -247,6 +262,10 @@ class FavoriteSelector:
         queryset = Favorite.objects.filter(user_id=user_id, product__in=visible_products())
         ids = tuple(queryset.values_list("product_id", flat=True)[offset : offset + limit])
         return ids, queryset.count()
+
+
+def _entries(rows: Iterable[tuple[str, datetime]]) -> tuple[SitemapEntry, ...]:
+    return tuple(SitemapEntry(slug=slug, updated_at=updated_at) for slug, updated_at in rows)
 
 
 def _first_images() -> Prefetch[str, QuerySet[ProductImage], str]:

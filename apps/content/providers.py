@@ -78,6 +78,7 @@ def _content_facade(container: Container) -> SiteContentFacade:
             section_size=HOME_SECTION_SIZE,
             category_blocks=HOME_CATEGORY_BLOCKS,
         ),
+        showcase=container.resolve(Showcase),
         cache=container.resolve(ContentCache),
         publisher=container.resolve(EventPublisher),
     )

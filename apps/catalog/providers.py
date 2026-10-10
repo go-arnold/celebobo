@@ -33,6 +33,7 @@ from apps.catalog.selectors import (
     ProductDetailSelector,
     ProductDocumentSelector,
     ReviewSelector,
+    SitemapSelector,
     StockSelector,
 )
 from apps.catalog.services.contracts import (
@@ -113,6 +114,7 @@ def _catalog_facade(container: Container) -> CatalogFacade:
         favorites=FavoriteSelector(),
         related=container.resolve(RelatedProducts),
         cache=container.resolve(CatalogCache),
+        sitemap=SitemapSelector(limit=settings.sitemap_limit),
         related_limit=settings.related_limit,
         suggestion_limit=settings.suggestion_limit,
     )

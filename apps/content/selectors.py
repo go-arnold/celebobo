@@ -4,6 +4,7 @@ from datetime import datetime
 
 from django.db.models import Count, Q, QuerySet
 
+from apps.catalog.domain.read_models import SitemapEntry
 from apps.content.domain.commands import ContactFilters
 from apps.content.domain.enums import ContactStatus, ContactSubject
 from apps.content.domain.errors import ContactMessageNotFound, PageNotFound
@@ -82,6 +83,10 @@ class PageSelector:
         if page is None:
             raise PageNotFound
         return to_page_view(page)
+
+    def sitemap(self) -> tuple[SitemapEntry, ...]:
+        pages = Page.objects.filter(is_published=True).values_list("slug", "updated_at")
+        return tuple(SitemapEntry(slug=slug, updated_at=updated_at) for slug, updated_at in pages)
 
     def listing(self, *, published_only: bool) -> list[PageView]:
         pages = Page.objects.filter(is_published=True) if published_only else Page.objects.all()

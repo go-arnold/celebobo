@@ -38,6 +38,7 @@ from apps.catalog.domain.management import (
 )
 from apps.catalog.domain.queries import PostReview, ProductQuery, StockLine, StockSource
 from apps.catalog.domain.read_models import (
+    CatalogSitemap,
     CategoryView,
     Facets,
     PricedLine,
@@ -64,6 +65,7 @@ from apps.catalog.selectors import (
     ProductCardSelector,
     ProductDetailSelector,
     ReviewSelector,
+    SitemapSelector,
     StockSelector,
     to_review_view,
 )
@@ -116,10 +118,12 @@ class CatalogFacade:
         favorites: FavoriteSelector,
         related: RelatedProducts,
         cache: CatalogCache,
+        sitemap: SitemapSelector,
         related_limit: int,
         suggestion_limit: int,
     ) -> None:
         self._search = search
+        self._sitemap = sitemap
         self._cards = cards
         self._details = details
         self._categories = categories
@@ -181,6 +185,9 @@ class CatalogFacade:
             )
             for card in self._cached_cards(ids)
         ]
+
+    def sitemap(self) -> CatalogSitemap:
+        return self._sitemap.catalog()
 
     def cards_for(self, actor: Actor, ids: Sequence[int]) -> list[ProductCard]:
         return self._hydrate(actor, ids)

@@ -1,4 +1,5 @@
 from datetime import timedelta
+from time import perf_counter
 from decimal import Decimal
 
 import pytest
@@ -43,6 +44,7 @@ def test_public_settings_hide_the_newsletter_code(api, site):
     assert body["payment_methods"] == ["orange_money", "cash"]
     assert body["shipping"] == {"free_threshold": "199.00", "flat_fee": "2.98"}
     assert "newsletter_code" not in body
+    assert body["currency"] == "USD"
 
 
 def test_public_settings_are_cacheable(api):
@@ -78,3 +80,36 @@ def test_faq_is_grouped_by_category(api):
         ("Livraison", 2),
         ("Paiement", 1),
     ]
+
+
+def test_sitemap_lists_only_what_is_public(api, django_assert_max_num_queries):
+    phones = CategoryFactory.create(slug="smartphones")
+    hidden = CategoryFactory.create(slug="cachee", is_active=False)
+    shown = ProductFactory.create(slug="galaxy-a55", category=phones)
+    ProductFactory.create(slug="brouillon", category=phones, is_active=False)
+    ProductFactory.create(slug="supprime", category=phones).delete()
+    ProductFactory.create(slug="orphelin", category=hidden)
+    Page.objects.create(slug="livraison", title="Livraison", body="…")
+    Page.objects.create(slug="brouillon", title="Brouillon", body="…", is_published=False)
+
+    with django_assert_max_num_queries(3):
+        response = api.get("/api/v1/sitemap/")
+    body = response.json()
+
+    assert body["products"] == [
+        {"slug": "galaxy-a55", "updated_at": shown.updated_at.astimezone().isoformat()}
+    ]
+    assert [entry["slug"] for entry in body["categories"]] == ["smartphones"]
+    assert [entry["slug"] for entry in body["pages"]] == ["livraison"]
+    assert "public" in response["Cache-Control"]
+
+
+def test_sitemap_is_fast_on_a_demo_sized_catalogue(api):
+    phones = CategoryFactory.create(slug="smartphones")
+    ProductFactory.create_batch(200, category=phones)
+
+    started = perf_counter()
+    body = api.get("/api/v1/sitemap/").json()
+
+    assert len(body["products"]) == 200
+    assert perf_counter() - started < 0.2

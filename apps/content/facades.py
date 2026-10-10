@@ -27,6 +27,7 @@ from apps.content.domain.read_models import (
     FaqView,
     HomePage,
     PageView,
+    Sitemap,
     SiteSettingsView,
     SubscriberView,
     Subscription,
@@ -44,7 +45,7 @@ from apps.content.selectors import (
     to_settings_view,
 )
 from apps.content.services.contact import ContactService
-from apps.content.services.contracts import ShippingSource
+from apps.content.services.contracts import ShippingSource, Showcase
 from apps.content.services.editors import Editor
 from apps.content.services.home import HomeService
 from apps.content.services.mailer import ContentMailer
@@ -162,6 +163,7 @@ class SiteContentFacade:
         site: SiteSettingsService,
         shipping: ShippingSource,
         home: HomeService,
+        showcase: Showcase,
         cache: VersionedCache,
         publisher: EventPublisher,
     ) -> None:
@@ -174,11 +176,20 @@ class SiteContentFacade:
         self._site = site
         self._shipping = shipping
         self._home = home
+        self._showcase = showcase
         self._cache = cache
         self._publisher = publisher
 
     def home(self, actor: Actor) -> HomePage:
         return self._home.page(actor)
+
+    def sitemap(self) -> Sitemap:
+        catalog = self._showcase.sitemap()
+        return Sitemap(
+            products=catalog.products,
+            categories=catalog.categories,
+            pages=self._page_selector.sitemap(),
+        )
 
     def public_settings(self) -> SiteSettingsView:
         return self._cache.get_or_set(
