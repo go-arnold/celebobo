@@ -47,6 +47,11 @@ services:
         NEXT_PUBLIC_WS_URL: /ws/
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
         NEXT_PUBLIC_GOOGLE_OAUTH_CALLBACK_URL: ${GOOGLE_OAUTH_CALLBACK_URL:-}
+    environment:
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:8000/api/v1}
+      SSR_SHARED_SECRET: ${SSR_SHARED_SECRET:-}
+      SITE_URL: ${FRONTEND_URL:-}
+      REVALIDATE_SECRET: ${FRONTEND_REVALIDATE_SECRET:-}
     restart: unless-stopped
 
   nginx:

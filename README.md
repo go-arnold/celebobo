@@ -58,7 +58,7 @@ Custom `User` (email login, role, reseller referral code, availability, commissi
 | Endpoint | Purpose |
 |---|---|
 | `POST /api/v1/auth/register/` | Registration through `AccountFacade`; the verification email goes out in the background |
-| `POST /api/v1/auth/login/` · `logout/` · `token/refresh/` | dj-rest-auth with JWTs in httpOnly cookies (`cb_access`, `cb_refresh`) and CSRF enforced |
+| `POST /api/v1/auth/login/` · `logout/` · `token/refresh/` | dj-rest-auth with JWTs in httpOnly cookies (`cb_access`, `cb_refresh`) and CSRF enforced; `cb_session` (httpOnly, `Path=/`, the role only) follows the refresh cookie so the Next server can route without an API call |
 | `GET /api/v1/auth/csrf/` | Sets the `csrftoken` cookie |
 | `POST /api/v1/auth/email/verify/` · `email/resend/` | Email verification; the link points to `FRONTEND_URL/verifier-email/<key>` |
 | `POST /api/v1/auth/password/reset/` · `reset/confirm/` · `change/` | Password flows; the reset link points to `FRONTEND_URL/reinitialiser-mot-de-passe?uid=…&token=…` |
@@ -551,7 +551,7 @@ Browser push notifications (Web Push with VAPID), the third notification channel
 - `AXES_FAILURE_LIMIT` failed logins (5) for the same email from the same IP lock that pair for `AXES_COOLOFF_MINUTES` (15).
 - The JSON login answers `429 too_many_login_attempts`; the Django admin login is covered too.
 - `LockoutAwareLoginSerializer` reads the lockout flag that axes sets on the DRF request. It also sends `user_logged_in` on success, so the counter resets and `last_login` is updated, which dj-rest-auth skips when session login is off.
-- Behind a proxy, set `AXES_PROXY_COUNT` so the client IP is read from `X-Forwarded-For`.
+- Behind a proxy, set `PROXY_COUNT` so the client IP is read from `X-Forwarded-For`.
 
 **Headers and rate limits**
 - django-csp sends a strict `Content-Security-Policy`:
@@ -560,6 +560,7 @@ Browser push notifications (Web Push with VAPID), the third notification channel
   - The Swagger and ReDoc pages are excluded because they load assets from a CDN.
 - Production already sets HSTS, secure cookies, `nosniff`, `DENY` framing and a strict referrer policy.
 - Scoped throttles cover authentication (`auth`, `dj_rest_auth`), referral checks, tracking, uploads, the assistant, contact, the newsletter, reseller applications and coupon attempts (`coupons`, 20/hour).
+- The Next server renders public pages from one IP: requests carrying `X-SSR-Token` equal to `SSR_SHARED_SECRET` skip the anonymous and scoped limits. `PROXY_COUNT` (nginx = 1) makes the limits use the real client IP.
 
 **Media**
 - Avatars are set with `avatar_upload_id`. The upload must be an avatar uploaded by the same user, so arbitrary URLs can no longer be stored.

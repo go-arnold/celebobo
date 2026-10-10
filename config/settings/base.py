@@ -77,6 +77,7 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
     "csp.middleware.CSPMiddleware",
     "axes.middleware.AxesMiddleware",
+    "apps.accounts.api.session_hint.session_hint_middleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -143,7 +144,7 @@ AXES_COOLOFF_TIME = timedelta(minutes=env.int("AXES_COOLOFF_MINUTES", default=15
 AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
 AXES_USERNAME_FORM_FIELD = "email"
 AXES_RESET_ON_SUCCESS = True
-AXES_IPWARE_PROXY_COUNT = env.int("AXES_PROXY_COUNT", default=0) or None
+AXES_IPWARE_PROXY_COUNT = env.int("PROXY_COUNT", default=0) or None
 AXES_IPWARE_META_PRECEDENCE_ORDER = ["HTTP_X_FORWARDED_FOR", "REMOTE_ADDR"]
 
 CONTENT_SECURITY_POLICY = {
@@ -210,10 +211,11 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "core.api.exceptions.problem_exception_handler",
     "DEFAULT_THROTTLE_CLASSES": (
-        "rest_framework.throttling.AnonRateThrottle",
+        "core.api.throttling.SsrAwareAnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
-        "rest_framework.throttling.ScopedRateThrottle",
+        "core.api.throttling.SsrAwareScopedRateThrottle",
     ),
+    "NUM_PROXIES": env.int("PROXY_COUNT", default=0),
     "DEFAULT_THROTTLE_RATES": {
         "anon": "60/min",
         "user": "240/min",
@@ -449,6 +451,7 @@ CORE = {
         "CORE_PROBLEM_BASE_URI", default="https://api.celebobo.com/problems"
     ),
     "HEALTH_CHECKS": ("database", "cache"),
+    "SSR_SHARED_SECRET": env.str("SSR_SHARED_SECRET", default=""),
 }
 
 LOG_LEVEL = env.str("LOG_LEVEL", default="INFO")
