@@ -444,6 +444,8 @@ DOCUMENTS = {
     "RETENTION_DAYS": env.int("DOCUMENTS_RETENTION_DAYS", default=7),
 }
 
+# seed_demo --e2e empties the database first: only for local and CI stacks
+E2E_SEED_ALLOWED = env.bool("E2E_SEED_ALLOWED", default=False)
 STOREFRONT = {
     "REVALIDATE_URL": env.str("FRONTEND_REVALIDATE_URL", default=""),
     "REVALIDATE_SECRET": env.str("FRONTEND_REVALIDATE_SECRET", default=""),

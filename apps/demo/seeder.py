@@ -100,6 +100,25 @@ MESSAGES = (
 )
 
 
+@contextmanager
+def quiet_side_effects() -> Iterator[None]:
+    eager, propagates = celery_app.conf.task_always_eager, celery_app.conf.task_eager_propagates
+    celery_app.conf.task_always_eager, celery_app.conf.task_eager_propagates = True, False
+    overrides = {
+        "EMAIL_BACKEND": "django.core.mail.backends.locmem.EmailBackend",
+        "CORE": {**settings.CORE, "EVENTS_DISPATCHER": "inline"},
+        "ASSISTANT": {**settings.ASSISTANT, "PROVIDER": "offline"},
+        "PUSH": {},
+        "STOREFRONT": {},
+    }
+    try:
+        with override_settings(**overrides):
+            yield
+    finally:
+        celery_app.conf.task_always_eager = eager
+        celery_app.conf.task_eager_propagates = propagates
+
+
 @dataclass(slots=True)
 class SeedReport:
     counts: dict[str, int] = field(default_factory=dict)
@@ -122,7 +141,7 @@ class DemoSeeder:
         self.report = SeedReport()
 
     def run(self) -> SeedReport:
-        with self._quiet_side_effects():
+        with quiet_side_effects():
             admin = self._admin()
             self._store = ImageStore(owner_id=admin.pk) if self._images_enabled else None
             self._actor = actor_from_user(admin)
@@ -143,23 +162,6 @@ class DemoSeeder:
             self._refresh()
         self._embed()
         return self.report
-
-    @contextmanager
-    def _quiet_side_effects(self) -> Iterator[None]:
-        eager, propagates = celery_app.conf.task_always_eager, celery_app.conf.task_eager_propagates
-        celery_app.conf.task_always_eager, celery_app.conf.task_eager_propagates = True, False
-        overrides = {
-            "EMAIL_BACKEND": "django.core.mail.backends.locmem.EmailBackend",
-            "CORE": {**settings.CORE, "EVENTS_DISPATCHER": "inline"},
-            "ASSISTANT": {**settings.ASSISTANT, "PROVIDER": "offline"},
-            "PUSH": {},
-        }
-        try:
-            with override_settings(**overrides):
-                yield
-        finally:
-            celery_app.conf.task_always_eager = eager
-            celery_app.conf.task_eager_propagates = propagates
 
     def _admin(self) -> User:
         admin = User.objects.filter(email__iexact=self._admin_email).first()

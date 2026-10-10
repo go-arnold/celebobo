@@ -6,11 +6,11 @@ from django.core.management import CommandError, call_command
 
 from apps.accounts.models import User
 from apps.accounts.tests.factories import AdminFactory
-from apps.catalog.models import Product
+from apps.catalog.models import Product, ProductVariant
 from apps.demo.people import DemoPerson, email_for
 from apps.demo.uploads import ImageStore
 from apps.media.models import UploadedMedia
-from apps.orders.models import Order
+from apps.orders.models import Coupon, Order, ShippingZone
 from apps.sales.models import Sale
 
 
@@ -70,3 +70,44 @@ def test_upload_signs_the_request_and_records_the_media(monkeypatch):
     assert isinstance(data, dict)
     assert data["folder"] == "celebobo-test/seed"
     assert data["signature"]
+
+
+def e2e_state() -> dict[str, object]:
+    return {
+        "users": sorted(User.objects.values_list("pk", "email", "role", "referral_code")),
+        "products": sorted(
+            Product.objects.values_list("pk", "slug", "price", "sale_price", "stock")
+        ),
+        "variants": sorted(ProductVariant.objects.values_list("pk", "sku", "price", "stock")),
+        "coupons": list(Coupon.objects.values_list("pk", "code")),
+        "zones": list(ShippingZone.objects.values_list("pk", "name", "fee")),
+    }
+
+
+@pytest.mark.django_db(transaction=True)
+def test_e2e_seed_is_repeatable():
+    call_command("seed_demo", "--e2e", stdout=StringIO())
+    first = e2e_state()
+    Product.objects.update(stock=0)
+    call_command("seed_demo", "--e2e", stdout=StringIO())
+
+    assert e2e_state() == first
+    assert {role for _, _, role, _ in first["users"]} == {  # type: ignore[attr-defined]
+        "admin",
+        "manager",
+        "reseller",
+        "client",
+    }
+    slugs = {"galaxy-a55", "redmi-note-13", "iphone-15", "ecouteurs-bluetooth"}
+    assert set(Product.objects.values_list("slug", flat=True)) == slugs
+    assert Product.objects.get(slug="galaxy-a55").sale_price is not None
+    assert Product.objects.get(slug="redmi-note-13").stock == 0
+    assert ProductVariant.objects.filter(product__slug="iphone-15").count() == 2
+
+
+@pytest.mark.django_db
+def test_e2e_seed_refuses_stacks_that_did_not_allow_it(settings):
+    settings.E2E_SEED_ALLOWED = False
+
+    with pytest.raises(CommandError):
+        call_command("seed_demo", "--e2e", stdout=StringIO())
