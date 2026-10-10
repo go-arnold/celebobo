@@ -55,6 +55,18 @@ def test_anonymous_visitors_are_limited():
     assert statuses(LIMIT + 1)[-1] == 429
 
 
+def test_limited_requests_get_a_problem_with_retry_after():
+    view, factory = PublicView.as_view(), APIRequestFactory()
+    for _ in range(LIMIT):
+        view(factory.get("/"))
+
+    response = view(factory.get("/")).render()
+
+    assert response["Content-Type"] == "application/problem+json"
+    assert int(response["Retry-After"]) > 0
+    assert response.data["status"] == 429
+
+
 def test_wrong_token_is_limited_like_anyone():
     assert statuses(LIMIT + 1, HTTP_X_SSR_TOKEN="guess")[-1] == 429
 

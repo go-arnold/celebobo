@@ -175,3 +175,7 @@ class ReviewEligibilityOutput(serializers.Serializer[Any]):
 
 class FavoriteInput(serializers.Serializer[Any]):
     product_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
+
+
+class FavoriteIdsOutput(serializers.Serializer[Any]):
+    ids = serializers.ListField(child=serializers.IntegerField())

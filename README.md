@@ -99,7 +99,7 @@ Categories, products (variants, options, images, features), the stock movement l
 | `GET /api/v1/products/<slug>/` · `related/` | Product detail (variants, options, care instructions) and related products |
 | `GET /api/v1/search/suggest/?q=` | Autocomplete |
 | `GET · POST /api/v1/products/<slug>/reviews/` · `eligibility/` | Reviews with a rating summary; only verified buyers can post |
-| `GET · POST /api/v1/me/favorites/` · `DELETE <product_id>/` | Favourites |
+| `GET · POST /api/v1/me/favorites/` · `GET ids/` · `DELETE <product_id>/` | Favourites; `ids/` returns `{ids: [...]}` so pages can stay identical for everyone and mark hearts afterwards |
 
 Reads are cached in `CatalogCache`, which is invalidated by `ProductChanged`, `ProductRemoved`, `CategoryChanged` and `ReviewPosted`. Edits made in Django admin publish the same events.
 

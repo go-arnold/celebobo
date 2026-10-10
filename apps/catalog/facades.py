@@ -272,6 +272,9 @@ class FavoriteFacade:
         self._catalog = catalog
         self._publisher = publisher
 
+    def ids(self, actor: Actor) -> list[int]:
+        return self._selector.all_ids(_user_id(actor))
+
     def page(self, actor: Actor, *, offset: int, limit: int) -> ProductPage:
         ids, total = self._selector.page(_user_id(actor), offset=offset, limit=limit)
         return ProductPage(cards=self._catalog.cards_for(actor, ids), total=total)

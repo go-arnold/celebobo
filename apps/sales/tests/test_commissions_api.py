@@ -90,6 +90,13 @@ class TestPayouts:
         assert summary["due"] == "5.00"
         assert any(isinstance(event, PayoutRecorded) for event in published_events.events)
 
+    def test_same_key_records_one_payout(self, as_user, admin, earned):
+        first = pay(as_user(admin), earned, "5.00", key="payout-twice-1")
+        retry = pay(as_user(admin), earned, "5.00", key="payout-twice-1")
+
+        assert retry.json()["id"] == first.json()["id"]
+        assert Payout.objects.count() == 1
+
     def test_payouts_go_to_resellers_only(self, as_user, admin, shopper):
         assert pay(as_user(admin), shopper, "1.00").status_code == 400
 

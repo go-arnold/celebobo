@@ -265,6 +265,10 @@ class FavoriteSelector:
             )
         )
 
+    def all_ids(self, user_id: int) -> list[int]:
+        queryset = Favorite.objects.filter(user_id=user_id, product__in=visible_products())
+        return list(queryset.values_list("product_id", flat=True))
+
     def page(self, user_id: int, *, offset: int, limit: int) -> tuple[tuple[int, ...], int]:
         queryset = Favorite.objects.filter(user_id=user_id, product__in=visible_products())
         ids = tuple(queryset.values_list("product_id", flat=True)[offset : offset + limit])
