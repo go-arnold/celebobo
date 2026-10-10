@@ -1,6 +1,6 @@
 from datetime import timedelta
-from time import perf_counter
 from decimal import Decimal
+from time import perf_counter
 
 import pytest
 from django.utils import timezone

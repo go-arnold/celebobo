@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Protocol
 
 from apps.catalog.domain.read_models import CatalogSitemap, CategoryView, ProductCard
@@ -17,6 +18,14 @@ class Showcase(Protocol):
     def in_category(self, actor: Actor, slug: str, *, limit: int) -> list[ProductCard]: ...
 
     def sitemap(self) -> CatalogSitemap: ...
+
+    def product_location(self, product_id: int) -> tuple[str, str] | None: ...
+
+    def category_slug(self, category_id: int) -> str | None: ...
+
+
+class PageRevalidator(Protocol):
+    def revalidate(self, tags: Sequence[str]) -> None: ...
 
 
 class ShippingSource(Protocol):

@@ -189,6 +189,12 @@ class CatalogFacade:
     def sitemap(self) -> CatalogSitemap:
         return self._sitemap.catalog()
 
+    def product_location(self, product_id: int) -> tuple[str, str] | None:
+        return self._sitemap.product_location(product_id)
+
+    def category_slug(self, category_id: int) -> str | None:
+        return self._sitemap.category_slug(category_id)
+
     def cards_for(self, actor: Actor, ids: Sequence[int]) -> list[ProductCard]:
         return self._hydrate(actor, ids)
 

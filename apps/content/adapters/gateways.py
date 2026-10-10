@@ -35,6 +35,12 @@ class CatalogShowcase:
     def sitemap(self) -> CatalogSitemap:
         return container.resolve(CatalogFacade).sitemap()
 
+    def product_location(self, product_id: int) -> tuple[str, str] | None:
+        return container.resolve(CatalogFacade).product_location(product_id)
+
+    def category_slug(self, category_id: int) -> str | None:
+        return container.resolve(CatalogFacade).category_slug(category_id)
+
     @staticmethod
     def _browse(actor: Actor, query: ProductQuery) -> list[ProductCard]:
         return list(container.resolve(CatalogFacade).browse(actor, query).cards)

@@ -444,6 +444,10 @@ DOCUMENTS = {
     "RETENTION_DAYS": env.int("DOCUMENTS_RETENTION_DAYS", default=7),
 }
 
+STOREFRONT = {
+    "REVALIDATE_URL": env.str("FRONTEND_REVALIDATE_URL", default=""),
+    "REVALIDATE_SECRET": env.str("FRONTEND_REVALIDATE_SECRET", default=""),
+}
 CORE = {
     "EVENTS_DISPATCHER": env.str("CORE_EVENTS_DISPATCHER", default="celery"),
     "METRICS_BACKEND": env.str("CORE_METRICS_BACKEND", default="log"),

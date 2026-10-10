@@ -98,6 +98,13 @@ class SitemapSelector:
             categories=_entries(categories[: self._limit]),
         )
 
+    def product_location(self, product_id: int) -> tuple[str, str] | None:
+        rows = Product.all_objects.filter(pk=product_id).values_list("slug", "category__slug")
+        return rows.first()
+
+    def category_slug(self, category_id: int) -> str | None:
+        return Category.all_objects.filter(pk=category_id).values_list("slug", flat=True).first()
+
 
 class ProductCardSelector:
     def __init__(self, *, now: datetime, new_for_days: int) -> None:
