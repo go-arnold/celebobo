@@ -45,6 +45,8 @@ class ProductDraft:
     sale_price: Decimal | None = None
     cost_price: Decimal | None = None
     long_description: str = ""
+    seo_title: str = ""
+    seo_description: str = ""
     badge: Badge | None = None
     care_instructions: str = ""
     delivery_policy_primary: str = ""
@@ -69,6 +71,8 @@ class ProductChanges:
     sale_price: Maybe[Decimal | None] = UNSET
     cost_price: Maybe[Decimal | None] = UNSET
     long_description: Maybe[str] = UNSET
+    seo_title: Maybe[str] = UNSET
+    seo_description: Maybe[str] = UNSET
     badge: Maybe[Badge | None] = UNSET
     care_instructions: Maybe[str] = UNSET
     delivery_policy_primary: Maybe[str] = UNSET
@@ -116,6 +120,8 @@ class CategoryDraft:
     name: str
     icon: CategoryIcon = CategoryIcon.MOBILE
     description: str = ""
+    seo_title: str = ""
+    seo_description: str = ""
     image_id: int | None = None
     is_active: bool = True
 
@@ -125,6 +131,8 @@ class CategoryChanges:
     name: Maybe[str] = UNSET
     icon: Maybe[CategoryIcon] = UNSET
     description: Maybe[str] = UNSET
+    seo_title: Maybe[str] = UNSET
+    seo_description: Maybe[str] = UNSET
     image_id: Maybe[int | None] = UNSET
     is_active: Maybe[bool] = UNSET
 

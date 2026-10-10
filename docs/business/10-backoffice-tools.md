@@ -42,7 +42,7 @@ event is pushed when it finishes. Users see only their own jobs; files are delet
 ### Catalogue CSV import
 
 - Columns: `slug`, `name`, `description`, `category`, `price`, `sale_price`, `cost_price`, `stock`,
-  `stock_threshold`, `is_active`. Required: **name, category, price**. Separator `;` or `,`, UTF-8.
+  `stock_threshold`, `is_active`, `seo_title` (70 characters), `seo_description` (160). Required: **name, category, price**. Separator `;` or `,`, UTF-8.
 - A row **with an existing slug updates** that product; **without slug it creates** one.
 - `category` is the category **slug** (e.g. `smartphones`); booleans accept oui/non, true/false, 1/0, yes/no, vrai/faux.
 - `stock`, when given, **sets** the stock (logged as a stock movement).

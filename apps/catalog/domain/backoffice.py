@@ -54,6 +54,8 @@ class AdminProductDetail:
     row: AdminProductRow
     description: str
     long_description: str
+    seo_title: str
+    seo_description: str
     care_instructions: str
     delivery_policy_primary: str
     delivery_policy_secondary: str
@@ -108,6 +110,8 @@ class AdminCategory:
     slug: str
     name: str
     description: str
+    seo_title: str
+    seo_description: str
     image: str
     icon: CategoryIcon
     is_active: bool

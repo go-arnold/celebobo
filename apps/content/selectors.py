@@ -20,6 +20,8 @@ from apps.content.domain.read_models import (
 from apps.content.models import Banner, ContactMessage, FaqEntry, Page, SiteSettings, Subscriber
 
 DIGITS = re.compile(r"\D")
+# every amount is stored and shown in US dollars (ISO 4217)
+CURRENCY = "USD"
 
 
 class ContactSelector:
@@ -120,6 +122,7 @@ def to_settings_view(
 ) -> SiteSettingsView:
     digits = DIGITS.sub("", settings.whatsapp)
     return SiteSettingsView(
+        currency=CURRENCY,
         usd_to_cdf=settings.usd_to_cdf,
         hotline=settings.hotline,
         whatsapp=settings.whatsapp,

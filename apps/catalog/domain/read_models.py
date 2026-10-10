@@ -19,9 +19,12 @@ class CategoryView:
     slug: str
     name: str
     description: str
+    seo_title: str
+    seo_description: str
     image: str
     icon: CategoryIcon
     products_count: int
+    updated_at: datetime
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -41,6 +44,7 @@ class ProductCard:
     reviews_count: int
     in_stock: bool
     free_shipping: bool
+    updated_at: datetime
     is_favorite: bool = False
 
 
@@ -66,6 +70,8 @@ class VariantView:
 class ProductDetail:
     card: ProductCard
     long_description: str
+    seo_title: str
+    seo_description: str
     images: tuple[str, ...]
     features: tuple[str, ...]
     care_instructions: tuple[str, ...]

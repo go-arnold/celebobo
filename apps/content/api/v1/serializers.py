@@ -189,6 +189,7 @@ class ShippingOutput(serializers.Serializer[Any]):
 
 
 class PublicSettingsOutput(serializers.Serializer[Any]):
+    currency = serializers.CharField()
     usd_to_cdf = serializers.DecimalField(max_digits=10, decimal_places=2)
     hotline = serializers.CharField()
     whatsapp = serializers.CharField()

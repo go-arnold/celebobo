@@ -90,6 +90,7 @@ class ShippingInfo:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SiteSettingsView:
+    currency: str
     usd_to_cdf: Decimal
     hotline: str
     whatsapp: str

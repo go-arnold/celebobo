@@ -17,7 +17,8 @@ def login(api: APIClient, user: User):
 
 
 def is_cleared(response) -> bool:
-    return response.cookies[HINT].value == "" and response.cookies[HINT]["max-age"] == 0
+    hint = response.cookies[HINT]
+    return bool(hint.value == "" and hint["max-age"] == 0)
 
 
 class TestSessionHint:

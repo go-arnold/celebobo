@@ -124,6 +124,7 @@ class ProductCardSelector:
             reviews_count=product.reviews_count,
             in_stock=product.in_stock,
             free_shipping=product.free_shipping,
+            updated_at=product.updated_at,
         )
 
 
@@ -150,6 +151,8 @@ class ProductDetailSelector:
         return ProductDetail(
             card=self._cards.card(product),
             long_description=product.long_description,
+            seo_title=product.seo_title,
+            seo_description=product.seo_description,
             images=tuple(image.url for image in images),
             features=tuple(feature.name for feature in product.features.all()),
             care_instructions=care_items(product.care_instructions),
@@ -258,9 +261,12 @@ def _category_view(category: Category) -> CategoryView:
         slug=category.slug,
         name=category.name,
         description=category.description,
+        seo_title=category.seo_title,
+        seo_description=category.seo_description,
         image=category.image,
         icon=CategoryIcon(category.icon),
         products_count=getattr(category, "products_count", 0),
+        updated_at=category.updated_at,
     )
 
 
@@ -327,6 +333,8 @@ class AdminProductSelector:
             row=_admin_row(product, images[:1]),
             description=product.description,
             long_description=product.long_description,
+            seo_title=product.seo_title,
+            seo_description=product.seo_description,
             care_instructions=product.care_instructions,
             delivery_policy_primary=product.delivery_policy_primary,
             delivery_policy_secondary=product.delivery_policy_secondary,
@@ -571,6 +579,8 @@ def _admin_category(category: Category) -> AdminCategory:
         slug=category.slug,
         name=category.name,
         description=category.description,
+        seo_title=category.seo_title,
+        seo_description=category.seo_description,
         image=category.image,
         icon=CategoryIcon(category.icon),
         is_active=category.is_active,

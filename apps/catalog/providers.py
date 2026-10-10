@@ -59,6 +59,9 @@ from core.events.contracts import EventPublisher
 
 ADAPTER_MODULES = (postgres,)
 
+# bump the suffix whenever a cached read model changes shape
+CACHE_NAMESPACE = "catalog:2"
+
 
 def register(container: Container) -> None:
     media_references.add("catalog", CatalogMediaReferences, replace=True)
@@ -71,7 +74,7 @@ def register(container: Container) -> None:
     container.register(RelatedProducts, lambda _: postgres.SameCategoryRelated())
     container.register(PurchaseVerifier, lambda _: postgres.NoPurchaseHistory())
     container.register(
-        CatalogCache, lambda _: CatalogCache("catalog", ttl=catalog_settings().cache_ttl)
+        CatalogCache, lambda _: CatalogCache(CACHE_NAMESPACE, ttl=catalog_settings().cache_ttl)
     )
     container.register(ProductIndexer, _indexer, lifetime=Lifetime.TRANSIENT)
     container.register(CatalogFacade, _catalog_facade, lifetime=Lifetime.TRANSIENT)

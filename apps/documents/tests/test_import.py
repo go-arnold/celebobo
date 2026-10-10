@@ -93,3 +93,22 @@ def test_resellers_cannot_import(as_user, reseller):
     response = as_user(reseller).post(IMPORT, {"file": upload(CSV)}, format="multipart")
 
     assert response.status_code == 403
+
+
+def test_import_sets_seo_fields(as_user, manager, phone, run_jobs):
+    content = (
+        "slug;name;category;price;seo_title;seo_description\n"
+        "galaxy-a55;Galaxy A55;smartphones;125;Galaxy A55 à Kinshasa;Livraison en 24 h\n"
+        f";Redmi;smartphones;90;{'x' * 71};\n"
+    )
+    with run_jobs():
+        as_user(manager).post(IMPORT, {"file": upload(content)}, format="multipart")
+
+    phone.refresh_from_db()
+    assert (phone.seo_title, phone.seo_description) == (
+        "Galaxy A55 à Kinshasa",
+        "Livraison en 24 h",
+    )
+    assert Job.objects.get().summary["errors"][0]["errors"] == {
+        "seo_title": "70 caractères maximum."
+    }
