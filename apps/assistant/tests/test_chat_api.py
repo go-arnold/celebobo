@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -8,6 +9,7 @@ from apps.assistant.domain.errors import AssistantUnavailable
 from apps.assistant.models import AssistantMessage, AssistantSession
 from apps.assistant.services.contracts import ChatModel
 from apps.assistant.tests.conftest import ScriptedModel
+from apps.orders.models import ShippingZone
 from core.container import container
 
 pytestmark = pytest.mark.django_db
@@ -79,6 +81,19 @@ class TestConversation:
         assert messages[0].text == "Bonjour"
         assert messages[-1].text == "Et moins cher ?"
         assert len(messages) == 3
+
+    def test_the_model_knows_the_live_delivery_zones(self, api, catalogue, scripted):
+        ShippingZone.objects.filter(name="Goma").update(fee=Decimal("3.50"))
+
+        ask(api, open_session(api), "Vous livrez à Goma ?")
+
+        system, _ = scripted.seen[-1]
+        assert "Bukavu et à Goma" in system
+        assert "Kinshasa" not in system
+        assert "- Goma (Goma) : 3.50 $, offerte dès 199.00 $, 24 à 48 h" in system
+        assert system.index("Environs de Bukavu et Goma") < system.index(
+            "- Reste du pays (toutes les autres villes) : 7.50 $, 3 à 7 jours"
+        )
 
     def test_offline_provider_answers_from_the_catalogue(self, api, catalogue):
         session_id = open_session(api)

@@ -182,7 +182,7 @@ Cancellations and returns put the stock back.
 **Shipping zones**
 - `ShippingZone` has a name, cities, a fee, an optional free-shipping threshold and a delivery estimate.
 - The delivery city (normalised for case, accents and hyphens) picks the zone. An unlisted city falls back to the `is_default` zone, and a quote without a city uses the `ORDERS` settings.
-- Migration `0003` seeds two zones: Kinshasa ($2.98, free from $199, 24–48 h) and Autres villes ($7.50, the default).
+- Migration `0004` sets the zones, Bukavu and Goma first: Bukavu and Goma ($2.98, free from $199, 24–48 h), Environs de Bukavu et Goma (Uvira, Kavumu, Sake, Minova…, $5.00, 2–4 days) and Reste du pays ($7.50, 3–7 days, the default). It only replaces the zones `0003` created, never zones edited since. The fees are provisional: edit them in the back-office.
 - Orders store the zone name with the fee.
 
 **Coupons**

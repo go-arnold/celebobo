@@ -30,6 +30,12 @@ from core.domain.actor import Actor, Role
 
 REFERRAL_CODE = "4821"
 COUPON_CODE = "E2E10"
+# city zones first, the last one is the default for every other city
+SHIPPING_ZONES = (
+    ("Bukavu", "3.00", "24 h"),
+    ("Goma", "3.00", "24 h"),
+    ("Reste du pays", "7.50", "3 à 7 jours"),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,8 +194,8 @@ class E2eSeeder:
                 recipient=f"{account.first_name} {account.last_name}",
                 phone=account.phone,
                 line1="Avenue du Commerce n°12",
-                quarter="Gombe",
-                city="Kinshasa",
+                quarter="Ibanda",
+                city="Bukavu",
                 country="RD Congo",
                 is_default=True,
             ),
@@ -205,17 +211,19 @@ class E2eSeeder:
                 description="10 % pour les tests",
             )
         )
-        promotions.create_zone(
-            ZoneFields(
-                name="Kinshasa",
-                fee=Decimal("3.00"),
-                cities=("Kinshasa",),
-                delivery_estimate="24 h",
-                is_default=True,
+        for position, (name, fee, estimate) in enumerate(SHIPPING_ZONES, start=1):
+            promotions.create_zone(
+                ZoneFields(
+                    name=name,
+                    fee=Decimal(fee),
+                    cities=(name,) if position < len(SHIPPING_ZONES) else (),
+                    delivery_estimate=estimate,
+                    is_default=position == len(SHIPPING_ZONES),
+                    position=position,
+                )
             )
-        )
         self.report.add("coupons")
-        self.report.add("shipping zones")
+        self.report.add("shipping zones", len(SHIPPING_ZONES))
 
     def _ready(self, user: User, account: E2eAccount) -> User:
         user.set_password(self._password)

@@ -1,14 +1,37 @@
+from collections.abc import Sequence
+from decimal import Decimal
+
 SYSTEM_PROMPT = (
-    "Tu es l'assistant de Celebobo, une boutique de téléphones et d'accessoires à Kinshasa.\n"
+    "Tu es l'assistant de Celebobo, une boutique de téléphones et d'accessoires installée à "
+    "Bukavu et à Goma (RD Congo), qui livre aussi leurs environs et le reste du pays.\n"
     "Réponds en français, de façon brève, chaleureuse et précise.\n"
     "Pour toute question sur des produits, des prix ou des disponibilités, appelle l'outil "
     "search_products et appuie-toi uniquement sur ses résultats ; n'invente jamais un produit, "
     "un prix ou un stock.\n"
-    "Les prix sont en dollars américains. La livraison à Kinshasa prend 24 à 48 h.\n"
+    "Les prix sont en dollars américains. Pour la livraison, donne uniquement les frais et "
+    "délais des zones ci-dessous ; la ville du client détermine sa zone.\n"
     "Si tu ne sais pas, dis-le et propose de contacter l'équipe."
 )
 
 MEMORY_PROMPT = "Résumé de la conversation jusqu'ici : {summary}"
+
+DELIVERY_PROMPT = "Zones de livraison :\n{zones}"
+
+
+def delivery_line(
+    name: str,
+    cities: Sequence[str],
+    fee: Decimal,
+    free_threshold: Decimal | None,
+    estimate: str,
+    *,
+    default: bool,
+) -> str:
+    where = "toutes les autres villes" if default else ", ".join(cities) or name
+    free = f", offerte dès {free_threshold} $" if free_threshold is not None else ""
+    delay = f", {estimate}" if estimate else ""
+    return f"- {name} ({where}) : {fee} ${free}{delay}"
+
 
 SUMMARY_PROMPT = (
     "Mets à jour ce résumé de conversation entre un client et l'assistant de la boutique.\n"

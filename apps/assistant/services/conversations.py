@@ -10,9 +10,10 @@ from apps.assistant.domain.conversation import ChatMessage, Usage
 from apps.assistant.domain.enums import Role
 from apps.assistant.domain.errors import AssistantQuotaExceeded, QuestionTooLong, SessionNotFound
 from apps.assistant.domain.events import AssistantReplied
-from apps.assistant.domain.prompts import MEMORY_PROMPT, SYSTEM_PROMPT
+from apps.assistant.domain.prompts import DELIVERY_PROMPT, MEMORY_PROMPT, SYSTEM_PROMPT
 from apps.assistant.models import AssistantMessage, AssistantSession
 from apps.assistant.repositories import MessageRepository, SessionRepository
+from apps.assistant.services.contracts import DeliveryZones
 from core.domain.actor import Actor
 from core.events.contracts import EventPublisher
 
@@ -25,6 +26,7 @@ class ConversationStore:
         sessions: SessionRepository,
         messages: MessageRepository,
         publisher: EventPublisher,
+        delivery: DeliveryZones,
         *,
         memory_messages: int,
         max_question_length: int,
@@ -34,6 +36,7 @@ class ConversationStore:
         self._sessions = sessions
         self._messages = messages
         self._publisher = publisher
+        self._delivery = delivery
         self._memory_messages = memory_messages
         self._max_question_length = max_question_length
         self._daily_messages = daily_messages
@@ -68,6 +71,8 @@ class ConversationStore:
 
     def prompt(self, session: AssistantSession) -> tuple[str, list[ChatMessage]]:
         system = SYSTEM_PROMPT
+        if zones := self._delivery.lines():
+            system = f"{system}\n\n{DELIVERY_PROMPT.format(zones=chr(10).join(zones))}"
         if session.summary:
             system = f"{system}\n\n{MEMORY_PROMPT.format(summary=session.summary)}"
         history = self._messages.recent(session.pk, limit=self._memory_messages)

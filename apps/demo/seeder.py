@@ -50,6 +50,7 @@ from apps.orders.domain.commands import (
     OrderLineInput,
     PlaceOrder,
     TransitionOrder,
+    ZoneFields,
 )
 from apps.orders.domain.enums import CancelReason, OrderStatus, PaymentMethod
 from apps.orders.facades import CheckoutFacade, ClientOrderFacade, DispatchFacade, PromotionFacade
@@ -66,8 +67,8 @@ from core.domain.errors import DomainError
 
 DOMAIN = "celebobo.test"
 LISTED_CLIENTS = 3
-STREETS = ("Kasa-Vubu", "Lumumba", "de la Paix", "du 30 Juin")
-SHOP_BUYERS = ("Client boutique", "Jean Mukendi", "Mama Thérèse", "Entreprise Kin Services")
+STREETS = ("Patrice-Emery Lumumba", "du Lac", "de la Paix", "des Volcans")
+SHOP_BUYERS = ("Client boutique", "Jean Mukendi", "Mama Thérèse", "Entreprise Kivu Services")
 DISCOUNTS = (Decimal("1"), Decimal("1"), Decimal("0.97"), Decimal("0.95"))
 FLOW = (OrderStatus.CONFIRMED, OrderStatus.PAID, OrderStatus.SHIPPING, OrderStatus.DELIVERED)
 TARGETS = (
@@ -87,7 +88,7 @@ PAYMENTS = (
     PaymentMethod.CASH,
 )
 REVIEWS = (
-    (5, "Excellent produit, livré rapidement à Kinshasa. Je recommande !"),
+    (5, "Excellent produit, livré rapidement à Bukavu. Je recommande !"),
     (5, "Conforme à la description, le conseiller a été très patient."),
     (4, "Très bon rapport qualité-prix, l'emballage était soigné."),
     (4, "Bon produit, livraison un peu longue mais le suivi était clair."),
@@ -154,6 +155,7 @@ class DemoSeeder:
                 for index, person in enumerate(people.CLIENTS)
             ]
             self._coupons()
+            self._shipping_zones()
             delivered = self._orders(products, managers[0], resellers, clients)
             self._direct_sales(products, managers[0], resellers)
             self._payouts(resellers)
@@ -192,7 +194,7 @@ class DemoSeeder:
                 hotline="+250 791 449 879",
                 whatsapp="+250791449879",
                 email="support@celebobo.com",
-                address="Avenue du Commerce 12, Gombe, Kinshasa",
+                address="Bukavu · Goma, RD Congo",
                 opening_hours=[dict(item) for item in content.OPENING_HOURS],
                 payment_methods=[method.value for method in PAYMENTS],
                 social_links={
@@ -291,7 +293,7 @@ class DemoSeeder:
                         for name, values in product.options.items()
                     ),
                     image_ids=(media_id,) if media_id else (),
-                    delivery_policy_primary="Livraison en 24 à 48 h à Kinshasa",
+                    delivery_policy_primary="Livraison en 24 à 48 h à Bukavu et à Goma",
                     delivery_policy_secondary="Retour gratuit sous 7 jours",
                 ),
             )
@@ -399,6 +401,26 @@ class DemoSeeder:
                 )
             )
             self.report.add("coupons")
+
+    def _shipping_zones(self) -> None:
+        promotions = container.resolve(PromotionFacade)
+        if promotions.shipping_zones(active_only=False):
+            return
+        for position, (name, cities, fee, threshold, estimate, default) in enumerate(
+            content.SHIPPING_ZONES, start=1
+        ):
+            promotions.create_zone(
+                ZoneFields(
+                    name=name,
+                    cities=cities,
+                    fee=Decimal(fee),
+                    free_threshold=Decimal(threshold) if threshold else None,
+                    delivery_estimate=estimate,
+                    is_default=default,
+                    position=position,
+                )
+            )
+            self.report.add("shipping zones")
 
     def _orders(
         self,

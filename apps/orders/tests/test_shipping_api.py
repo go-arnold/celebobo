@@ -22,20 +22,25 @@ def test_seeded_zones_are_public(api):
     zones = api.get("/api/v1/shipping/zones/").json()
 
     assert [(zone["name"], zone["fee"], zone["free_threshold"]) for zone in zones] == [
-        ("Kinshasa", "2.98", "199.00"),
-        ("Autres villes", "7.50", None),
+        ("Bukavu", "2.98", "199.00"),
+        ("Goma", "2.98", "199.00"),
+        ("Environs de Bukavu et Goma", "5.00", None),
+        ("Reste du pays", "7.50", None),
     ]
+    assert zones[-1]["is_default"] is True
 
 
 def test_quote_uses_the_delivery_city(api, phone):
-    kinshasa = quote(api, phone, city=" kinshasa ")
-    goma = quote(api, phone, city="Goma")
+    goma = quote(api, phone, city=" goma ")
+    uvira = quote(api, phone, city="Uvira")
+    kinshasa = quote(api, phone, city="Kinshasa")
     unknown = quote(api, phone)
 
-    assert (kinshasa["shipping_fee"], kinshasa["shipping_zone"]) == ("2.98", "Kinshasa")
-    assert kinshasa["delivery_estimate"] == "24 à 48 h"
-    assert (goma["shipping_fee"], goma["shipping_zone"]) == ("7.50", "Autres villes")
-    assert goma["free_shipping_remaining"] is None
+    assert (goma["shipping_fee"], goma["shipping_zone"]) == ("2.98", "Goma")
+    assert goma["delivery_estimate"] == "24 à 48 h"
+    assert (uvira["shipping_fee"], uvira["shipping_zone"]) == ("5.00", "Environs de Bukavu et Goma")
+    assert (kinshasa["shipping_fee"], kinshasa["shipping_zone"]) == ("7.50", "Reste du pays")
+    assert kinshasa["free_shipping_remaining"] is None
     assert unknown["shipping_fee"] == "2.98"
 
 
@@ -55,9 +60,9 @@ def test_cart_and_checkout_use_the_address_city(as_user, shopper, phone, place_o
     order = Order.objects.get(number=number)
     assert cart["quote"]["shipping_fee"] == "7.50"
     assert order.shipping_fee == Decimal("7.50")
-    assert order.shipping_zone == "Autres villes"
+    assert order.shipping_zone == "Reste du pays"
     detail = api.get(f"/api/v1/me/orders/{number}/").json()
-    assert detail["shipping_zone"] == "Autres villes"
+    assert detail["shipping_zone"] == "Reste du pays"
 
 
 def test_zone_management(as_user, manager):
@@ -74,7 +79,7 @@ def test_zone_management(as_user, manager):
     assert created.status_code == 201
     assert zones["Est"]["cities"] == ["Goma", "Bukavu"]
     assert zones["Est"]["is_default"] is True
-    assert zones["Autres villes"]["is_default"] is False
+    assert zones["Reste du pays"]["is_default"] is False
     assert updated.json()["fee"] == "8.50"
     assert staff.delete(f"{ZONES}{created.json()['id']}/").status_code == 204
     assert staff.delete(f"{ZONES}{created.json()['id']}/").status_code == 404

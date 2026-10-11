@@ -10,7 +10,7 @@ class DocumentSettings:
     max_import_bytes: int = 2_000_000
     retention_days: int = 7
     company_name: str = "Celebobo"
-    company_address: str = "Kinshasa, RD Congo"
+    company_address: str = "Bukavu · Goma, RD Congo"
     company_contact: str = "contact@celebobo.cd"
 
 

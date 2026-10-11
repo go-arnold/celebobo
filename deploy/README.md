@@ -81,7 +81,7 @@ creates, with the password `Boutique-Kin#2026` (`--password` to change it):
 | Accounts | `admin@e2e.celebobo.test`, `responsable@e2e.celebobo.test` (manager), `revendeur@e2e.celebobo.test` (reseller, referral code `4821`), `client@e2e.celebobo.test` (invited by the reseller, default address) |
 | Products | `galaxy-a55` (on sale 300 → 250), `redmi-note-13` (out of stock), `iphone-15` (variants Noir / Bleu), `ecouteurs-bluetooth` |
 | Categories | `smartphones`, `audio` |
-| Promotions | coupon `E2E10` (−10 %), default shipping zone `Kinshasa` (3 $) |
+| Promotions | coupon `E2E10` (−10 %), shipping zones `Bukavu` and `Goma` (3 $, 24 h) and `Reste du pays` (7,50 $, the default) |
 
 Emails sent by the tests (verification, password reset) are in Mailpit, which also has an API for Playwright:
 `GET http://localhost:8025/api/v1/messages`.

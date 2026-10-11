@@ -6,18 +6,18 @@ import pytest
 
 from apps.analytics.domain.periods import Granularity, Period, change_rate, window_for
 
-KINSHASA = ZoneInfo("Africa/Kinshasa")
-NOW = datetime(2026, 3, 15, 14, 30, tzinfo=KINSHASA)
+LOCAL = ZoneInfo("Africa/Lubumbashi")
+NOW = datetime(2026, 3, 15, 14, 30, tzinfo=LOCAL)
 
 
 @pytest.mark.parametrize(
     ("period", "start", "granularity", "buckets"),
     [
-        (Period.WEEK, datetime(2026, 3, 9, tzinfo=KINSHASA), Granularity.DAY, 7),
-        (Period.MONTH, datetime(2026, 2, 14, tzinfo=KINSHASA), Granularity.DAY, 30),
-        (Period.QUARTER, datetime(2025, 12, 16, tzinfo=KINSHASA), Granularity.DAY, 90),
-        (Period.YEAR, datetime(2025, 4, 1, tzinfo=KINSHASA), Granularity.MONTH, 12),
-        (Period.YEAR_TO_DATE, datetime(2026, 1, 1, tzinfo=KINSHASA), Granularity.MONTH, 3),
+        (Period.WEEK, datetime(2026, 3, 9, tzinfo=LOCAL), Granularity.DAY, 7),
+        (Period.MONTH, datetime(2026, 2, 14, tzinfo=LOCAL), Granularity.DAY, 30),
+        (Period.QUARTER, datetime(2025, 12, 16, tzinfo=LOCAL), Granularity.DAY, 90),
+        (Period.YEAR, datetime(2025, 4, 1, tzinfo=LOCAL), Granularity.MONTH, 12),
+        (Period.YEAR_TO_DATE, datetime(2026, 1, 1, tzinfo=LOCAL), Granularity.MONTH, 3),
     ],
 )
 def test_preset_windows(period, start, granularity, buckets):
@@ -46,7 +46,7 @@ def test_custom_ranges():
     long = window_for(NOW, date_from=date(2025, 1, 1), date_to=date(2025, 12, 31))
     open_ended = window_for(NOW, date_from=date(2026, 3, 10))
 
-    assert past.end == datetime(2026, 2, 1, tzinfo=KINSHASA)
+    assert past.end == datetime(2026, 2, 1, tzinfo=LOCAL)
     assert past.granularity is Granularity.DAY
     assert long.granularity is Granularity.MONTH
     assert len(long.buckets()) == 12
