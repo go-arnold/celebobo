@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from apps.catalog.api.v1.serializers import (
     CategoryOutput,
     FacetsOutput,
+    FavoriteIdsOutput,
     FavoriteInput,
     ProductCardOutput,
     ProductDetailOutput,
@@ -121,7 +122,7 @@ class ReviewViewSet(UseCaseViewSet):
 
 
 class FavoriteViewSet(UseCaseViewSet):
-    action_permissions = dict.fromkeys(("list", "create", "destroy"), (FAVORITES_MANAGE,))
+    action_permissions = dict.fromkeys(("list", "ids", "create", "destroy"), (FAVORITES_MANAGE,))
     favorites = Inject(FavoriteFacade)
 
     @extend_schema(responses=ProductCardOutput(many=True))
@@ -134,6 +135,10 @@ class FavoriteViewSet(UseCaseViewSet):
             total=result.total,
             results=ProductCardOutput(result.cards, many=True).data,
         )
+
+    @extend_schema(responses=FavoriteIdsOutput)
+    def ids(self, request: Request) -> Response:
+        return self.respond(FavoriteIdsOutput, {"ids": self.favorites.ids(self.actor)})
 
     @extend_schema(request=FavoriteInput, responses={201: ProductCardOutput})
     def create(self, request: Request) -> Response:

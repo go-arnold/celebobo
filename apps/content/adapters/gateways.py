@@ -1,6 +1,6 @@
 from apps.catalog.domain.enums import ProductOrdering
 from apps.catalog.domain.queries import ProductQuery
-from apps.catalog.domain.read_models import CategoryView, ProductCard
+from apps.catalog.domain.read_models import CatalogSitemap, CategoryView, ProductCard
 from apps.catalog.facades import CatalogFacade
 from apps.content.domain.read_models import ShippingInfo
 from apps.orders.conf import order_settings
@@ -31,6 +31,15 @@ class CatalogShowcase:
             actor,
             ProductQuery(category=slug, ordering=ProductOrdering.BEST_SELLING, page_size=limit),
         )
+
+    def sitemap(self) -> CatalogSitemap:
+        return container.resolve(CatalogFacade).sitemap()
+
+    def product_location(self, product_id: int) -> tuple[str, str] | None:
+        return container.resolve(CatalogFacade).product_location(product_id)
+
+    def category_slug(self, category_id: int) -> str | None:
+        return container.resolve(CatalogFacade).category_slug(category_id)
 
     @staticmethod
     def _browse(actor: Actor, query: ProductQuery) -> list[ProductCard]:

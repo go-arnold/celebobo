@@ -14,6 +14,7 @@ class CatalogSettings:
     max_page_size: int = 48
     suggestion_limit: int = 6
     related_limit: int = 8
+    sitemap_limit: int = 50_000
 
 
 def catalog_settings() -> CatalogSettings:

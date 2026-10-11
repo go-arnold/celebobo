@@ -2,6 +2,7 @@
 # Local stack, same containers and nginx routing as production: http://localhost:${NGINX_PORT:-8080}
 #   ./deploy/local.sh up           build and start (api, worker, beat, nginx, postgres, redis, mailpit)
 #   ./deploy/local.sh seed         fill the empty database with the demo catalogue and accounts
+#   ./deploy/local.sh e2e          empty the database and load the fixed end-to-end data set (repeatable)
 #   ./deploy/local.sh logs [svc]   follow logs        ./deploy/local.sh ps    status
 #   ./deploy/local.sh manage ...   any manage.py command (createsuperuser, shell, ...)
 #   ./deploy/local.sh down         stop               ./deploy/local.sh reset stop and delete all local data
@@ -17,6 +18,7 @@ case "${1:-up}" in
     up) shift; compose up -d --build --remove-orphans "$@"
         echo "API and site: http://localhost:${NGINX_PORT:-8080}   mail: http://localhost:${MAILPIT_PORT:-8025}" ;;
     seed) shift; compose run --rm api manage seed_demo --admin-email "${SEED_ADMIN_EMAIL:-admin@celebobo.test}" --no-images "$@" ;;
+    e2e) shift; compose run --rm api manage seed_demo --e2e "$@" ;;
     logs) shift; compose logs -f --tail=100 "$@" ;;
     ps) compose ps ;;
     manage) shift; compose run --rm api manage "$@" ;;

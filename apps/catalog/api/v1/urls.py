@@ -108,6 +108,7 @@ urlpatterns = [
         FavoriteViewSet.as_view({"get": "list", "post": "create"}),
         name="favorites",
     ),
+    path("me/favorites/ids/", FavoriteViewSet.as_view({"get": "ids"}), name="favorite-ids"),
     path(
         "me/favorites/<id:product_id>/",
         FavoriteViewSet.as_view({"delete": "destroy"}),

@@ -1,4 +1,4 @@
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from datetime import datetime
 from decimal import Decimal
 
@@ -32,6 +32,7 @@ from apps.catalog.domain.errors import CategoryNotFound, ProductNotFound, Review
 from apps.catalog.domain.management import BackofficeProductFilters, ProductStatus, ReviewFilters
 from apps.catalog.domain.management_rules import margin
 from apps.catalog.domain.read_models import (
+    CatalogSitemap,
     CategoryRef,
     CategoryView,
     OptionView,
@@ -42,6 +43,7 @@ from apps.catalog.domain.read_models import (
     ReviewAuthor,
     ReviewSummary,
     ReviewView,
+    SitemapEntry,
     VariantView,
 )
 from apps.catalog.domain.rules import (
@@ -84,6 +86,26 @@ class CategorySelector:
         return categories
 
 
+class SitemapSelector:
+    def __init__(self, *, limit: int) -> None:
+        self._limit = limit
+
+    def catalog(self) -> CatalogSitemap:
+        products = visible_products().order_by("pk").values_list("slug", "updated_at")
+        categories = Category.objects.filter(is_active=True).values_list("slug", "updated_at")
+        return CatalogSitemap(
+            products=_entries(products[: self._limit]),
+            categories=_entries(categories[: self._limit]),
+        )
+
+    def product_location(self, product_id: int) -> tuple[str, str] | None:
+        rows = Product.all_objects.filter(pk=product_id).values_list("slug", "category__slug")
+        return rows.first()
+
+    def category_slug(self, category_id: int) -> str | None:
+        return Category.all_objects.filter(pk=category_id).values_list("slug", flat=True).first()
+
+
 class ProductCardSelector:
     def __init__(self, *, now: datetime, new_for_days: int) -> None:
         self._now = now
@@ -124,6 +146,7 @@ class ProductCardSelector:
             reviews_count=product.reviews_count,
             in_stock=product.in_stock,
             free_shipping=product.free_shipping,
+            updated_at=product.updated_at,
         )
 
 
@@ -150,6 +173,8 @@ class ProductDetailSelector:
         return ProductDetail(
             card=self._cards.card(product),
             long_description=product.long_description,
+            seo_title=product.seo_title,
+            seo_description=product.seo_description,
             images=tuple(image.url for image in images),
             features=tuple(feature.name for feature in product.features.all()),
             care_instructions=care_items(product.care_instructions),
@@ -240,10 +265,18 @@ class FavoriteSelector:
             )
         )
 
+    def all_ids(self, user_id: int) -> list[int]:
+        queryset = Favorite.objects.filter(user_id=user_id, product__in=visible_products())
+        return list(queryset.values_list("product_id", flat=True))
+
     def page(self, user_id: int, *, offset: int, limit: int) -> tuple[tuple[int, ...], int]:
         queryset = Favorite.objects.filter(user_id=user_id, product__in=visible_products())
         ids = tuple(queryset.values_list("product_id", flat=True)[offset : offset + limit])
         return ids, queryset.count()
+
+
+def _entries(rows: Iterable[tuple[str, datetime]]) -> tuple[SitemapEntry, ...]:
+    return tuple(SitemapEntry(slug=slug, updated_at=updated_at) for slug, updated_at in rows)
 
 
 def _first_images() -> Prefetch[str, QuerySet[ProductImage], str]:
@@ -258,9 +291,12 @@ def _category_view(category: Category) -> CategoryView:
         slug=category.slug,
         name=category.name,
         description=category.description,
+        seo_title=category.seo_title,
+        seo_description=category.seo_description,
         image=category.image,
         icon=CategoryIcon(category.icon),
         products_count=getattr(category, "products_count", 0),
+        updated_at=category.updated_at,
     )
 
 
@@ -327,6 +363,8 @@ class AdminProductSelector:
             row=_admin_row(product, images[:1]),
             description=product.description,
             long_description=product.long_description,
+            seo_title=product.seo_title,
+            seo_description=product.seo_description,
             care_instructions=product.care_instructions,
             delivery_policy_primary=product.delivery_policy_primary,
             delivery_policy_secondary=product.delivery_policy_secondary,
@@ -571,6 +609,8 @@ def _admin_category(category: Category) -> AdminCategory:
         slug=category.slug,
         name=category.name,
         description=category.description,
+        seo_title=category.seo_title,
+        seo_description=category.seo_description,
         image=category.image,
         icon=CategoryIcon(category.icon),
         is_active=category.is_active,

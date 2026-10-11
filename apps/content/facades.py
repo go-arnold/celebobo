@@ -27,10 +27,12 @@ from apps.content.domain.read_models import (
     FaqView,
     HomePage,
     PageView,
+    Sitemap,
     SiteSettingsView,
     SubscriberView,
     Subscription,
 )
+from apps.content.domain.storefront import category_tags, product_tags, section_tags
 from apps.content.models import Banner, FaqEntry, Page
 from apps.content.selectors import (
     BannerSelector,
@@ -44,12 +46,13 @@ from apps.content.selectors import (
     to_settings_view,
 )
 from apps.content.services.contact import ContactService
-from apps.content.services.contracts import ShippingSource
+from apps.content.services.contracts import PageRevalidator, ShippingSource, Showcase
 from apps.content.services.editors import Editor
 from apps.content.services.home import HomeService
 from apps.content.services.mailer import ContentMailer
 from apps.content.services.newsletter import NewsletterService
 from apps.content.services.site import SiteSettingsService
+from apps.content.services.storefront import PendingTags
 from core.cache import VersionedCache
 from core.domain.actor import Actor
 from core.events.contracts import EventPublisher
@@ -162,6 +165,7 @@ class SiteContentFacade:
         site: SiteSettingsService,
         shipping: ShippingSource,
         home: HomeService,
+        showcase: Showcase,
         cache: VersionedCache,
         publisher: EventPublisher,
     ) -> None:
@@ -174,11 +178,20 @@ class SiteContentFacade:
         self._site = site
         self._shipping = shipping
         self._home = home
+        self._showcase = showcase
         self._cache = cache
         self._publisher = publisher
 
     def home(self, actor: Actor) -> HomePage:
         return self._home.page(actor)
+
+    def sitemap(self) -> Sitemap:
+        catalog = self._showcase.sitemap()
+        return Sitemap(
+            products=catalog.products,
+            categories=catalog.categories,
+            pages=self._page_selector.sitemap(),
+        )
 
     def public_settings(self) -> SiteSettingsView:
         return self._cache.get_or_set(
@@ -251,3 +264,54 @@ class SiteContentFacade:
 
     def _changed(self, actor: Actor, section: str) -> None:
         self._publisher.publish(SiteContentChanged(section=section, actor_id=actor.user_id))
+
+
+@logged_facade
+class StorefrontFacade:
+    def __init__(
+        self,
+        *,
+        catalog: Showcase,
+        pending: PendingTags,
+        revalidator: PageRevalidator | None,
+        schedule: Callable[[int], object],
+        debounce: int,
+    ) -> None:
+        self._catalog = catalog
+        self._pending = pending
+        self._revalidator = revalidator
+        self._schedule = schedule
+        self._debounce = debounce
+
+    def product_changed(self, product_id: int) -> None:
+        location = self._enabled and self._catalog.product_location(product_id)
+        if location:
+            self._queue(product_tags(*location))
+
+    def category_changed(self, category_id: int) -> None:
+        slug = self._enabled and self._catalog.category_slug(category_id)
+        if slug:
+            self._queue(category_tags(slug))
+
+    def section_changed(self, section: str) -> None:
+        if self._enabled:
+            self._queue(section_tags(section))
+
+    def due_tags(self) -> list[str]:
+        wait = self._pending.wait()
+        if wait:
+            self._schedule(wait)
+            return []
+        return self._pending.drain()
+
+    def send(self, tags: list[str]) -> None:
+        if self._revalidator is not None and tags:
+            self._revalidator.revalidate(tags)
+
+    @property
+    def _enabled(self) -> bool:
+        return self._revalidator is not None
+
+    def _queue(self, tags: tuple[str, ...]) -> None:
+        if self._pending.add(tags):
+            self._schedule(self._debounce)

@@ -20,6 +20,7 @@ CACHES = {
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 FRONTEND_URL = "https://app.test"
+E2E_SEED_ALLOWED = True
 
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = ()
 

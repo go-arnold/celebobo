@@ -3,8 +3,13 @@ from core.observability.logging import logging_config
 
 SECRET_KEY = env.str("DJANGO_SECRET_KEY")
 DATABASES["default"]["CONN_MAX_AGE"] = env.int("DATABASE_CONN_MAX_AGE", default=60)
-# loopback hosts are kept for the container's own health check (nginx only forwards the public host)
-ALLOWED_HOSTS = [*env.list("DJANGO_ALLOWED_HOSTS"), "localhost", "127.0.0.1"]
+# internal hosts: the Next server calls the api container directly; loopback: the health check
+ALLOWED_HOSTS = [
+    *env.list("DJANGO_ALLOWED_HOSTS"),
+    *env.list("DJANGO_INTERNAL_HOSTS", default=["api"]),
+    "localhost",
+    "127.0.0.1",
+]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)

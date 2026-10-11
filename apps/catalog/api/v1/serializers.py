@@ -52,9 +52,12 @@ class CategoryRefOutput(serializers.Serializer[Any]):
 
 class CategoryOutput(CategoryRefOutput):
     description = serializers.CharField()
+    seo_title = serializers.CharField()
+    seo_description = serializers.CharField()
     image = serializers.CharField()
     icon = serializers.CharField()
     products_count = serializers.IntegerField()
+    updated_at = serializers.DateTimeField()
 
 
 class ProductCardOutput(serializers.Serializer[Any]):
@@ -73,6 +76,7 @@ class ProductCardOutput(serializers.Serializer[Any]):
     reviews_count = serializers.IntegerField()
     in_stock = serializers.BooleanField()
     free_shipping = serializers.BooleanField()
+    updated_at = serializers.DateTimeField()
     is_favorite = serializers.BooleanField()
 
 
@@ -94,6 +98,8 @@ class VariantOutput(serializers.Serializer[Any]):
 
 class ProductDetailOutput(serializers.Serializer[Any]):
     long_description = serializers.CharField()
+    seo_title = serializers.CharField()
+    seo_description = serializers.CharField()
     images = serializers.ListField(child=serializers.CharField())
     features = serializers.ListField(child=serializers.CharField())
     care_instructions = serializers.ListField(child=serializers.CharField())
@@ -169,3 +175,7 @@ class ReviewEligibilityOutput(serializers.Serializer[Any]):
 
 class FavoriteInput(serializers.Serializer[Any]):
     product_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
+
+
+class FavoriteIdsOutput(serializers.Serializer[Any]):
+    ids = serializers.ListField(child=serializers.IntegerField())

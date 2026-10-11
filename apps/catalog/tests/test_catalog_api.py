@@ -58,9 +58,12 @@ class TestCategories:
                 "slug": "smartphones",
                 "name": "Smartphones",
                 "description": "",
+                "seo_title": "",
+                "seo_description": "",
                 "image": "",
                 "icon": "mobile",
                 "products_count": 2,
+                "updated_at": phones.updated_at.astimezone().isoformat(),
             }
         ]
 
@@ -153,6 +156,15 @@ class TestProductDetail:
         assert body["variants"][0]["sku"] == "CB-1-1"
         assert body["variants"][0]["price"] == "749.00"
         assert "cost_price" not in body
+
+    def test_seo_fields_default_to_empty_and_carry_the_last_change(self, api: APIClient, iphone):
+        body = api.get(f"{PRODUCTS}iphone-15/").json()
+        card = api.get(PRODUCTS).json()["results"][0]
+
+        assert body["seo_title"] == ""
+        assert body["seo_description"] == ""
+        assert body["updated_at"] == iphone.updated_at.astimezone().isoformat()
+        assert card["updated_at"] == body["updated_at"]
 
     def test_hidden_products_are_not_found(self, api: APIClient, iphone):
         Product.objects.filter(pk=iphone.pk).update(is_active=False)

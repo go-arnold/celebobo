@@ -45,3 +45,7 @@ class UnknownPaymentMethod(ValidationFailed):
 
     def __init__(self, method: str) -> None:
         super().__init__(errors={"payment_methods": [f"Inconnu : {method}."]})
+
+
+class RevalidationFailed(Exception):
+    pass

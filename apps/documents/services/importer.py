@@ -13,6 +13,7 @@ from apps.documents.services.generators import JobOutput, JobRequest
 from core.domain.errors import DomainError
 
 REQUIRED_COLUMNS = frozenset({"name", "category", "price"})
+SEO_LIMITS = {"seo_title": 70, "seo_description": 160}
 KNOWN_COLUMNS = REQUIRED_COLUMNS | {
     "slug",
     "description",
@@ -21,6 +22,7 @@ KNOWN_COLUMNS = REQUIRED_COLUMNS | {
     "stock",
     "stock_threshold",
     "is_active",
+    *SEO_LIMITS,
 }
 TRUE_VALUES = frozenset({"1", "true", "oui", "yes", "vrai"})
 FALSE_VALUES = frozenset({"0", "false", "non", "no", "faux"})
@@ -114,6 +116,8 @@ class ProductImport:
                         cost_price=line.values.get("cost_price"),
                         stock_threshold=line.values.get("stock_threshold", 5),
                         is_active=line.values.get("is_active", True),
+                        seo_title=line.values.get("seo_title", ""),
+                        seo_description=line.values.get("seo_description", ""),
                     ),
                 )
             else:
@@ -152,6 +156,11 @@ def _identity(
         problems["category"] = f"Catégorie inconnue : {category or '—'}."
     if raw.get("description"):
         values["description"] = raw["description"]
+    for field, limit in SEO_LIMITS.items():
+        if len(raw.get(field, "")) > limit:
+            problems[field] = f"{limit} caractères maximum."
+        elif raw.get(field):
+            values[field] = raw[field]
 
 
 def _prices(raw: dict[str, str], values: dict[str, Any], problems: dict[str, str]) -> None:

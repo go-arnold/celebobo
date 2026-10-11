@@ -27,6 +27,7 @@ urlpatterns = [
     path("pages/", PublicSiteViewSet.as_view({"get": "pages"}), name="pages"),
     path("pages/<slug:slug>/", PublicSiteViewSet.as_view({"get": "page"}), name="page"),
     path("faq/", PublicSiteViewSet.as_view({"get": "faq"}), name="faq"),
+    path("sitemap/", PublicSiteViewSet.as_view({"get": "sitemap"}), name="sitemap"),
     path("contact/", ContactViewSet.as_view({"post": "create"}), name="contact"),
     path(
         "newsletter/subscribe/",

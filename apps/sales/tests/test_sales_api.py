@@ -45,6 +45,23 @@ class TestRecording:
         assert StockMovement.objects.filter(product=phone, reason="sale").exists()
         assert any(isinstance(event, SaleRecorded) for event in published_events.events)
 
+    def test_same_key_records_one_sale(self, as_user, reseller, phone):
+        payload = {
+            "product_id": phone.pk,
+            "quantity": 1,
+            "unit_price": "100.00",
+            "payment_method": "cash",
+        }
+        api = as_user(reseller)
+
+        first = api.post(SALES, payload, format="json", HTTP_IDEMPOTENCY_KEY="sale-twice-01")
+        retry = api.post(SALES, payload, format="json", HTTP_IDEMPOTENCY_KEY="sale-twice-01")
+
+        assert retry.json()["id"] == first.json()["id"]
+        assert retry["Idempotent-Replayed"] == "true"
+        assert Sale.objects.count() == 1
+        assert stock_of(phone) == 9
+
     def test_cost_is_frozen_at_sale_time(self, reseller, phone, record_sale):
         body = record_sale(reseller, phone)
         Product.objects.filter(pk=phone.pk).update(cost_price=Decimal("10.00"))

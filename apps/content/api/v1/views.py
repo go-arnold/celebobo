@@ -28,6 +28,7 @@ from apps.content.api.v1.serializers import (
     PageSummaryOutput,
     PublicSettingsOutput,
     SettingsInput,
+    SitemapOutput,
     SubscribeInput,
     SubscriberFiltersInput,
     SubscriberOutput,
@@ -81,6 +82,11 @@ class PublicSiteViewSet(UseCaseViewSet):
     @public_cache
     def page(self, request: Request, slug: str) -> Response:
         return self.respond(PageOutput, self.content.page(slug))
+
+    @extend_schema(responses=SitemapOutput)
+    @public_cache
+    def sitemap(self, request: Request) -> Response:
+        return self.respond(SitemapOutput, self.content.sitemap())
 
     @extend_schema(responses=FaqGroupOutput(many=True))
     @public_cache

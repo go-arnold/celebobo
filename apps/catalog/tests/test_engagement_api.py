@@ -105,6 +105,16 @@ class TestFavorites:
         assert removed.status_code == 204
         assert not Favorite.objects.exists()
 
+    def test_ids_list_only_visible_favorites(self, as_user, api, shopper, product):
+        hidden = ProductFactory.create(category=product.category)
+        Favorite.objects.create(user=shopper, product=product)
+        Favorite.objects.create(user=shopper, product=hidden)
+        Product.objects.filter(pk=hidden.pk).update(is_active=False)
+
+        assert as_user(shopper).get(f"{self.url}ids/").json() == {"ids": [product.pk]}
+        api.force_authenticate(None)
+        assert api.get(f"{self.url}ids/").status_code == 401
+
     def test_hidden_products_cannot_be_favorited(self, as_user, shopper, product):
         Product.objects.filter(pk=product.pk).update(is_active=False)
 

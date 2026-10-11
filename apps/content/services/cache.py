@@ -3,4 +3,5 @@ from core.cache import VersionedCache
 
 class ContentCache(VersionedCache):
     def __init__(self) -> None:
-        super().__init__("content", ttl=600)
+        # bump the suffix whenever a cached read model changes shape
+        super().__init__("content:2", ttl=600)

@@ -43,6 +43,7 @@ class CoreSettings:
     idempotency_lock_ttl: int = 30
     request_id_header: str = "X-Request-ID"
     quiet_paths: tuple[str, ...] = ("/health/",)
+    ssr_shared_secret: str = ""
 
 
 def core_settings() -> CoreSettings:

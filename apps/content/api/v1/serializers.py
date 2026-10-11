@@ -189,6 +189,7 @@ class ShippingOutput(serializers.Serializer[Any]):
 
 
 class PublicSettingsOutput(serializers.Serializer[Any]):
+    currency = serializers.CharField()
     usd_to_cdf = serializers.DecimalField(max_digits=10, decimal_places=2)
     hotline = serializers.CharField()
     whatsapp = serializers.CharField()
@@ -217,3 +218,14 @@ class HomeOutput(serializers.Serializer[Any]):
     new_arrivals = ProductCardOutput(many=True)
     best_sellers = ProductCardOutput(many=True)
     categories = CategoryBlockOutput(many=True)
+
+
+class SitemapEntryOutput(serializers.Serializer[Any]):
+    slug = serializers.SlugField()
+    updated_at = serializers.DateTimeField()
+
+
+class SitemapOutput(serializers.Serializer[Any]):
+    products = SitemapEntryOutput(many=True)
+    categories = SitemapEntryOutput(many=True)
+    pages = SitemapEntryOutput(many=True)

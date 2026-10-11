@@ -151,6 +151,21 @@ class TestProductManagement:
         assert body["badge"] is None
         assert body["features"] == ["Neuf"]
 
+    def test_seo_fields_are_editable_and_published(self, staff_api, api, phones):
+        product = ProductFactory.create(category=phones)
+
+        body = staff_api.patch(
+            f"{PRODUCTS}{product.pk}/",
+            {"seo_title": "iPhone pas cher à Kinshasa", "seo_description": "Livré en 24 h."},
+        ).json()
+        too_long = staff_api.patch(f"{PRODUCTS}{product.pk}/", {"seo_title": "x" * 71})
+
+        assert body["seo_title"] == "iPhone pas cher à Kinshasa"
+        assert api.get(f"/api/v1/products/{product.slug}/").json()["seo_description"] == (
+            "Livré en 24 h."
+        )
+        assert too_long.status_code == 400
+
     def test_update_keeps_pricing_consistent(self, staff_api, phones):
         product = ProductFactory.create(category=phones, price=Decimal(100), sale_price=Decimal(80))
 
@@ -388,7 +403,8 @@ class TestCategories:
         image = upload(manager, purpose="category_image")
 
         audio = staff_api.post(
-            self.url, {"name": " Audio ", "icon": "headphone", "image_id": image.pk}
+            self.url,
+            {"name": " Audio ", "icon": "headphone", "image_id": image.pk, "seo_title": " Son "},
         ).json()
         gaming = staff_api.post(self.url, {"name": "Gaming"}).json()
         duplicate = staff_api.post(self.url, {"name": "audio"})
@@ -398,6 +414,7 @@ class TestCategories:
         ordered = staff_api.post(f"{self.url}reorder/", {"ids": [gaming["id"], audio["id"]]}).json()
 
         assert audio["slug"] == "audio"
+        assert audio["seo_title"] == "Son"
         assert audio["image"] == image.url
         assert duplicate.json()["code"] == "category_name_taken"
         assert renamed["name"] == "Son & audio"

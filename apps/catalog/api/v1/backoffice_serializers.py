@@ -41,6 +41,8 @@ class ProductFieldsSerializer(serializers.Serializer[Any]):
     sale_price = money(min_value=0, allow_null=True, required=False)
     cost_price = money(min_value=0, allow_null=True, required=False)
     long_description = serializers.CharField(required=False, allow_blank=True, max_length=10000)
+    seo_title = serializers.CharField(required=False, allow_blank=True, max_length=70)
+    seo_description = serializers.CharField(required=False, allow_blank=True, max_length=160)
     badge = serializers.ChoiceField(choices=_choices(Badge), required=False, allow_null=True)
     care_instructions = serializers.CharField(required=False, allow_blank=True, max_length=4000)
     delivery_policy_primary = serializers.CharField(
@@ -165,6 +167,8 @@ class CategoryFieldsSerializer(serializers.Serializer[Any]):
     name = serializers.CharField(max_length=100)
     icon = serializers.ChoiceField(choices=_choices(CategoryIcon), required=False)
     description = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+    seo_title = serializers.CharField(required=False, allow_blank=True, max_length=70)
+    seo_description = serializers.CharField(required=False, allow_blank=True, max_length=160)
     image_id = serializers.IntegerField(
         min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
     )
@@ -246,6 +250,8 @@ class AdminVariantOutput(serializers.Serializer[Any]):
 class AdminProductDetailOutput(serializers.Serializer[Any]):
     description = serializers.CharField()
     long_description = serializers.CharField()
+    seo_title = serializers.CharField()
+    seo_description = serializers.CharField()
     care_instructions = serializers.CharField()
     delivery_policy_primary = serializers.CharField()
     delivery_policy_secondary = serializers.CharField()
@@ -299,6 +305,8 @@ class AdminCategoryOutput(serializers.Serializer[Any]):
     slug = serializers.SlugField()
     name = serializers.CharField()
     description = serializers.CharField()
+    seo_title = serializers.CharField()
+    seo_description = serializers.CharField()
     image = serializers.CharField()
     icon = serializers.CharField()
     is_active = serializers.BooleanField()
