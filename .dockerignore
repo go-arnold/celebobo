@@ -15,5 +15,8 @@ htmlcov
 staticfiles
 var
 media
-deploy-real-prod/.env*
 *.log
+*.pem
+.env.koyeb
+deploy/.env*
+!deploy/.env.*.example

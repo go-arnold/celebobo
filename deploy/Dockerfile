@@ -28,7 +28,7 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY --chown=app:app . .
-COPY --chown=app:app deploy-real-prod/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY --chown=app:app deploy/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN DJANGO_SECRET_KEY=collectstatic DJANGO_ALLOWED_HOSTS=localhost \
         python manage.py collectstatic --noinput \

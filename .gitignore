@@ -14,6 +14,8 @@ htmlcov/
 dump.rdb
 openapi.yml
 /var/
-deploy-real-prod/.env.prod
+deploy/.env.prod
+deploy/.env.local
+.env.koyeb
 public_key.pem
 private_key.pem
