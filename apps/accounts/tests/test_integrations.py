@@ -4,6 +4,7 @@ import pytest
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.core import mail
 from django.test import RequestFactory
+from rest_framework.test import APIClient
 
 from apps.accounts.adapters.allauth import (
     AccountAdapter,
@@ -63,6 +64,16 @@ class TestUserManager:
         assert user.account_role is Role.ADMIN
         assert user.is_staff
         assert user.is_superuser
+
+    def test_superuser_can_sign_in_to_the_site_at_once(self):
+        User.objects.create_superuser("root@celebobo.test", "Kinshasa-2026!", first_name="Root")
+
+        response = APIClient().post(
+            "/api/v1/auth/login/", {"email": "root@celebobo.test", "password": "Kinshasa-2026!"}
+        )
+
+        assert response.status_code == 200
+        assert response.cookies["cb_session"].value == "admin"
 
     def test_email_is_required(self):
         with pytest.raises(ValueError, match="email"):
