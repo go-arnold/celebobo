@@ -88,7 +88,7 @@ def test_zones_are_reordered_in_one_call(as_user, manager):
     unknown = staff.post(f"{ZONES}reorder/", {"ids": [*ids, 999]}, format="json")
 
     assert [zone["id"] for zone in response.json()] == ids[::-1]
-    assert [zone["position"] for zone in response.json()] == [1, 2]
+    assert [zone["position"] for zone in response.json()] == list(range(1, len(ids) + 1))
     assert unknown.status_code == 404
 
 
