@@ -1,7 +1,7 @@
 HOME = "home"
 SITEMAP = "sitemap"
 # sections of the site settings that show on the home page; pages only appear in the sitemap
-HOME_SECTIONS = frozenset({"settings", "banners", "faq"})
+HOME_SECTIONS = frozenset({"settings", "banners", "faq", "brands"})
 
 
 def product_tags(slug: str, category_slug: str) -> tuple[str, ...]:

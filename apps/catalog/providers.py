@@ -5,6 +5,7 @@ from apps.catalog.adapters.media import UploadedMediaUrls
 from apps.catalog.adapters.media_references import CatalogMediaReferences
 from apps.catalog.conf import catalog_settings
 from apps.catalog.facades import (
+    BrandAdminFacade,
     CatalogCache,
     CatalogFacade,
     CategoryAdminFacade,
@@ -16,6 +17,7 @@ from apps.catalog.facades import (
     ReviewModerationFacade,
 )
 from apps.catalog.repositories import (
+    BrandRepository,
     CategoryAdminRepository,
     DealRepository,
     FavoriteRepository,
@@ -26,9 +28,11 @@ from apps.catalog.repositories import (
     StockRepository,
 )
 from apps.catalog.selectors import (
+    AdminBrandSelector,
     AdminCategorySelector,
     AdminProductSelector,
     AdminReviewSelector,
+    BrandSelector,
     CategorySelector,
     DealSelector,
     FavoriteSelector,
@@ -52,6 +56,7 @@ from apps.catalog.services.engagement import FavoriteService, ReviewService
 from apps.catalog.services.indexing import ProductIndexer
 from apps.catalog.services.inventory import InventoryService
 from apps.catalog.services.management import (
+    BrandAdminService,
     CategoryAdminService,
     ProductAdminService,
     ReviewModerationService,
@@ -93,6 +98,7 @@ def register(container: Container) -> None:
     container.register(CategoryAdminFacade, _category_admin_facade, lifetime=Lifetime.TRANSIENT)
     container.register(ReviewModerationFacade, _moderation_facade, lifetime=Lifetime.TRANSIENT)
     container.register(DealAdminFacade, _deal_admin_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(BrandAdminFacade, _brand_admin_facade, lifetime=Lifetime.TRANSIENT)
 
 
 def _indexer(container: Container) -> ProductIndexer:
@@ -126,6 +132,7 @@ def _catalog_facade(container: Container) -> CatalogFacade:
         related=container.resolve(RelatedProducts),
         cache=container.resolve(CatalogCache),
         sitemap=SitemapSelector(limit=settings.sitemap_limit),
+        brands=BrandSelector(),
         deals=_live_deals(container),
         related_limit=settings.related_limit,
         suggestion_limit=settings.suggestion_limit,
@@ -166,7 +173,11 @@ def _product_admin_facade(container: Container) -> ProductAdminFacade:
     media = container.resolve(MediaUrls)
     return ProductAdminFacade(
         products=ProductAdminService(
-            products, CategoryAdminRepository(), media, today=timezone.localdate
+            products,
+            CategoryAdminRepository(),
+            media,
+            brands=BrandRepository(),
+            today=timezone.localdate,
         ),
         variants=VariantAdminService(products, stock, media),
         stock=StockAdjustmentService(products, stock),
@@ -208,5 +219,15 @@ def _deal_admin_facade(container: Container) -> DealAdminFacade:
             clock=timezone.now,
         ),
         repository=deals,
+        publisher=container.resolve(EventPublisher),
+    )
+
+
+def _brand_admin_facade(container: Container) -> BrandAdminFacade:
+    brands = BrandRepository()
+    return BrandAdminFacade(
+        brands=BrandAdminService(brands, container.resolve(MediaUrls)),
+        repository=brands,
+        selector=AdminBrandSelector(),
         publisher=container.resolve(EventPublisher),
     )

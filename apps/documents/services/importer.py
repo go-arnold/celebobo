@@ -17,6 +17,7 @@ SEO_LIMITS = {"seo_title": 70, "seo_description": 160}
 KNOWN_COLUMNS = REQUIRED_COLUMNS | {
     "slug",
     "description",
+    "brand",
     "sale_price",
     "cost_price",
     "stock",
@@ -78,11 +79,12 @@ class ProductImport:
         rows = parse_csv(request.upload or b"", max_rows=self._max_rows, max_bytes=self._max_bytes)
         dry_run = bool(request.params.get("dry_run"))
         categories = self._catalog.category_ids()
+        brands = self._catalog.brand_ids()
         counts = {"created": 0, "updated": 0}
         errors: list[dict[str, Any]] = []
         for number, raw in enumerate(rows, start=2):
             try:
-                line = _validate(raw, categories)
+                line = _validate(raw, categories, brands)
                 product_id = self._catalog.product_id(line.slug) if line.slug else None
                 if not dry_run:
                     self._apply(request, line, product_id)
@@ -111,6 +113,7 @@ class ProductImport:
                         name=line.values["name"],
                         description=line.values.get("description", ""),
                         category_id=line.values["category_id"],
+                        brand_id=line.values.get("brand_id"),
                         price=line.values["price"],
                         sale_price=line.values.get("sale_price"),
                         cost_price=line.values.get("cost_price"),
@@ -126,10 +129,13 @@ class ProductImport:
                 self._catalog.set_stock(request.actor, product_id, line.stock)
 
 
-def _validate(raw: dict[str, str], categories: dict[str, int]) -> ImportLine:
+def _validate(
+    raw: dict[str, str], categories: dict[str, int], brands: dict[str, int]
+) -> ImportLine:
     problems: dict[str, str] = {}
     values: dict[str, Any] = {}
     _identity(raw, categories, values, problems)
+    _brand(raw, brands, values, problems)
     _prices(raw, values, problems)
     _settings(raw, values, problems)
     stock = _integer(raw["stock"], problems, "stock") if raw.get("stock") else None
@@ -161,6 +167,18 @@ def _identity(
             problems[field] = f"{limit} caractères maximum."
         elif raw.get(field):
             values[field] = raw[field]
+
+
+def _brand(
+    raw: dict[str, str], brands: dict[str, int], values: dict[str, Any], problems: dict[str, str]
+) -> None:
+    brand = raw.get("brand", "").lower()
+    if not brand:
+        return
+    if brand in brands:
+        values["brand_id"] = brands[brand]
+    else:
+        problems["brand"] = f"Marque inconnue : {brand}."
 
 
 def _prices(raw: dict[str, str], values: dict[str, Any], problems: dict[str, str]) -> None:

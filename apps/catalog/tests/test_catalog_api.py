@@ -67,6 +67,14 @@ class TestCategories:
             }
         ]
 
+    def test_follow_the_back_office_order(self, api: APIClient):
+        CategoryFactory.create(name="Audio", slug="audio", position=2)
+        CategoryFactory.create(name="Tablettes", slug="tablettes", position=1)
+
+        slugs = [category["slug"] for category in api.get("/api/v1/categories/").json()]
+
+        assert slugs == ["tablettes", "audio"]
+
     def test_categories_are_cacheable(self, api: APIClient, phones):
         response = api.get("/api/v1/categories/")
 

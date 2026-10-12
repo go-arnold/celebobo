@@ -54,6 +54,7 @@ class ProductDraft:
     description: str
     category_id: int
     price: Decimal
+    brand_id: int | None = None
     sale_price: Decimal | None = None
     cost_price: Decimal | None = None
     long_description: str = ""
@@ -80,6 +81,7 @@ class ProductChanges:
     name: Maybe[str] = UNSET
     description: Maybe[str] = UNSET
     category_id: Maybe[int] = UNSET
+    brand_id: Maybe[int | None] = UNSET
     price: Maybe[Decimal] = UNSET
     sale_price: Maybe[Decimal | None] = UNSET
     cost_price: Maybe[Decimal | None] = UNSET
@@ -169,3 +171,19 @@ class ReviewFilters:
     product_id: int | None = None
     rating: int | None = None
     search: str | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BrandDraft:
+    name: str
+    logo_id: int | None = None
+    is_featured: bool = False
+    is_active: bool = True
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BrandChanges:
+    name: Maybe[str] = UNSET
+    logo_id: Maybe[int | None] = UNSET
+    is_featured: Maybe[bool] = UNSET
+    is_active: Maybe[bool] = UNSET

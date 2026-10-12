@@ -1,4 +1,5 @@
 from apps.catalog.domain.events import (
+    BrandChanged,
     CategoryChanged,
     ProductChanged,
     ProductRemoved,
@@ -31,6 +32,11 @@ def revalidate_product_pages(
 @event_bus.on(CategoryChanged)
 def revalidate_category_pages(event: CategoryChanged) -> None:
     container.resolve(StorefrontFacade).category_changed(event.category_id)
+
+
+@event_bus.on(BrandChanged)
+def revalidate_brand_pages(_event: BrandChanged) -> None:
+    container.resolve(StorefrontFacade).section_changed("brands")
 
 
 @event_bus.on(SiteContentChanged)

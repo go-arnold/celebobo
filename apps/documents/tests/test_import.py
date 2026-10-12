@@ -1,7 +1,7 @@
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from apps.catalog.models import Product, StockMovement
+from apps.catalog.models import Brand, Product, StockMovement
 from apps.documents.domain.errors import InvalidImportFile
 from apps.documents.models import Job
 from apps.documents.services.importer import parse_csv
@@ -112,3 +112,23 @@ def test_import_sets_seo_fields(as_user, manager, phone, run_jobs):
     assert Job.objects.get().summary["errors"][0]["errors"] == {
         "seo_title": "70 caractères maximum."
     }
+
+
+def test_import_matches_brands_by_slug_or_name(as_user, manager, phone, run_jobs):
+    samsung = Brand.objects.create(name="Samsung", slug="samsung")
+    xiaomi = Brand.objects.create(name="Xiaomi", slug="xiaomi")
+    content = (
+        "slug;name;category;price;brand\n"
+        "galaxy-a55;Galaxy A55;smartphones;125;samsung\n"
+        ";Redmi Note 13;smartphones;180;XIAOMI\n"
+        ";Nokia 105;smartphones;20;Nokia\n"
+    )
+    with run_jobs():
+        as_user(manager).post(IMPORT, {"file": upload(content)}, format="multipart")
+
+    phone.refresh_from_db()
+    assert phone.brand == samsung
+    assert Product.objects.get(name="Redmi Note 13").brand == xiaomi
+    assert Job.objects.get().summary["errors"] == [
+        {"row": 4, "errors": {"brand": "Marque inconnue : nokia."}}
+    ]

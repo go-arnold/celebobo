@@ -88,6 +88,8 @@ CATEGORIES = (
     ),
 )
 
+FEATURED_BRANDS = ("Samsung", "Apple", "Xiaomi", "Tecno", "Infinix", "Lenovo", "JBL", "Anker")
+
 STORAGE = "Stockage"
 COLOR = "Couleur"
 

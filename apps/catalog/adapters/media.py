@@ -10,3 +10,6 @@ class UploadedMediaUrls:
 
     def category_images(self, media_ids: Sequence[int]) -> dict[int, str]:
         return MediaSelector().urls(media_ids, UploadPurpose.CATEGORY_IMAGE)
+
+    def brand_logos(self, media_ids: Sequence[int]) -> dict[int, str]:
+        return MediaSelector().urls(media_ids, UploadPurpose.BRAND_LOGO)

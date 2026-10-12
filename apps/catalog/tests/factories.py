@@ -4,7 +4,17 @@ from typing import Any
 from factory.declarations import LazyAttribute, PostGeneration, Sequence, SubFactory
 from factory.django import DjangoModelFactory
 
-from apps.catalog.models import Category, Product, ProductFeature, ProductVariant, Review
+from apps.catalog.models import Brand, Category, Product, ProductFeature, ProductVariant, Review
+
+
+class BrandFactory(DjangoModelFactory[Brand]):
+    class Meta:
+        model = Brand
+        django_get_or_create = ("slug",)
+
+    name = Sequence(lambda index: f"Marque {index}")
+    slug = LazyAttribute(lambda brand: brand.name.lower().replace(" ", "-"))
+    is_featured = True
 
 
 class CategoryFactory(DjangoModelFactory[Category]):

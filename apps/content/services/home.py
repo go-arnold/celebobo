@@ -37,4 +37,5 @@ class HomeService:
                 )
                 for category in categories
             ],
+            brands=self._showcase.brands(),
         )

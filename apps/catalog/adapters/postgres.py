@@ -28,6 +28,7 @@ ORDERINGS = MappingProxyType(
 )
 WEIGHTED_FIELDS = (
     ("name", "A"),
+    ("brand_name", "A"),
     ("category_name", "B"),
     ("features", "C"),
     ("description", "D"),
@@ -157,6 +158,8 @@ def filtered(query: ProductQuery) -> QuerySet[Product]:
         products = products.filter(search_vector=text_query(query.text))
     if query.category:
         products = products.filter(category__slug=query.category)
+    if query.brands:
+        products = products.filter(brand__slug__in=query.brands)
     if query.ids:
         products = products.filter(pk__in=query.ids)
     if query.on_sale is not None:

@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from apps.catalog.domain.enums import Badge, CategoryIcon, ReviewStatus, StockReason
 from apps.catalog.domain.management import ProductStatus
-from apps.catalog.domain.read_models import CategoryRef, OptionView, ReviewAuthor
+from apps.catalog.domain.read_models import BrandRef, CategoryRef, OptionView, ReviewAuthor
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -13,6 +13,7 @@ class AdminProductRow:
     slug: str
     name: str
     category: CategoryRef
+    brand: BrandRef | None
     image: str
     price: Decimal
     sale_price: Decimal | None
@@ -66,6 +67,18 @@ class AdminProductDetail:
     options: tuple[OptionView, ...]
     images: tuple[AdminImage, ...]
     variants: tuple[AdminVariant, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AdminBrand:
+    id: int
+    slug: str
+    name: str
+    logo: str
+    is_featured: bool
+    is_active: bool
+    position: int
+    products_count: int
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

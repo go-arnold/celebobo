@@ -36,6 +36,11 @@ class CategoryChanged(DomainEvent):
 
 
 @domain_event
+class BrandChanged(DomainEvent):
+    brand_id: int
+
+
+@domain_event
 class ReviewPosted(DomainEvent):
     product_id: int
     review_id: int

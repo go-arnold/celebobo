@@ -9,6 +9,7 @@ from apps.catalog.domain.enums import ReviewStatus, StockReason
 from apps.catalog.domain.management import OptionInput
 from apps.catalog.domain.queries import StockSource
 from apps.catalog.models import (
+    Brand,
     Category,
     Deal,
     Favorite,
@@ -244,6 +245,38 @@ class ProductAdminRepository:
 
     def for_bulk(self, ids: Sequence[int]) -> list[Product]:
         return list(Product.all_objects.select_for_update(of=("self",)).filter(pk__in=list(ids)))
+
+
+class BrandRepository:
+    def get(self, brand_id: int, *, for_update: bool = False) -> Brand | None:
+        brands = Brand.objects.select_for_update() if for_update else Brand.objects
+        return brands.filter(pk=brand_id).first()
+
+    def create(self, **fields: Any) -> Brand:
+        brand: Brand = Brand.objects.create(**fields)
+        return brand
+
+    def save(self, brand: Brand, *, fields: Iterable[str]) -> None:
+        brand.save(update_fields=[*fields, "updated_at"])
+
+    def delete(self, brand: Brand) -> None:
+        brand.delete()
+
+    def name_taken(self, name: str, *, exclude_id: int | None = None) -> bool:
+        return _excluding(Brand.objects.filter(name__iexact=name), exclude_id).exists()
+
+    def slug_taken(self, slug: str, *, exclude_id: int | None = None) -> bool:
+        return _excluding(Brand.objects.filter(slug=slug), exclude_id).exists()
+
+    def product_ids(self, brand: Brand) -> list[int]:
+        return list(Product.all_objects.filter(brand=brand).values_list("pk", flat=True))
+
+    def next_position(self) -> int:
+        return int(Brand.objects.aggregate(top=Max("position"))["top"] or 0) + 1
+
+    def reorder(self, ids: Sequence[int]) -> None:
+        for position, brand_id in enumerate(ids, start=1):
+            Brand.objects.filter(pk=brand_id).update(position=position)
 
 
 class CategoryAdminRepository:

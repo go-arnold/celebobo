@@ -5,6 +5,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.catalog.api.v1.serializers import (
+    BrandOutput,
     CategoryOutput,
     FacetsOutput,
     FavoriteIdsOutput,
@@ -45,6 +46,16 @@ class CategoryViewSet(UseCaseViewSet):
     @public_cache
     def retrieve(self, request: Request, slug: str) -> Response:
         return self.respond(CategoryOutput, self.catalog.category(slug))
+
+
+class BrandViewSet(UseCaseViewSet):
+    permission_classes = (AllowAny,)
+    catalog = Inject(CatalogFacade)
+
+    @extend_schema(responses=BrandOutput(many=True))
+    @public_cache
+    def list(self, request: Request) -> Response:
+        return self.respond(BrandOutput, self.catalog.brands(), many=True)
 
 
 class ProductViewSet(UseCaseViewSet):

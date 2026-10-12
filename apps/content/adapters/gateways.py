@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from apps.catalog.domain.deals import DealOfTheDay
 from apps.catalog.domain.enums import ProductOrdering
 from apps.catalog.domain.queries import ProductQuery
-from apps.catalog.domain.read_models import CatalogSitemap, CategoryView, ProductCard
+from apps.catalog.domain.read_models import BrandView, CatalogSitemap, CategoryView, ProductCard
 from apps.catalog.facades import CatalogFacade
 from apps.content.domain.read_models import ShippingInfo
 from apps.orders.conf import order_settings
@@ -31,6 +31,9 @@ class CatalogShowcase:
 
     def categories(self) -> list[CategoryView]:
         return container.resolve(CatalogFacade).categories()
+
+    def brands(self) -> list[BrandView]:
+        return container.resolve(CatalogFacade).featured_brands()
 
     def in_category(self, actor: Actor, slug: str, *, limit: int) -> list[ProductCard]:
         return self._browse(

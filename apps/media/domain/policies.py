@@ -10,6 +10,7 @@ MEGABYTE = 1024 * 1024
 class UploadPurpose(StrEnum):
     PRODUCT_IMAGE = "product_image"
     CATEGORY_IMAGE = "category_image"
+    BRAND_LOGO = "brand_logo"
     AVATAR = "avatar"
     MESSAGE_ATTACHMENT = "message_attachment"
 
@@ -41,6 +42,14 @@ POLICIES: Mapping[UploadPurpose, UploadPolicy] = MappingProxyType(
             max_bytes=4 * MEGABYTE,
             formats=IMAGE_FORMATS,
             transformation="c_limit,w_1200,h_1200/q_auto:good",
+        ),
+        UploadPurpose.BRAND_LOGO: UploadPolicy(
+            purpose=UploadPurpose.BRAND_LOGO,
+            folder="brands",
+            permission="categories.manage",
+            max_bytes=2 * MEGABYTE,
+            formats=("png", "svg", "webp"),
+            transformation="c_limit,w_600,h_600",
         ),
         UploadPurpose.AVATAR: UploadPolicy(
             purpose=UploadPurpose.AVATAR,

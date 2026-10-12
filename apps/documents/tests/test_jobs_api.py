@@ -99,6 +99,7 @@ class TestOtherJobs:
             "slug",
             "name",
             "category",
+            "brand",
             "price",
             "sale_price",
             "cost_price",
@@ -107,7 +108,7 @@ class TestOtherJobs:
             "is_active",
             "sales_count",
         ]
-        assert lines[1].startswith("galaxy-a55;Galaxy A55;smartphones;120.00;;80.00;20")
+        assert lines[1].startswith("galaxy-a55;Galaxy A55;smartphones;;120.00;;80.00;20")
         assert api.post("/api/v1/bo/products/export/", {"format": "pdf"}).status_code == 400
 
     def test_analytics_report(self, as_user, reseller, sold, run_jobs, renderer):

@@ -3,7 +3,12 @@ from typing import Any
 
 from rest_framework import serializers
 
-from apps.catalog.api.v1.serializers import CategoryRefOutput, OptionOutput, ReviewAuthorOutput
+from apps.catalog.api.v1.serializers import (
+    BrandRefOutput,
+    CategoryRefOutput,
+    OptionOutput,
+    ReviewAuthorOutput,
+)
 from apps.catalog.domain.deals import DealStatus
 from apps.catalog.domain.enums import Badge, CategoryIcon, ReviewStatus, StockReason
 from apps.catalog.domain.management import (
@@ -41,6 +46,9 @@ class ProductFieldsSerializer(serializers.Serializer[Any]):
     name = serializers.CharField(max_length=255)
     description = serializers.CharField(min_length=10, max_length=255)
     category_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
+    brand_id = serializers.IntegerField(
+        min_value=1, max_value=MAX_INTEGER, required=False, allow_null=True
+    )
     price = money(min_value=0)
     sale_price = money(min_value=0, allow_null=True, required=False)
     cost_price = money(min_value=0, allow_null=True, required=False)
@@ -200,6 +208,26 @@ class AdminProductFiltersInput(serializers.Serializer[Any]):
         return attrs
 
 
+class BrandFieldsSerializer(serializers.Serializer[Any]):
+    name = serializers.CharField(max_length=80)
+    logo_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
+    is_featured = serializers.BooleanField(required=False)
+    is_active = serializers.BooleanField(required=False)
+
+
+class AdminBrandOutput(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    slug = serializers.SlugField()
+    name = serializers.CharField()
+    logo = serializers.CharField()
+    is_featured = serializers.BooleanField()
+    is_active = serializers.BooleanField()
+    position = serializers.IntegerField()
+    products_count = serializers.IntegerField()
+
+
 class CategoryFieldsSerializer(serializers.Serializer[Any]):
     name = serializers.CharField(max_length=100)
     icon = serializers.ChoiceField(choices=_choices(CategoryIcon), required=False)
@@ -250,6 +278,7 @@ class AdminProductRowOutput(serializers.Serializer[Any]):
     slug = serializers.SlugField()
     name = serializers.CharField()
     category = CategoryRefOutput()
+    brand = BrandRefOutput(allow_null=True)
     image = serializers.CharField()
     price = money()
     sale_price = money(allow_null=True)
