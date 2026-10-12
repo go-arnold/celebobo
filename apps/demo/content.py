@@ -93,6 +93,8 @@ BANNERS = (
     ),
 )
 
+DEAL = ("samsung-galaxy-a55-5g", {"Stockage": "128 Go"}, "399.00", 20, "Coque offerte", 3)
+
 COUPONS = (
     (
         "BIENVENUE10",

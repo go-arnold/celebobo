@@ -3,6 +3,7 @@ from rest_framework.routers import SimpleRouter
 
 from apps.catalog.api.v1.backoffice_views import (
     AdminCategoryViewSet,
+    AdminDealViewSet,
     AdminProductViewSet,
     AdminReviewViewSet,
     AdminStockViewSet,
@@ -81,6 +82,12 @@ backoffice = [
         "bo/categories/<id:category_id>/",
         AdminCategoryViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
         name="bo-category",
+    ),
+    path("bo/deals/", AdminDealViewSet.as_view({"get": "list", "post": "create"}), name="bo-deals"),
+    path(
+        "bo/deals/<id:deal_id>/",
+        AdminDealViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
+        name="bo-deal",
     ),
     path("bo/reviews/", AdminReviewViewSet.as_view({"get": "list"}), name="bo-reviews"),
     path(

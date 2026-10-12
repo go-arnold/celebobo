@@ -124,6 +124,7 @@ Managers (`products.manage`, `stock.adjust`, `categories.manage`, `reviews.moder
 | `POST /api/v1/bo/products/<id>/stock-adjustments/` · `GET stock-movements/` | Adjust stock by `delta` or `set`, with a reason; movement history |
 | `GET /api/v1/bo/stock/alerts/` | Products and variants at or below their threshold |
 | `GET · POST /api/v1/bo/categories/` · `PATCH · DELETE <id>/?move_to=` · `POST reorder/` | Categories; deleting a non-empty category without `move_to` returns 409 with `products_count` |
+| `GET · POST /api/v1/bo/deals/?status=live\|scheduled\|ended` · `PATCH · DELETE <id>/` | Deals of the day: deal price, period, optional quantity and gift; each row returns `sold` and `status`. A product with variants needs a `variant_id`; two active deals of one product cannot overlap |
 | `GET /api/v1/bo/reviews/` · `PATCH <id>/` | Review moderation (`published` or `hidden`); the product's rating is recomputed |
 
 ### `apps.media`
@@ -494,7 +495,7 @@ The first migration creates the `vector` extension (`pgvector.django.VectorExten
 The public site content and its back-office editors.
 
 **Home and site content**
-- `GET /home/` assembles the live banners (active and within `starts_at`/`ends_at`), deals, new arrivals, best sellers, and the best sellers of the first four categories. Products come from the catalogue through the `Showcase` port, so favourites and caching still apply.
+- `GET /home/` assembles the live banners (active and within `starts_at`/`ends_at`), the deal of the day (`deal`, the live deal ending first, or `null`), deals, new arrivals, best sellers, and the best sellers of the first four categories. Products come from the catalogue through the `Showcase` port, so favourites and caching still apply.
 - `SiteSettings` is a single row:
   - exchange rate (`usd_to_cdf`), hotline, WhatsApp, e-mail, address;
   - opening hours, enabled payment methods (checked against `PaymentMethod`), social links;

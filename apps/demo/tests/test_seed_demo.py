@@ -6,7 +6,7 @@ from django.core.management import CommandError, call_command
 
 from apps.accounts.models import User
 from apps.accounts.tests.factories import AdminFactory
-from apps.catalog.models import Product, ProductVariant
+from apps.catalog.models import Deal, Product, ProductVariant
 from apps.demo.people import DemoPerson, email_for
 from apps.demo.uploads import ImageStore
 from apps.media.models import UploadedMedia
@@ -29,6 +29,7 @@ def test_seed_fills_an_empty_database_and_refuses_a_second_run():
     assert Product.objects.count() >= 20
     assert Order.objects.filter(status="delivered").exists()
     assert Sale.objects.exists()
+    assert Deal.objects.filter(variant__attributes={"Stockage": "128 Go"}).exists()
     assert not User.objects.filter(email__regex=r"[^\x00-\x7F]").exists()
     with pytest.raises(CommandError):
         seed()

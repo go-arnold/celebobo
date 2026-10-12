@@ -130,3 +130,16 @@ class UnknownImages(ValidationFailed):
 class ReviewNotFound(NotFound):
     default_code = "review_not_found"
     default_detail = "Avis introuvable."
+
+
+class DealNotFound(NotFound):
+    default_code = "deal_not_found"
+    default_detail = "Offre introuvable."
+
+
+class InvalidDeal(ValidationFailed):
+    default_code = "invalid_deal"
+    default_detail = "L'offre est invalide."
+
+    def __init__(self, field: str, detail: str) -> None:
+        super().__init__(detail, errors={field: [detail]})

@@ -54,7 +54,7 @@ class PricingService:
             raise EmptyOrder
         if len(lines) > self._max_lines:
             raise TooManyLines(self._max_lines)
-        priced = self._inventory.price([stock_line(line) for line in lines])
+        priced = self._inventory.price([stock_line(line) for line in lines], lock=context.lock)
         view, coupon = self.view(priced, context)
         return PricedQuote(view, priced, coupon)
 

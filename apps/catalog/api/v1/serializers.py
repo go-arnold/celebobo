@@ -117,6 +117,22 @@ class ProductDetailOutput(serializers.Serializer[Any]):
         }
 
 
+class DealOutput(serializers.Serializer[Any]):
+    id = serializers.IntegerField(source="terms.id")
+    product = ProductDetailOutput()
+    deal_price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, source="terms.deal_price"
+    )
+    regular_price = serializers.DecimalField(
+        max_digits=10, decimal_places=2, source="terms.regular_price"
+    )
+    starts_at = serializers.DateTimeField(source="terms.starts_at")
+    ends_at = serializers.DateTimeField(source="terms.ends_at")
+    quantity = serializers.IntegerField(source="terms.quantity", allow_null=True)
+    sold = serializers.IntegerField(allow_null=True)
+    gift_label = serializers.CharField(source="terms.gift_label")
+
+
 class FacetCountOutput(serializers.Serializer[Any]):
     value = serializers.CharField()
     label = serializers.CharField()  # type: ignore[assignment]

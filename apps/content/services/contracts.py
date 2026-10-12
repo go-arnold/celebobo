@@ -1,12 +1,15 @@
 from collections.abc import Sequence
 from typing import Protocol
 
+from apps.catalog.domain.deals import DealOfTheDay
 from apps.catalog.domain.read_models import CatalogSitemap, CategoryView, ProductCard
 from apps.content.domain.read_models import ShippingInfo
 from core.domain.actor import Actor
 
 
 class Showcase(Protocol):
+    def deal(self, actor: Actor) -> DealOfTheDay | None: ...
+
     def deals(self, actor: Actor, *, limit: int) -> list[ProductCard]: ...
 
     def newest(self, actor: Actor, *, limit: int) -> list[ProductCard]: ...

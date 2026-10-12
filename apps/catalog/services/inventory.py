@@ -1,21 +1,25 @@
 from collections import defaultdict
 from collections.abc import Sequence
 
+from apps.catalog.domain.deals import DealTerms
 from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.errors import OutOfStock, ProductUnavailable, VariantRequired
 from apps.catalog.domain.queries import StockLine, StockSource
 from apps.catalog.domain.read_models import PricedLine
 from apps.catalog.models import Product, ProductVariant
 from apps.catalog.repositories import StockRepository
+from apps.catalog.services.deals import LiveDeals
 
 
 class InventoryService:
-    def __init__(self, stock: StockRepository) -> None:
+    def __init__(self, stock: StockRepository, deals: LiveDeals) -> None:
         self._stock = stock
+        self._deals = deals
 
-    def price(self, lines: Sequence[StockLine]) -> list[PricedLine]:
+    def price(self, lines: Sequence[StockLine], *, lock: bool = False) -> list[PricedLine]:
         products = self._stock.for_pricing(line.product_id for line in lines)
-        return [self._priced(products, line) for line in lines]
+        deals = self._deals.by_product(products.keys(), lock=lock) if products else {}
+        return [self._priced(products, line, deals.get(line.product_id)) for line in lines]
 
     def reserve(
         self,
@@ -64,7 +68,9 @@ class InventoryService:
         return touched
 
     @staticmethod
-    def _priced(products: dict[int, Product], line: StockLine) -> PricedLine:
+    def _priced(
+        products: dict[int, Product], line: StockLine, deal: DealTerms | None
+    ) -> PricedLine:
         product = products.get(line.product_id)
         if product is None:
             raise ProductUnavailable(line.product_id)
@@ -75,6 +81,9 @@ class InventoryService:
         if line.variant_id is not None and variant is None:
             raise ProductUnavailable(line.product_id)
         images = list(product.images.all())
+        regular = variant.price if variant and variant.price is not None else product.current_price
+        if deal is not None and not deal.covers(line.variant_id, line.quantity):
+            deal = None
         return PricedLine(
             product_id=product.pk,
             variant_id=variant.pk if variant else None,
@@ -83,13 +92,12 @@ class InventoryService:
             variant_label=variant.label if variant else "",
             image=(variant.image if variant and variant.image else "")
             or (images[0].url if images else ""),
-            unit_price=(
-                variant.price if variant and variant.price is not None else product.current_price
-            ),
+            unit_price=deal.deal_price if deal is not None else regular,
             quantity=line.quantity,
             free_shipping=product.free_shipping,
             shipping_fee=product.shipping_fee,
             cost_price=product.cost_price,
+            deal_id=deal.id if deal is not None else None,
         )
 
 

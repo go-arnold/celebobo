@@ -24,6 +24,7 @@ class HomeService:
         ][: self._category_blocks]
         return HomePage(
             banners=self._banners.live(),
+            deal=self._showcase.deal(actor),
             deals=self._showcase.deals(actor, limit=self._section_size),
             new_arrivals=self._showcase.newest(actor, limit=self._section_size),
             best_sellers=self._showcase.best_sellers(actor, limit=self._section_size),

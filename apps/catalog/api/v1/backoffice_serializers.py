@@ -1,8 +1,10 @@
+from decimal import Decimal
 from typing import Any
 
 from rest_framework import serializers
 
 from apps.catalog.api.v1.serializers import CategoryRefOutput, OptionOutput, ReviewAuthorOutput
+from apps.catalog.domain.deals import DealStatus
 from apps.catalog.domain.enums import Badge, CategoryIcon, ReviewStatus, StockReason
 from apps.catalog.domain.management import (
     AdjustmentMode,
@@ -368,3 +370,48 @@ class AdminReviewOutput(serializers.Serializer[Any]):
 
 class BulkOutput(serializers.Serializer[Any]):
     updated = serializers.ListField(child=serializers.IntegerField())
+
+
+class DealFieldsInput(serializers.Serializer[Any]):
+    variant_id = serializers.IntegerField(
+        min_value=1, max_value=MAX_INTEGER, required=False, allow_null=True, default=None
+    )
+    deal_price = money(min_value=Decimal("0.01"))
+    starts_at = serializers.DateTimeField()
+    ends_at = serializers.DateTimeField()
+    quantity = serializers.IntegerField(
+        min_value=1, max_value=MAX_INTEGER, required=False, allow_null=True, default=None
+    )
+    gift_label = serializers.CharField(max_length=80, required=False, allow_blank=True, default="")
+    is_active = serializers.BooleanField(required=False, default=True)
+
+
+class DealCreateInput(DealFieldsInput):
+    product_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
+
+
+class DealFiltersInput(serializers.Serializer[Any]):
+    status = serializers.ChoiceField(choices=_choices(DealStatus), required=False)
+
+
+class DealProductOutput(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    slug = serializers.SlugField()
+    name = serializers.CharField()
+    image = serializers.CharField()
+
+
+class AdminDealOutput(serializers.Serializer[Any]):
+    id = serializers.IntegerField(source="terms.id")
+    product = DealProductOutput()
+    variant_id = serializers.IntegerField(source="terms.variant_id", allow_null=True)
+    variant_label = serializers.CharField()
+    deal_price = money(source="terms.deal_price")
+    regular_price = money(source="terms.regular_price")
+    starts_at = serializers.DateTimeField(source="terms.starts_at")
+    ends_at = serializers.DateTimeField(source="terms.ends_at")
+    quantity = serializers.IntegerField(source="terms.quantity", allow_null=True)
+    sold = serializers.IntegerField(source="terms.sold")
+    gift_label = serializers.CharField(source="terms.gift_label")
+    is_active = serializers.BooleanField(source="terms.is_active")
+    status = serializers.ChoiceField(choices=_choices(DealStatus))
