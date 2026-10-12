@@ -1,6 +1,12 @@
+from collections.abc import Callable
 from typing import Any
 
-from apps.content.domain.errors import InvalidSchedule, SlugTaken, UnknownPaymentMethod
+from apps.content.domain.errors import (
+    BannerProductUnavailable,
+    InvalidSchedule,
+    SlugTaken,
+    UnknownPaymentMethod,
+)
 from apps.content.models import Banner, Page
 from apps.content.repositories import ModelRepository
 from apps.orders.domain.enums import PaymentMethod
@@ -25,6 +31,17 @@ def valid_schedule(banner: Banner | None, values: dict[str, Any]) -> None:
     ends_at = values.get("ends_at", banner.ends_at if banner else None)
     if starts_at and ends_at and ends_at <= starts_at:
         raise InvalidSchedule
+
+
+class BannerRules:
+    def __init__(self, visible: Callable[[int], bool]) -> None:
+        self._visible = visible
+
+    def __call__(self, banner: Banner | None, values: dict[str, Any]) -> None:
+        valid_schedule(banner, values)
+        product_id = values.get("product_id")
+        if product_id is not None and not self._visible(product_id):
+            raise BannerProductUnavailable
 
 
 def known_payment_methods(methods: list[str]) -> list[str]:

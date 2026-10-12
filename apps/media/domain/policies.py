@@ -11,6 +11,7 @@ class UploadPurpose(StrEnum):
     PRODUCT_IMAGE = "product_image"
     CATEGORY_IMAGE = "category_image"
     BRAND_LOGO = "brand_logo"
+    BANNER = "banner"
     AVATAR = "avatar"
     MESSAGE_ATTACHMENT = "message_attachment"
 
@@ -50,6 +51,14 @@ POLICIES: Mapping[UploadPurpose, UploadPolicy] = MappingProxyType(
             max_bytes=2 * MEGABYTE,
             formats=("png", "svg", "webp"),
             transformation="c_limit,w_600,h_600",
+        ),
+        UploadPurpose.BANNER: UploadPolicy(
+            purpose=UploadPurpose.BANNER,
+            folder="banners",
+            permission="content.manage",
+            max_bytes=8 * MEGABYTE,
+            formats=IMAGE_FORMATS,
+            transformation="c_limit,w_1800,h_1800/q_auto:good",
         ),
         UploadPurpose.AVATAR: UploadPolicy(
             purpose=UploadPurpose.AVATAR,

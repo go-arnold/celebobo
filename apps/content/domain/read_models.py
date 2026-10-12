@@ -81,6 +81,11 @@ class BannerView:
     is_active: bool
     starts_at: datetime | None
     ends_at: datetime | None
+    placement: str
+    product_id: int | None
+    eyebrow: str
+    tone: str
+    product: ProductCard | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -114,7 +119,7 @@ class CategoryBlock:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class HomePage:
-    banners: list[BannerView]
+    banners: dict[str, list[BannerView]]
     deal: DealOfTheDay | None
     deals: list[ProductCard]
     new_arrivals: list[ProductCard]

@@ -95,6 +95,8 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 409 | `slug_taken` | Une page utilise déjà cette adresse. |
 | 404 | `unknown_subscription` | Lien de désinscription invalide. |
 | 400 | `invalid_schedule` | La fin doit suivre le début. |
+| 400 | `banner_product_unavailable` | Ce produit n'est pas visible dans la boutique. |
+| 400 | `banners_outside_placement` | Certaines bannières n'appartiennent pas à cet emplacement. |
 | 400 | `unknown_payment_method` | Moyen de paiement inconnu. |
 
 ## Documents and jobs

@@ -5,10 +5,12 @@ from django.conf import settings
 from django.db import models
 from django.db.models.functions import Lower
 
-from apps.content.domain.enums import ContactStatus, ContactSubject
+from apps.content.domain.enums import BannerTone, ContactStatus, ContactSubject
+from apps.content.domain.placements import HERO, MAX_PLACEMENT_LENGTH
 
 SUBJECT_CHOICES = [(item.value, item.label) for item in ContactSubject]
 STATUS_CHOICES = [(item.value, item.value) for item in ContactStatus]
+TONE_CHOICES = [(item.value, item.value) for item in BannerTone]
 
 
 class ContactMessage(models.Model):
@@ -110,6 +112,14 @@ class Banner(models.Model):
     is_active = models.BooleanField(default=True)
     starts_at = models.DateTimeField(null=True, blank=True)
     ends_at = models.DateTimeField(null=True, blank=True)
+    placement = models.CharField(
+        "emplacement", max_length=MAX_PLACEMENT_LENGTH, default=HERO, db_index=True
+    )
+    product = models.ForeignKey(
+        "catalog.Product", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    eyebrow = models.CharField("sur-titre", max_length=40, blank=True)
+    tone = models.CharField(max_length=8, choices=TONE_CHOICES, default=BannerTone.DARK.value)
 
     class Meta:
         verbose_name = "bannière"

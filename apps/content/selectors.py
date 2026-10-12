@@ -118,8 +118,11 @@ class BannerSelector:
         )
         return [to_banner_view(banner) for banner in banners]
 
-    def all(self) -> list[BannerView]:
-        return [to_banner_view(banner) for banner in Banner.objects.all()]
+    def all(self, placement: str | None = None) -> list[BannerView]:
+        banners = Banner.objects.all()
+        if placement is not None:
+            banners = banners.filter(placement=placement)
+        return [to_banner_view(banner) for banner in banners]
 
 
 def to_settings_view(
@@ -208,4 +211,8 @@ def to_banner_view(banner: Banner) -> BannerView:
         is_active=banner.is_active,
         starts_at=banner.starts_at,
         ends_at=banner.ends_at,
+        placement=banner.placement,
+        product_id=banner.product_id,
+        eyebrow=banner.eyebrow,
+        tone=banner.tone,
     )

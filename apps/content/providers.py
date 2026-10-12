@@ -13,8 +13,13 @@ from apps.content.facades import (
     SiteContentFacade,
     StorefrontFacade,
 )
-from apps.content.models import Banner, ContactMessage, FaqEntry, Page
-from apps.content.repositories import ModelRepository, SettingsRepository, SubscriberRepository
+from apps.content.models import ContactMessage, FaqEntry, Page
+from apps.content.repositories import (
+    BannerRepository,
+    ModelRepository,
+    SettingsRepository,
+    SubscriberRepository,
+)
 from apps.content.selectors import (
     BannerSelector,
     ContactSelector,
@@ -29,12 +34,13 @@ from apps.content.services.editors import Editor
 from apps.content.services.home import HomeService
 from apps.content.services.mailer import ContentMailer
 from apps.content.services.newsletter import NewsletterService
-from apps.content.services.rules import UniqueSlug, valid_schedule
+from apps.content.services.rules import BannerRules, UniqueSlug
 from apps.content.services.site import SiteSettingsService
 from apps.content.services.storefront import PendingTags
 from apps.content.tasks import revalidate_storefront
 from apps.media.services.references import media_references
 from core.container import Container, Lifetime
+from core.domain.actor import Actor
 from core.events.contracts import EventPublisher
 
 HOME_SECTION_SIZE = 8
@@ -75,10 +81,17 @@ def _newsletter_facade(container: Container) -> NewsletterFacade:
 def _content_facade(container: Container) -> SiteContentFacade:
     pages = ModelRepository(Page)
     banners = BannerSelector(timezone.now)
+    banner_repository = BannerRepository()
+    showcase = container.resolve(Showcase)
+
+    def visible(product_id: int) -> bool:
+        return bool(showcase.cards(Actor.anonymous(), [product_id]))
+
     return SiteContentFacade(
         pages=Editor(pages, not_found=PageNotFound, validate=UniqueSlug(pages)),
         faq=Editor(ModelRepository(FaqEntry), not_found=FaqEntryNotFound),
-        banners=Editor(ModelRepository(Banner), not_found=BannerNotFound, validate=valid_schedule),
+        banners=Editor(banner_repository, not_found=BannerNotFound, validate=BannerRules(visible)),
+        banner_repository=banner_repository,
         page_selector=PageSelector(),
         faq_selector=FaqSelector(),
         banner_selector=banners,

@@ -21,6 +21,9 @@ class CatalogShowcase:
             ProductQuery(on_sale=True, ordering=ProductOrdering.BEST_SELLING, page_size=limit),
         )
 
+    def cards(self, actor: Actor, ids: Sequence[int]) -> list[ProductCard]:
+        return container.resolve(CatalogFacade).cards_for(actor, ids)
+
     def newest(self, actor: Actor, *, limit: int) -> list[ProductCard]:
         return self._browse(actor, ProductQuery(ordering=ProductOrdering.NEWEST, page_size=limit))
 

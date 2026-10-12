@@ -1,5 +1,6 @@
 from apps.content.domain.read_models import CategoryBlock, HomePage
 from apps.content.selectors import BannerSelector
+from apps.content.services.banners import by_placement, with_products
 from apps.content.services.contracts import Showcase
 from core.domain.actor import Actor
 
@@ -23,7 +24,7 @@ class HomeService:
             category for category in self._showcase.categories() if category.products_count
         ][: self._category_blocks]
         return HomePage(
-            banners=self._banners.live(),
+            banners=by_placement(with_products(self._banners.live(), self._showcase, actor)),
             deal=self._showcase.deal(actor),
             deals=self._showcase.deals(actor, limit=self._section_size),
             new_arrivals=self._showcase.newest(actor, limit=self._section_size),

@@ -14,7 +14,9 @@ from rest_framework.response import Response
 from apps.content.api.v1.serializers import (
     AdminSettingsOutput,
     BannerFieldsInput,
+    BannerOrderInput,
     BannerOutput,
+    BannerPlacementInput,
     ContactFiltersInput,
     ContactInput,
     ContactMessageOutput,
@@ -272,12 +274,38 @@ FaqAdminViewSet = editor_viewset(
     listing=lambda content: content.faq_entries(),
     section="faq",
 )
-BannerAdminViewSet = editor_viewset(
-    name="BannerAdminViewSet",
-    fields_input=BannerFieldsInput,
-    output=BannerOutput,
-    fields=BannerFields,
-    changes=BannerChanges,
-    listing=lambda content: content.banners(),
-    section="banner",
-)
+
+
+class BannerAdminViewSet(UseCaseViewSet):
+    action_permissions = dict.fromkeys(
+        ("list", "create", "partial_update", "destroy", "reorder"), (CONTENT_MANAGE,)
+    )
+    content = Inject(SiteContentFacade)
+
+    @extend_schema(parameters=[BannerPlacementInput], responses=BannerOutput(many=True))
+    def list(self, request: Request) -> Response:
+        placement = self.validated(BannerPlacementInput, data=request.query_params).get("placement")
+        return self.respond(BannerOutput, self.content.banners(self.actor, placement), many=True)
+
+    @extend_schema(request=BannerFieldsInput, responses={201: BannerOutput})
+    def create(self, request: Request) -> Response:
+        fields = self.parse(BannerFieldsInput, into=BannerFields)
+        return self.respond(
+            BannerOutput, self.content.create_banner(self.actor, fields), status=201
+        )
+
+    @extend_schema(request=BannerFieldsInput, responses=BannerOutput)
+    def partial_update(self, request: Request, item_id: int) -> Response:
+        changes = self.parse(BannerFieldsInput, into=BannerChanges, partial=True)
+        return self.respond(BannerOutput, self.content.update_banner(self.actor, item_id, changes))
+
+    @extend_schema(responses={204: None})
+    def destroy(self, request: Request, item_id: int) -> Response:
+        self.content.delete_banner(self.actor, item_id)
+        return Response(status=204)
+
+    @extend_schema(request=BannerOrderInput, responses=BannerOutput(many=True))
+    def reorder(self, request: Request) -> Response:
+        order = self.validated(BannerOrderInput)
+        banners = self.content.reorder_banners(self.actor, order["placement"], order["ids"])
+        return self.respond(BannerOutput, banners, many=True)

@@ -15,6 +15,7 @@ from apps.content.domain.commands import (
     SendContactMessage,
     SettingsChanges,
 )
+from apps.content.domain.errors import BannersOutsidePlacement
 from apps.content.domain.events import (
     ContactMessageReceived,
     NewsletterSubscribed,
@@ -34,6 +35,7 @@ from apps.content.domain.read_models import (
 )
 from apps.content.domain.storefront import category_tags, product_tags, section_tags
 from apps.content.models import Banner, FaqEntry, Page
+from apps.content.repositories import BannerRepository
 from apps.content.selectors import (
     BannerSelector,
     ContactSelector,
@@ -45,6 +47,7 @@ from apps.content.selectors import (
     to_page_view,
     to_settings_view,
 )
+from apps.content.services.banners import with_products
 from apps.content.services.contact import ContactService
 from apps.content.services.contracts import PageRevalidator, ShippingSource, Showcase
 from apps.content.services.editors import Editor
@@ -159,6 +162,7 @@ class SiteContentFacade:
         pages: Editor[Page],
         faq: Editor[FaqEntry],
         banners: Editor[Banner],
+        banner_repository: BannerRepository,
         page_selector: PageSelector,
         faq_selector: FaqSelector,
         banner_selector: BannerSelector,
@@ -172,6 +176,7 @@ class SiteContentFacade:
         self._pages = pages
         self._faq = faq
         self._banners = banners
+        self._banner_repository = banner_repository
         self._page_selector = page_selector
         self._faq_selector = faq_selector
         self._banner_selector = banner_selector
@@ -242,16 +247,27 @@ class SiteContentFacade:
     def delete_faq(self, actor: Actor, entry_id: int) -> None:
         self._edit(actor, "faq", lambda: self._faq.delete(entry_id))
 
-    def banners(self) -> list[BannerView]:
-        return self._banner_selector.all()
+    def banners(self, actor: Actor, placement: str | None = None) -> list[BannerView]:
+        return with_products(self._banner_selector.all(placement), self._showcase, actor)
 
     def create_banner(self, actor: Actor, fields: BannerFields) -> BannerView:
-        return to_banner_view(self._edit(actor, "banners", lambda: self._banners.create(fields)))
+        banner = self._edit(actor, "banners", lambda: self._banners.create(fields))
+        return self._with_product(actor, to_banner_view(banner))
 
     def update_banner(self, actor: Actor, banner_id: int, changes: BannerChanges) -> BannerView:
-        return to_banner_view(
-            self._edit(actor, "banners", lambda: self._banners.update(banner_id, changes))
-        )
+        banner = self._edit(actor, "banners", lambda: self._banners.update(banner_id, changes))
+        return self._with_product(actor, to_banner_view(banner))
+
+    def reorder_banners(self, actor: Actor, placement: str, ids: Sequence[int]) -> list[BannerView]:
+        def reorder() -> None:
+            if not self._banner_repository.reorder(placement, ids):
+                raise BannersOutsidePlacement
+
+        self._edit(actor, "banners", reorder)
+        return self.banners(actor, placement)
+
+    def _with_product(self, actor: Actor, banner: BannerView) -> BannerView:
+        return with_products([banner], self._showcase, actor)[0]
 
     def delete_banner(self, actor: Actor, banner_id: int) -> None:
         self._edit(actor, "banners", lambda: self._banners.delete(banner_id))

@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from apps.content.domain.enums import ContactStatus, ContactSubject
+from apps.content.domain.enums import BannerTone, ContactStatus, ContactSubject
+from apps.content.domain.placements import HERO
 from core.domain.values import UNSET, Maybe
 
 
@@ -77,6 +78,10 @@ class BannerFields:
     is_active: bool = True
     starts_at: datetime | None = None
     ends_at: datetime | None = None
+    placement: str = HERO
+    product_id: int | None = None
+    eyebrow: str = ""
+    tone: BannerTone = BannerTone.DARK
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -90,6 +95,10 @@ class BannerChanges:
     is_active: Maybe[bool] = UNSET
     starts_at: Maybe[datetime | None] = UNSET
     ends_at: Maybe[datetime | None] = UNSET
+    placement: Maybe[str] = UNSET
+    product_id: Maybe[int | None] = UNSET
+    eyebrow: Maybe[str] = UNSET
+    tone: Maybe[BannerTone] = UNSET
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
