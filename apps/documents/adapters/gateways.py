@@ -19,7 +19,12 @@ from apps.catalog.domain.management import (
     StockAdjustment,
 )
 from apps.catalog.facades import ProductAdminFacade
-from apps.catalog.selectors import AdminCategorySelector, AdminProductSelector, ProductLabelSelector
+from apps.catalog.selectors import (
+    AdminBrandSelector,
+    AdminCategorySelector,
+    AdminProductSelector,
+    ProductLabelSelector,
+)
 from apps.orders.domain.read_models import OrderDetail
 from apps.orders.selectors import OrderSelector
 from apps.sales.domain.commands import SaleFilters
@@ -61,6 +66,13 @@ class CatalogProductSource:
 class CatalogProductWriter:
     def category_ids(self) -> dict[str, int]:
         return {category.slug: category.id for category in AdminCategorySelector().all()}
+
+    def brand_ids(self) -> dict[str, int]:
+        brands = AdminBrandSelector().all()
+        return {
+            **{brand.name.lower(): brand.id for brand in brands},
+            **{brand.slug: brand.id for brand in brands},
+        }
 
     def product_id(self, slug: str) -> int | None:
         return ProductLabelSelector().id_for_slug(slug)

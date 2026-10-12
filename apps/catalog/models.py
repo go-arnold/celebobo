@@ -60,6 +60,24 @@ class Category(SafeDeleteModel, TimestampedModel):
         return self.name
 
 
+class Brand(TimestampedModel):
+    name = models.CharField("nom", max_length=80)
+    slug = models.SlugField(max_length=100, unique=True)
+    logo = models.URLField(max_length=500, blank=True)
+    is_featured = models.BooleanField("à la une", default=False)
+    is_active = models.BooleanField(default=True)
+    position = models.PositiveIntegerField(default=0, db_index=True)
+
+    class Meta:
+        verbose_name = "marque"
+        verbose_name_plural = "marques"
+        ordering = ("position", "name")
+        constraints = (models.UniqueConstraint(Lower("name"), name="catalog_brand_name_ci_unique"),)
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Product(SafeDeleteModel, TimestampedModel):
     _safedelete_policy = SOFT_DELETE
 
@@ -70,6 +88,9 @@ class Product(SafeDeleteModel, TimestampedModel):
     seo_title = models.CharField("titre SEO", max_length=70, blank=True)
     seo_description = models.CharField("description SEO", max_length=160, blank=True)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
+    brand = models.ForeignKey(
+        Brand, null=True, blank=True, on_delete=models.SET_NULL, related_name="products"
+    )
     badge = models.CharField(max_length=16, choices=BADGE_CHOICES, blank=True)
     price = models.DecimalField("prix", max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     sale_price = models.DecimalField(

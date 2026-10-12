@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from apps.catalog.domain.deals import DealOfTheDay
-from apps.catalog.domain.read_models import CategoryView, ProductCard, SitemapEntry
+from apps.catalog.domain.read_models import BrandView, CategoryView, ProductCard, SitemapEntry
 from apps.content.domain.enums import ContactStatus, ContactSubject
 
 
@@ -120,6 +120,7 @@ class HomePage:
     new_arrivals: list[ProductCard]
     best_sellers: list[ProductCard]
     categories: list[CategoryBlock]
+    brands: list[BrandView]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

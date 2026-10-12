@@ -25,9 +25,16 @@ from apps.accounts.models import User
 from apps.analytics.facades import FactsFacade
 from apps.assistant.facades import AssistantInsightsFacade
 from apps.catalog.domain.deals import DealDraft
-from apps.catalog.domain.management import CategoryDraft, OptionInput, ProductDraft, VariantDraft
+from apps.catalog.domain.management import (
+    BrandDraft,
+    CategoryDraft,
+    OptionInput,
+    ProductDraft,
+    VariantDraft,
+)
 from apps.catalog.domain.queries import PostReview
 from apps.catalog.facades import (
+    BrandAdminFacade,
     CategoryAdminFacade,
     DealAdminFacade,
     ProductAdminFacade,
@@ -273,6 +280,7 @@ class DemoSeeder:
             category_ids[item.key] = created.id
             self.report.add("categories")
         colors = {item.key: item.color for item in catalogue.CATEGORIES}
+        brand_ids = self._brands()
         products = []
         for product in catalogue.PRODUCTS:
             price, sale_price, cost = product.money
@@ -288,6 +296,7 @@ class DemoSeeder:
                     description=product.description,
                     long_description=product.description,
                     category_id=category_ids[product.category],
+                    brand_id=brand_ids[product.brand],
                     price=price,
                     sale_price=sale_price,
                     cost_price=cost,
@@ -321,6 +330,18 @@ class DemoSeeder:
             products.append({"id": detail.row.id, "slug": detail.row.slug, "variants": variant_ids})
             self.report.add("products")
         return products
+
+    def _brands(self) -> dict[str, int]:
+        brands = container.resolve(BrandAdminFacade)
+        featured = set(catalogue.FEATURED_BRANDS)
+        ids = {}
+        for name in dict.fromkeys(product.brand for product in catalogue.PRODUCTS):
+            created = brands.create(
+                self._actor, BrandDraft(name=name, is_featured=name in featured)
+            )
+            ids[name] = created.id
+            self.report.add("brands")
+        return ids
 
     def _staff(self, person: people.DemoPerson, role: Role) -> User:
         email = people.email_for(person, DOMAIN)

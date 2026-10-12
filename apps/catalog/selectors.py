@@ -16,6 +16,7 @@ from django.db.models import (
 from django.db.models.functions import Coalesce
 
 from apps.catalog.domain.backoffice import (
+    AdminBrand,
     AdminCategory,
     AdminImage,
     AdminProductDetail,
@@ -30,6 +31,7 @@ from apps.catalog.domain.backoffice import (
 from apps.catalog.domain.deals import DealProduct, DealStatus, DealTerms
 from apps.catalog.domain.enums import Badge, CategoryIcon, ReviewStatus, StockReason
 from apps.catalog.domain.errors import (
+    BrandNotFound,
     CategoryNotFound,
     DealNotFound,
     ProductNotFound,
@@ -38,6 +40,8 @@ from apps.catalog.domain.errors import (
 from apps.catalog.domain.management import BackofficeProductFilters, ProductStatus, ReviewFilters
 from apps.catalog.domain.management_rules import margin
 from apps.catalog.domain.read_models import (
+    BrandRef,
+    BrandView,
     CatalogSitemap,
     CategoryRef,
     CategoryView,
@@ -59,6 +63,7 @@ from apps.catalog.domain.rules import (
     rating_distribution,
 )
 from apps.catalog.models import (
+    Brand,
     Category,
     Deal,
     Favorite,
@@ -87,10 +92,40 @@ class CategorySelector:
     @staticmethod
     def _annotated() -> QuerySet[Category]:
         visible = Q(products__is_active=True, products__deleted=None)
-        categories: QuerySet[Category] = Category.objects.filter(is_active=True).annotate(
-            products_count=Count("products", filter=visible, distinct=True)
+        categories: QuerySet[Category] = (
+            Category.objects.filter(is_active=True)
+            .annotate(products_count=Count("products", filter=visible, distinct=True))
+            .order_by("position", "name")
         )
         return categories
+
+
+class BrandSelector:
+    def active(self) -> list[BrandView]:
+        return [_brand_view(brand) for brand in _counted_brands()]
+
+    def featured(self) -> list[BrandView]:
+        brands = map(_brand_view, _counted_brands().filter(is_featured=True))
+        return [brand for brand in brands if brand.products_count]
+
+
+def _counted_brands() -> QuerySet[Brand]:
+    visible = visible_products().values("pk")
+    brands: QuerySet[Brand] = (
+        Brand.objects.filter(is_active=True)
+        .annotate(products_count=Count("products", filter=Q(products__in=visible), distinct=True))
+        .order_by("position", "name")
+    )
+    return brands
+
+
+def _brand_view(brand: Brand) -> BrandView:
+    return BrandView(
+        slug=brand.slug,
+        name=brand.name,
+        logo=brand.logo,
+        products_count=getattr(brand, "products_count", 0),
+    )
 
 
 class SitemapSelector:
@@ -123,7 +158,7 @@ class ProductCardSelector:
             product.pk: product
             for product in visible_products()
             .filter(pk__in=ids)
-            .select_related("category")
+            .select_related("category", "brand")
             .prefetch_related(_first_images())
         }
         return [self.card(products[pk]) for pk in ids if pk in products]
@@ -154,6 +189,7 @@ class ProductCardSelector:
             in_stock=product.in_stock,
             free_shipping=product.free_shipping,
             updated_at=product.updated_at,
+            brand=brand_ref(product),
         )
 
 
@@ -165,7 +201,7 @@ class ProductDetailSelector:
         product = (
             visible_products()
             .filter(slug=slug)
-            .select_related("category")
+            .select_related("category", "brand")
             .prefetch_related(
                 "images",
                 "features",
@@ -223,7 +259,7 @@ class ProductDocumentSelector:
         products = (
             visible_products()
             .filter(pk__in=ids)
-            .select_related("category")
+            .select_related("category", "brand")
             .prefetch_related("features")
         )
         return [_document(product) for product in products]
@@ -285,6 +321,11 @@ class FavoriteSelector:
         return ids, queryset.count()
 
 
+def brand_ref(product: Product) -> BrandRef | None:
+    brand = product.brand
+    return BrandRef(slug=brand.slug, name=brand.name) if brand is not None else None
+
+
 def _entries(rows: Iterable[tuple[str, datetime]]) -> tuple[SitemapEntry, ...]:
     return tuple(SitemapEntry(slug=slug, updated_at=updated_at) for slug, updated_at in rows)
 
@@ -319,6 +360,8 @@ def _document(product: Product) -> ProductDocument:
         "category_id": product.category.pk,
         "category_slug": product.category.slug,
         "category_name": product.category.name,
+        "brand_slug": product.brand.slug if product.brand else None,
+        "brand_name": product.brand.name if product.brand else "",
         "features": [feature.name for feature in product.features.all()],
         "current_price": float(product.current_price),
         "on_sale": product.sale_price is not None,
@@ -351,7 +394,7 @@ class AdminProductSelector:
     ) -> tuple[list[AdminProductRow], int, ProductStats]:
         products = _admin_filtered(filters)
         rows = list(
-            products.select_related("category")
+            products.select_related("category", "brand")
             .prefetch_related(_first_images())
             .annotate(variants_count=Count("variants", distinct=True))
             .order_by("-updated_at", "-pk")[offset : offset + limit]
@@ -360,7 +403,7 @@ class AdminProductSelector:
 
     def detail(self, product_id: int) -> AdminProductDetail:
         product = (
-            Product.all_objects.select_related("category")
+            Product.all_objects.select_related("category", "brand")
             .prefetch_related("images", "features", "options", "variants")
             .annotate(variants_count=Count("variants", distinct=True))
             .filter(pk=product_id)
@@ -552,6 +595,37 @@ def _admin_deal_row(deal: Deal) -> tuple[DealTerms, DealProduct, str]:
     )
 
 
+class AdminBrandSelector:
+    def all(self) -> list[AdminBrand]:
+        return [_admin_brand(brand) for brand in _admin_brands()]
+
+    def one(self, brand_id: int) -> AdminBrand:
+        brand = _admin_brands().filter(pk=brand_id).first()
+        if brand is None:
+            raise BrandNotFound
+        return _admin_brand(brand)
+
+
+def _admin_brands() -> QuerySet[Brand]:
+    brands: QuerySet[Brand] = Brand.objects.annotate(
+        products_count=Count("products", filter=Q(products__deleted=None), distinct=True)
+    ).order_by("position", "name")
+    return brands
+
+
+def _admin_brand(brand: Brand) -> AdminBrand:
+    return AdminBrand(
+        id=brand.pk,
+        slug=brand.slug,
+        name=brand.name,
+        logo=brand.logo,
+        is_featured=brand.is_featured,
+        is_active=brand.is_active,
+        position=brand.position,
+        products_count=getattr(brand, "products_count", 0),
+    )
+
+
 class AdminCategorySelector:
     def all(self) -> list[AdminCategory]:
         categories = Category.objects.annotate(
@@ -647,6 +721,7 @@ def _admin_row(product: Product, images: Sequence[ProductImage] | None = None) -
         category=CategoryRef(
             id=product.category.pk, slug=product.category.slug, name=product.category.name
         ),
+        brand=brand_ref(product),
         image=first[0].url if first else "",
         price=product.price,
         sale_price=product.sale_price,

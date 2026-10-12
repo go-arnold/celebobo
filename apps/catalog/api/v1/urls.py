@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework.routers import SimpleRouter
 
 from apps.catalog.api.v1.backoffice_views import (
+    AdminBrandViewSet,
     AdminCategoryViewSet,
     AdminDealViewSet,
     AdminProductViewSet,
@@ -10,6 +11,7 @@ from apps.catalog.api.v1.backoffice_views import (
     AdminVariantViewSet,
 )
 from apps.catalog.api.v1.views import (
+    BrandViewSet,
     CategoryViewSet,
     FavoriteViewSet,
     ProductViewSet,
@@ -18,6 +20,7 @@ from apps.catalog.api.v1.views import (
 )
 
 router = SimpleRouter(use_regex_path=False)
+router.register("brands", BrandViewSet, basename="brand")
 router.register("categories", CategoryViewSet, basename="category")
 router.register("products", ProductViewSet, basename="product")
 
@@ -82,6 +85,21 @@ backoffice = [
         "bo/categories/<id:category_id>/",
         AdminCategoryViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
         name="bo-category",
+    ),
+    path(
+        "bo/brands/",
+        AdminBrandViewSet.as_view({"get": "list", "post": "create"}),
+        name="bo-brands",
+    ),
+    path(
+        "bo/brands/reorder/",
+        AdminBrandViewSet.as_view({"post": "reorder"}),
+        name="bo-brands-reorder",
+    ),
+    path(
+        "bo/brands/<id:brand_id>/",
+        AdminBrandViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
+        name="bo-brand",
     ),
     path("bo/deals/", AdminDealViewSet.as_view({"get": "list", "post": "create"}), name="bo-deals"),
     path(

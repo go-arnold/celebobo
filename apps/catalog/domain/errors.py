@@ -143,3 +143,16 @@ class InvalidDeal(ValidationFailed):
 
     def __init__(self, field: str, detail: str) -> None:
         super().__init__(detail, errors={field: [detail]})
+
+
+class BrandNotFound(NotFound):
+    default_code = "brand_not_found"
+    default_detail = "Marque introuvable."
+
+
+class BrandNameTaken(ValidationFailed):
+    default_code = "brand_name_taken"
+    default_detail = "Une marque porte déjà ce nom."
+
+    def __init__(self) -> None:
+        super().__init__(errors={"name": [self.default_detail]})

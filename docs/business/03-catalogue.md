@@ -85,9 +85,19 @@ author and a note (history at `/bo/products/{id}/stock-movements/`).
 - **Rating**: average of **published** reviews.
 - **Low stock**: shown when `0 < stock ≤ threshold`. Out of stock products remain visible but cannot be added.
 - **Sorting**: relevance, newest/oldest, price ↑/↓, best sellers, best rated, name.
-- **Filters**: category, price range, on sale, in stock, badge, explicit ids. Facets give counts.
+- **Filters**: category, brand (one or several), price range, on sale, in stock, badge, explicit ids. Facets give counts.
 - **Search** uses PostgreSQL full text in French, accent-insensitive; the search bar offers up to 6 suggestions.
 - **Related products**: up to 8 from the same category first.
+
+## Brands
+
+- A product can have a **brand** (Samsung, Apple, Tecno…). Cards and product pages show it, and the
+  search also matches the brand name.
+- A brand has a name, a logo, an order and can be **featured**: the home page shows featured brands
+  that have at least one visible product.
+- Deleting a brand keeps its products, without a brand. The CSV import takes a `brand` column (slug or
+  name); the export writes it.
+- On deployment, existing products get their brand from their name (Galaxy → Samsung, iPhone → Apple…).
 
 ## Deals of the day
 

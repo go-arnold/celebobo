@@ -3,12 +3,14 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.catalog.api.v1.backoffice_serializers import (
+    AdminBrandOutput,
     AdminCategoryOutput,
     AdminDealOutput,
     AdminProductDetailOutput,
     AdminProductFiltersInput,
     AdminProductRowOutput,
     AdminReviewOutput,
+    BrandFieldsSerializer,
     BulkInput,
     BulkOutput,
     CategoryDeleteInput,
@@ -32,6 +34,8 @@ from apps.catalog.domain.deals import DealChanges, DealDraft, DealStatus
 from apps.catalog.domain.enums import ReviewStatus
 from apps.catalog.domain.management import (
     BackofficeProductFilters,
+    BrandChanges,
+    BrandDraft,
     BulkProductAction,
     CategoryChanges,
     CategoryDraft,
@@ -43,6 +47,7 @@ from apps.catalog.domain.management import (
     VariantDraft,
 )
 from apps.catalog.facades import (
+    BrandAdminFacade,
     CategoryAdminFacade,
     DealAdminFacade,
     ProductAdminFacade,
@@ -224,6 +229,37 @@ class AdminCategoryViewSet(UseCaseViewSet):
         return self.respond(
             AdminCategoryOutput, self.categories.reorder(self.actor, ids), many=True
         )
+
+
+class AdminBrandViewSet(UseCaseViewSet):
+    action_permissions = dict.fromkeys(
+        ("list", "create", "partial_update", "destroy", "reorder"), (CATEGORIES_MANAGE,)
+    )
+    brands = Inject(BrandAdminFacade)
+
+    @extend_schema(responses=AdminBrandOutput(many=True))
+    def list(self, request: Request) -> Response:
+        return self.respond(AdminBrandOutput, self.brands.all(), many=True)
+
+    @extend_schema(request=BrandFieldsSerializer, responses={201: AdminBrandOutput})
+    def create(self, request: Request) -> Response:
+        draft = self.parse(BrandFieldsSerializer, into=BrandDraft)
+        return self.respond(AdminBrandOutput, self.brands.create(self.actor, draft), status=201)
+
+    @extend_schema(request=BrandFieldsSerializer, responses=AdminBrandOutput)
+    def partial_update(self, request: Request, brand_id: int) -> Response:
+        changes = self.parse(BrandFieldsSerializer, into=BrandChanges, partial=True)
+        return self.respond(AdminBrandOutput, self.brands.update(self.actor, brand_id, changes))
+
+    @extend_schema(responses={204: None})
+    def destroy(self, request: Request, brand_id: int) -> Response:
+        self.brands.delete(self.actor, brand_id)
+        return Response(status=204)
+
+    @extend_schema(request=ReorderInput, responses=AdminBrandOutput(many=True))
+    def reorder(self, request: Request) -> Response:
+        ids = self.validated(ReorderInput)["ids"]
+        return self.respond(AdminBrandOutput, self.brands.reorder(self.actor, ids), many=True)
 
 
 class AdminReviewViewSet(UseCaseViewSet):

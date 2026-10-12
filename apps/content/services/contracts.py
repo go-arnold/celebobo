@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Protocol
 
 from apps.catalog.domain.deals import DealOfTheDay
-from apps.catalog.domain.read_models import CatalogSitemap, CategoryView, ProductCard
+from apps.catalog.domain.read_models import BrandView, CatalogSitemap, CategoryView, ProductCard
 from apps.content.domain.read_models import ShippingInfo
 from core.domain.actor import Actor
 
@@ -17,6 +17,8 @@ class Showcase(Protocol):
     def best_sellers(self, actor: Actor, *, limit: int) -> list[ProductCard]: ...
 
     def categories(self) -> list[CategoryView]: ...
+
+    def brands(self) -> list[BrandView]: ...
 
     def in_category(self, actor: Actor, slug: str, *, limit: int) -> list[ProductCard]: ...
 

@@ -4,6 +4,7 @@ from dataclasses import dataclass, replace
 from django.db import transaction
 
 from apps.catalog.domain.backoffice import (
+    AdminBrand,
     AdminCategory,
     AdminProductDetail,
     AdminProductRow,
@@ -23,6 +24,7 @@ from apps.catalog.domain.deals import (
 )
 from apps.catalog.domain.enums import ReviewStatus, StockReason
 from apps.catalog.domain.errors import (
+    BrandNotFound,
     CategoryNotFound,
     DealNotFound,
     ReviewNotFound,
@@ -30,6 +32,7 @@ from apps.catalog.domain.errors import (
     VariantsManageStock,
 )
 from apps.catalog.domain.events import (
+    BrandChanged,
     CategoryChanged,
     FavoriteAdded,
     FavoriteRemoved,
@@ -42,6 +45,8 @@ from apps.catalog.domain.events import (
 )
 from apps.catalog.domain.management import (
     BackofficeProductFilters,
+    BrandChanges,
+    BrandDraft,
     BulkAction,
     BulkProductAction,
     CategoryChanges,
@@ -55,6 +60,7 @@ from apps.catalog.domain.management import (
 )
 from apps.catalog.domain.queries import PostReview, ProductQuery, StockLine, StockSource
 from apps.catalog.domain.read_models import (
+    BrandView,
     CatalogSitemap,
     CategoryView,
     Facets,
@@ -66,8 +72,9 @@ from apps.catalog.domain.read_models import (
     ReviewView,
     Suggestion,
 )
-from apps.catalog.models import Category, Deal, Product, ProductVariant, StockMovement
+from apps.catalog.models import Brand, Category, Deal, Product, ProductVariant, StockMovement
 from apps.catalog.repositories import (
+    BrandRepository,
     CategoryAdminRepository,
     DealRepository,
     ProductAdminRepository,
@@ -75,9 +82,11 @@ from apps.catalog.repositories import (
     StockRepository,
 )
 from apps.catalog.selectors import (
+    AdminBrandSelector,
     AdminCategorySelector,
     AdminProductSelector,
     AdminReviewSelector,
+    BrandSelector,
     CategorySelector,
     FavoriteSelector,
     ProductCardSelector,
@@ -93,6 +102,7 @@ from apps.catalog.services.engagement import FavoriteService, ReviewService
 from apps.catalog.services.inventory import InventoryService
 from apps.catalog.services.management import (
     ADMIN_SOURCE,
+    BrandAdminService,
     CategoryAdminService,
     ProductAdminService,
     ReviewModerationService,
@@ -139,6 +149,7 @@ class CatalogFacade:
         related: RelatedProducts,
         cache: CatalogCache,
         sitemap: SitemapSelector,
+        brands: BrandSelector,
         deals: LiveDeals,
         related_limit: int,
         suggestion_limit: int,
@@ -151,12 +162,19 @@ class CatalogFacade:
         self._favorites = favorites
         self._related = related
         self._cache = cache
+        self._brands = brands
         self._deals = deals
         self._related_limit = related_limit
         self._suggestion_limit = suggestion_limit
 
     def categories(self) -> list[CategoryView]:
         return self._cache.get_or_set("categories", self._categories.active)
+
+    def brands(self) -> list[BrandView]:
+        return self._cache.get_or_set("brands", self._brands.active)
+
+    def featured_brands(self) -> list[BrandView]:
+        return self._cache.get_or_set("brands:featured", self._brands.featured)
 
     def category(self, slug: str) -> CategoryView:
         return self._cache.get_or_set(
@@ -689,3 +707,62 @@ class DealAdminFacade:
 
     def _changed(self, actor: Actor, product_id: int) -> None:
         self._publisher.publish(ProductChanged(product_id=product_id, actor_id=actor.user_id))
+
+
+@logged_facade
+class BrandAdminFacade:
+    def __init__(
+        self,
+        *,
+        brands: BrandAdminService,
+        repository: BrandRepository,
+        selector: AdminBrandSelector,
+        publisher: EventPublisher,
+    ) -> None:
+        self._brands = brands
+        self._repository = repository
+        self._selector = selector
+        self._publisher = publisher
+
+    def all(self) -> list[AdminBrand]:
+        return self._selector.all()
+
+    def create(self, actor: Actor, draft: BrandDraft) -> AdminBrand:
+        with transaction.atomic():
+            brand = self._brands.create(draft)
+            self._changed(actor, brand, products=False)
+        return self._selector.one(brand.pk)
+
+    def update(self, actor: Actor, brand_id: int, changes: BrandChanges) -> AdminBrand:
+        with transaction.atomic():
+            brand = self._brands.update(self._locked(brand_id), changes)
+            self._changed(actor, brand, products=True)
+        return self._selector.one(brand_id)
+
+    def delete(self, actor: Actor, brand_id: int) -> None:
+        with transaction.atomic():
+            brand = self._locked(brand_id)
+            self._changed(actor, brand, products=True)
+            self._repository.delete(brand)
+
+    def reorder(self, actor: Actor, ids: Sequence[int]) -> list[AdminBrand]:
+        with transaction.atomic():
+            self._repository.reorder(ids)
+            for brand_id in ids:
+                self._publisher.publish(BrandChanged(brand_id=brand_id, actor_id=actor.user_id))
+        return self._selector.all()
+
+    def _locked(self, brand_id: int) -> Brand:
+        brand = self._repository.get(brand_id, for_update=True)
+        if brand is None:
+            raise BrandNotFound
+        return brand
+
+    # cards and search documents carry the brand name, so its products are refreshed too
+    def _changed(self, actor: Actor, brand: Brand, *, products: bool) -> None:
+        self._publisher.publish(BrandChanged(brand_id=brand.pk, actor_id=actor.user_id))
+        product_ids = self._repository.product_ids(brand) if products else []
+        if product_ids:
+            self._publisher.publish(
+                ProductsChanged(product_ids=tuple(product_ids), actor_id=actor.user_id)
+            )

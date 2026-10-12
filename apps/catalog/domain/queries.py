@@ -9,6 +9,7 @@ from apps.catalog.domain.enums import Badge, ProductOrdering
 class ProductQuery:
     text: str | None = None
     category: str | None = None
+    brands: tuple[str, ...] = ()
     ids: tuple[int, ...] = ()
     on_sale: bool | None = None
     in_stock: bool | None = None

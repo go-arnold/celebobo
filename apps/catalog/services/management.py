@@ -7,6 +7,8 @@ from django.utils.text import slugify
 
 from apps.catalog.domain.enums import ReviewStatus, StockReason
 from apps.catalog.domain.errors import (
+    BrandNameTaken,
+    BrandNotFound,
     CategoryNameTaken,
     CategoryNotEmpty,
     CategoryNotFound,
@@ -20,6 +22,8 @@ from apps.catalog.domain.errors import (
 )
 from apps.catalog.domain.management import (
     AdjustmentMode,
+    BrandChanges,
+    BrandDraft,
     BulkAction,
     BulkProductAction,
     CategoryChanges,
@@ -41,8 +45,9 @@ from apps.catalog.domain.management_rules import (
     variant_label,
 )
 from apps.catalog.domain.queries import StockSource
-from apps.catalog.models import Category, Product, ProductVariant, Review, StockMovement
+from apps.catalog.models import Brand, Category, Product, ProductVariant, Review, StockMovement
 from apps.catalog.repositories import (
+    BrandRepository,
     CategoryAdminRepository,
     ProductAdminRepository,
     ProductRepository,
@@ -83,10 +88,12 @@ class ProductAdminService:
         categories: CategoryAdminRepository,
         media: MediaUrls,
         *,
+        brands: BrandRepository,
         today: Callable[[], date],
     ) -> None:
         self._products = products
         self._categories = categories
+        self._brands = brands
         self._media = media
         self._today = today
         self._slugs = SlugService(products.slug_taken, max_length=280)
@@ -105,6 +112,7 @@ class ProductAdminService:
             seo_title=draft.seo_title.strip(),
             seo_description=draft.seo_description.strip(),
             category=category,
+            brand=self._brand(draft.brand_id),
             badge=draft.badge.value if draft.badge else "",
             price=draft.price,
             sale_price=draft.sale_price,
@@ -138,6 +146,9 @@ class ProductAdminService:
         if "category_id" in values:
             product.category = self._category(values.pop("category_id"))
             fields.append("category")
+        if "brand_id" in values:
+            product.brand = self._brand(values.pop("brand_id"))
+            fields.append("brand")
         if "badge" in values:
             badge = values.pop("badge")
             product.badge = badge.value if badge else ""
@@ -171,6 +182,7 @@ class ProductAdminService:
             seo_title=product.seo_title,
             seo_description=product.seo_description,
             category=product.category,
+            brand=product.brand,
             badge=product.badge,
             price=product.price,
             sale_price=product.sale_price,
@@ -242,6 +254,14 @@ class ProductAdminService:
         if category is None:
             raise ValidationFailed(errors={"category_id": [CategoryNotFound.default_detail]})
         return category
+
+    def _brand(self, brand_id: int | None) -> Brand | None:
+        if brand_id is None:
+            return None
+        brand = self._brands.get(brand_id)
+        if brand is None:
+            raise ValidationFailed(errors={"brand_id": [BrandNotFound.default_detail]})
+        return brand
 
     def _image_urls(self, media_ids: Sequence[int]) -> list[str]:
         urls = self._media.product_images(media_ids)
@@ -495,6 +515,48 @@ class CategoryAdminService:
         urls = self._media.category_images([media_id])
         if media_id not in urls:
             raise UnknownImages("image_id")
+        return urls[media_id]
+
+
+class BrandAdminService:
+    def __init__(self, brands: BrandRepository, media: MediaUrls) -> None:
+        self._brands = brands
+        self._media = media
+        self._slugs = SlugService(brands.slug_taken, max_length=100)
+
+    def create(self, draft: BrandDraft) -> Brand:
+        name = " ".join(draft.name.split())
+        if self._brands.name_taken(name):
+            raise BrandNameTaken
+        return self._brands.create(
+            name=name,
+            slug=self._slugs.generate(name),
+            logo=self._logo(draft.logo_id),
+            is_featured=draft.is_featured,
+            is_active=draft.is_active,
+            position=self._brands.next_position(),
+        )
+
+    def update(self, brand: Brand, changes: BrandChanges) -> Brand:
+        values: dict[str, Any] = dict(provided(changes))
+        if "name" in values:
+            values["name"] = " ".join(values["name"].split())
+            if self._brands.name_taken(values["name"], exclude_id=brand.pk):
+                raise BrandNameTaken
+        if "logo_id" in values:
+            values["logo"] = self._logo(values.pop("logo_id"))
+        for name, value in values.items():
+            setattr(brand, name, value)
+        if values:
+            self._brands.save(brand, fields=list(values))
+        return brand
+
+    def _logo(self, media_id: int | None) -> str:
+        if media_id is None:
+            return ""
+        urls = self._media.brand_logos([media_id])
+        if media_id not in urls:
+            raise UnknownImages("logo_id")
         return urls[media_id]
 
 

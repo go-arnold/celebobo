@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from rest_framework import serializers
@@ -6,10 +7,20 @@ from apps.catalog.conf import catalog_settings
 from apps.catalog.domain.enums import Badge, ProductOrdering
 from core.api.fields import MAX_INTEGER
 
+MAX_BRANDS = 20
+SLUG = re.compile(r"[-\w]{1,100}", re.ASCII)
+
 
 class ProductQueryInput(serializers.Serializer[Any]):
     search = serializers.CharField(source="text", max_length=100, required=False)
     category = serializers.SlugField(max_length=120, required=False)
+    brand = serializers.ListField(
+        child=serializers.CharField(max_length=500),
+        source="brands",
+        required=False,
+        max_length=MAX_BRANDS,
+        help_text="Slug de marque ; répétez le paramètre ou séparez par des virgules.",
+    )
     ids = serializers.ListField(
         child=serializers.IntegerField(min_value=1, max_value=MAX_INTEGER), required=False
     )
@@ -40,8 +51,27 @@ class ProductQueryInput(serializers.Serializer[Any]):
             attrs["ordering"] = ProductOrdering(attrs["ordering"])
         if "ids" in attrs:
             attrs["ids"] = tuple(attrs["ids"])
+        if "brands" in attrs:
+            attrs["brands"] = _slugs(attrs["brands"])
         attrs.setdefault("page_size", catalog_settings().page_size)
         return attrs
+
+
+def _slugs(values: list[str]) -> tuple[str, ...]:
+    slugs = tuple(dict.fromkeys(slug.strip() for value in values for slug in value.split(",")))
+    if len(slugs) > MAX_BRANDS or not all(SLUG.fullmatch(slug) for slug in slugs if slug):
+        raise serializers.ValidationError({"brand": ["Marques invalides."]})
+    return tuple(slug for slug in slugs if slug)
+
+
+class BrandRefOutput(serializers.Serializer[Any]):
+    slug = serializers.SlugField()
+    name = serializers.CharField()
+
+
+class BrandOutput(BrandRefOutput):
+    logo = serializers.CharField()
+    products_count = serializers.IntegerField()
 
 
 class CategoryRefOutput(serializers.Serializer[Any]):
@@ -66,6 +96,7 @@ class ProductCardOutput(serializers.Serializer[Any]):
     name = serializers.CharField()
     description = serializers.CharField()
     category = CategoryRefOutput()
+    brand = BrandRefOutput(allow_null=True)
     image = serializers.CharField()
     price = serializers.DecimalField(max_digits=10, decimal_places=2)
     sale_price = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)

@@ -1,4 +1,5 @@
 from apps.catalog.domain.events import (
+    BrandChanged,
     CategoryChanged,
     ProductChanged,
     ProductRemoved,
@@ -14,7 +15,13 @@ from core.events.bus import event_bus
 
 
 @event_bus.on(
-    ProductChanged, ProductsChanged, ProductRemoved, ProductsRemoved, CategoryChanged, ReviewPosted
+    ProductChanged,
+    ProductsChanged,
+    ProductRemoved,
+    ProductsRemoved,
+    CategoryChanged,
+    BrandChanged,
+    ReviewPosted,
 )
 def invalidate_catalog_cache(_: DomainEvent) -> None:
     container.resolve(CatalogCache).bump()

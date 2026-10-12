@@ -14,6 +14,20 @@ class CategoryRef:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class BrandRef:
+    slug: str
+    name: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BrandView:
+    slug: str
+    name: str
+    logo: str
+    products_count: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class CategoryView:
     id: int
     slug: str
@@ -45,6 +59,7 @@ class ProductCard:
     in_stock: bool
     free_shipping: bool
     updated_at: datetime
+    brand: BrandRef | None = None
     is_favorite: bool = False
 
 
