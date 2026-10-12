@@ -11,6 +11,7 @@ from apps.catalog.api.v1.serializers import (
 )
 from apps.content.domain.enums import BannerTone, ContactStatus, ContactSubject, SectionKind
 from apps.content.domain.placements import HERO, MAX_PLACEMENT_LENGTH, valid_placement
+from apps.loyalty.api.v1.serializers import ProgrammesOutput
 from core.api.fields import MAX_INTEGER
 
 PHONE_PATTERN = r"^\+?[\d\s().-]{7,20}$"
@@ -232,6 +233,8 @@ class SettingsInput(serializers.Serializer[Any]):
     social_links = serializers.DictField(child=serializers.URLField(max_length=300))
     newsletter_code = serializers.CharField(max_length=30, allow_blank=True)
     newsletter_discount = serializers.IntegerField(min_value=0, max_value=90)
+    return_days = serializers.IntegerField(min_value=0, max_value=365)
+    support_always_open = serializers.BooleanField()
 
     def validate_opening_hours(self, value: list[dict[str, str]]) -> list[dict[str, str]]:
         return [dict(item) for item in value]
@@ -254,7 +257,10 @@ class PublicSettingsOutput(serializers.Serializer[Any]):
     payment_methods = serializers.ListField(child=serializers.CharField())
     social_links = serializers.DictField(child=serializers.CharField())
     newsletter_discount = serializers.IntegerField()
+    return_days = serializers.IntegerField()
+    support_always_open = serializers.BooleanField()
     shipping = ShippingOutput()
+    programmes = ProgrammesOutput()
 
 
 class AdminSettingsOutput(PublicSettingsOutput):

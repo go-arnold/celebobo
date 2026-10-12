@@ -158,6 +158,8 @@ class SiteSettings(models.Model):
     social_links = models.JSONField(default=dict, blank=True)
     newsletter_code = models.CharField(max_length=30, blank=True)
     newsletter_discount = models.PositiveSmallIntegerField(default=10)
+    return_days = models.PositiveSmallIntegerField("délai de retour (jours)", default=7)
+    support_always_open = models.BooleanField("service client 24/7", default=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

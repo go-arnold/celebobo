@@ -18,6 +18,7 @@ class ShippingRules:
     flat_fee: Decimal
     zone: str = ""
     delivery_estimate: str = ""
+    member_free: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -51,13 +52,20 @@ class Quote:
 
 
 def quote(
-    lines: Sequence[QuoteLine], rules: ShippingRules, coupon: CouponTerms | None = None
+    lines: Sequence[QuoteLine],
+    rules: ShippingRules,
+    coupon: CouponTerms | None = None,
+    *,
+    member: bool = False,
 ) -> Quote:
     subtotal = sum((line.total for line in lines), ZERO)
     discount = discount_for(coupon, subtotal) if coupon else ZERO
-    shipping = ZERO if coupon and coupon.free_shipping else _shipping_fee(lines, subtotal, rules)
+    free = member or (coupon is not None and coupon.free_shipping)
+    shipping = ZERO if free else _shipping_fee(lines, subtotal, rules)
     remaining = (
-        max(rules.free_threshold - subtotal, ZERO) if rules.free_threshold is not None else None
+        max(rules.free_threshold - subtotal, ZERO)
+        if rules.free_threshold is not None and not member
+        else None
     )
     return Quote(
         subtotal=subtotal,

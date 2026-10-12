@@ -55,7 +55,12 @@ from apps.content.selectors import (
 )
 from apps.content.services.banners import with_products
 from apps.content.services.contact import ContactService
-from apps.content.services.contracts import PageRevalidator, ShippingSource, Showcase
+from apps.content.services.contracts import (
+    PageRevalidator,
+    ProgrammesSource,
+    ShippingSource,
+    Showcase,
+)
 from apps.content.services.editors import Editor
 from apps.content.services.home import HomeService
 from apps.content.services.mailer import ContentMailer
@@ -177,6 +182,7 @@ class SiteContentFacade:
         banner_selector: BannerSelector,
         site: SiteSettingsService,
         shipping: ShippingSource,
+        programmes: ProgrammesSource,
         home: HomeService,
         showcase: Showcase,
         cache: VersionedCache,
@@ -194,6 +200,7 @@ class SiteContentFacade:
         self._banner_selector = banner_selector
         self._site = site
         self._shipping = shipping
+        self._programmes = programmes
         self._home = home
         self._showcase = showcase
         self._cache = cache
@@ -211,14 +218,16 @@ class SiteContentFacade:
         )
 
     def public_settings(self) -> SiteSettingsView:
-        return self._cache.get_or_set(
-            "settings", lambda: to_settings_view(self._site.current(), self._shipping.shipping())
-        )
+        return self._cache.get_or_set("settings", self._settings_view)
 
     def admin_settings(self) -> SiteSettingsView:
-        return to_settings_view(
-            self._site.current(), self._shipping.shipping(), include_private=True
+        return self._settings_view(include_private=True)
+
+    def _settings_view(self, *, include_private: bool = False) -> SiteSettingsView:
+        view = to_settings_view(
+            self._site.current(), self._shipping.shipping(), include_private=include_private
         )
+        return replace(view, programmes=self._programmes.programmes())
 
     def update_settings(self, actor: Actor, changes: SettingsChanges) -> SiteSettingsView:
         with transaction.atomic():

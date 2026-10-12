@@ -73,6 +73,11 @@ def as_api(user) -> APIClient:
 
 
 class TestProductCreation:
+    def test_slug_never_shadows_a_products_sub_route(self, staff_api, phones):
+        response = staff_api.post(PRODUCTS, payload(phones, name="Facets"), format="json")
+
+        assert response.json()["slug"] == "facets-2"
+
     def test_creates_with_slug_images_stock_and_margin(
         self, staff_api, manager, phones, published_events
     ):

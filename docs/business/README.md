@@ -18,6 +18,7 @@ When the code and this document disagree, the code wins — update the document.
 | 9 | [AI assistant](09-assistant.md) | What it answers, limits, history |
 | 10 | [Back-office tools](10-backoffice-tools.md) | Dashboard, analytics, exports/imports, uploads, audit log, scheduled tasks |
 | 11 | [Error codes](11-error-codes.md) | Every business error the API can return |
+| 12 | [Loyalty programmes](12-loyalty.md) | Membership, cashback, mobile app links and their settings |
 
 ## The business in one paragraph
 

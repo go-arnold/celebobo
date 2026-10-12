@@ -29,6 +29,8 @@ One record, `GET /settings/public/` exposes the public part to the shop:
 | Social links | Footer |
 | USD → CDF rate | Showing prices in Congolese francs |
 | Newsletter code and discount (%) | Code given to new subscribers |
+| Return period (days, 7 by default) | "Retours sous x jours" wherever the shop promises it |
+| Support open 24/7 (yes by default) | "Service client 24/7" in the header, opening hours otherwise |
 | Shipping summary (from the zones) | "Free shipping from $…" messages |
 
 ## Contact form

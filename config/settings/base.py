@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "apps.assistant",
     "apps.content",
     "apps.push",
+    "apps.loyalty",
     "apps.demo",
     "allauth",
     "allauth.account",
@@ -242,7 +243,14 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": r"/api/v[0-9]+",
     "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
-    "ENUM_NAME_OVERRIDES": {"SectionKindEnum": ["showcase", "column"]},
+    "ENUM_NAME_OVERRIDES": {
+        "SectionKindEnum": ["showcase", "column"],
+        "MembershipPlanEnum": ["trial", "monthly", "yearly"],
+        "PaidPlanEnum": ["monthly", "yearly"],
+        "MembershipStatusEnum": ["none", "trial", "active", "expired"],
+        "MemberStatusEnum": ["trial", "active", "expired"],
+        "MembershipRequestStatusEnum": ["pending", "confirmed", "rejected", "cancelled"],
+    },
 }
 
 CORS_ALLOWED_ORIGINS: list[str] = env.list("CORS_ALLOWED_ORIGINS", default=[])
@@ -388,6 +396,10 @@ CELERY_BEAT_SCHEDULE = {
     "announce-deals": {
         "task": "catalog.announce_deals",
         "schedule": 60,
+    },
+    "remind-memberships": {
+        "task": "loyalty.remind_memberships",
+        "schedule": 60 * 60,
     },
     "purge-document-jobs": {
         "task": "documents.purge_jobs",

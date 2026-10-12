@@ -113,6 +113,8 @@ class SettingsChanges:
     social_links: Maybe[dict[str, str]] = UNSET
     newsletter_code: Maybe[str] = UNSET
     newsletter_discount: Maybe[int] = UNSET
+    return_days: Maybe[int] = UNSET
+    support_always_open: Maybe[bool] = UNSET
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

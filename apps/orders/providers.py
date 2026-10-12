@@ -6,6 +6,7 @@ from apps.orders.adapters.gateways import (
     AccountsResellerDirectory,
     CatalogInventory,
     DeliveredOrderPurchases,
+    NoMembers,
     NoOrderThreads,
     OrderDealSales,
 )
@@ -29,7 +30,13 @@ from apps.orders.selectors import OrderSelector, PromotionSelector
 from apps.orders.services.adjustments import AdjustmentService
 from apps.orders.services.cart import CartService
 from apps.orders.services.checkout import CheckoutService
-from apps.orders.services.contracts import AddressBook, Inventory, OrderThreads, ResellerDirectory
+from apps.orders.services.contracts import (
+    AddressBook,
+    Inventory,
+    Members,
+    OrderThreads,
+    ResellerDirectory,
+)
 from apps.orders.services.coupons import CouponService
 from apps.orders.services.lifecycle import OrderLifecycleService
 from apps.orders.services.pricing import PricingService
@@ -44,6 +51,7 @@ def register(container: Container) -> None:
     container.register(AddressBook, lambda _: AccountsAddressBook())
     container.register(ResellerDirectory, lambda _: AccountsResellerDirectory())
     container.register(OrderThreads, lambda _: NoOrderThreads())
+    container.register(Members, lambda _: NoMembers())
     container.register(OrderStateMachine, lambda _: OrderStateMachine(TransitionPolicyFactory()))
     container.register(PurchaseVerifier, lambda _: DeliveredOrderPurchases(), replace=True)
     container.register(DealSales, lambda _: OrderDealSales(), replace=True)
@@ -66,6 +74,7 @@ def _pricing(container: Container) -> PricingService:
         container.resolve(Inventory),
         ShippingResolver(ShippingZoneRepository(), settings.shipping_rules),
         _coupons(),
+        container.resolve(Members),
         max_lines=settings.max_lines,
     )
 

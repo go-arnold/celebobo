@@ -179,6 +179,7 @@ class QuoteOutput(serializers.Serializer[Any]):
     delivery_estimate = serializers.CharField()
     coupon_code = serializers.CharField(allow_null=True)
     coupon_error = serializers.CharField(allow_null=True)
+    member_free_shipping = serializers.BooleanField()
 
 
 class CartLineOutput(serializers.Serializer[Any]):

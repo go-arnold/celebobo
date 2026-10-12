@@ -55,6 +55,10 @@ Every notification is stored **in the app** (bell / notifications page) and may 
 | Support thread assigned | The reseller | order assigned | `/admin/messages/{id}` |
 | Price proposed | The client | status changed | `/messages/{id}` |
 | Proposal accepted/refused | The proposer | status changed | `/admin/messages/{id}` |
+| Plus membership requested | All active staff | order assigned | `/admin/abonnements` |
+| Plus membership started (trial or paid) | The client | status changed | `/compte/abonnement` |
+| Plus request refused | The client | status changed | `/compte/abonnement` |
+| Plus membership ending soon | The client | status changed | `/compte/abonnement` |
 
 Notifications can be marked read one by one or all at once; `/notifications/unread-counts/` returns
 unread notifications and unread conversations (also pushed live as `unread.counts`).

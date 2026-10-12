@@ -36,6 +36,8 @@ total     = subtotal − discount + shipping
    free-shipping product. Otherwise the fee is the **highest** of the zone fee / product-specific fees
    among the paying lines.
 4. The quote returns how much is missing to reach free shipping.
+5. A **Celebobo Plus member** ships for free, with no minimum, in the zones marked "livraison
+   offerte aux abonnés" (Bukavu and Goma); the quote then says `member_free_shipping`.
 
 Only one zone can be the default; marking a zone as default unsets the previous one.
 
