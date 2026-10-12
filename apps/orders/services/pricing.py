@@ -9,7 +9,7 @@ from apps.orders.domain.errors import CouponRejected, EmptyOrder, TooManyLines
 from apps.orders.domain.pricing import ZERO, CouponTerms, QuoteLine, quote
 from apps.orders.domain.read_models import QuoteLineView, QuoteView
 from apps.orders.models import Coupon
-from apps.orders.services.contracts import Inventory, Members
+from apps.orders.services.contracts import Inventory, Members, Wallet
 from apps.orders.services.coupons import CouponService
 from apps.orders.services.shipping import ShippingResolver
 
@@ -21,6 +21,7 @@ class PricingContext:
     user_id: int | None = None
     strict: bool = False
     lock: bool = False
+    use_cashback: bool = False
 
 
 DEFAULT_CONTEXT = PricingContext()
@@ -40,6 +41,7 @@ class PricingService:
         shipping: ShippingResolver,
         coupons: CouponService,
         members: Members,
+        wallet: Wallet,
         *,
         max_lines: int,
     ) -> None:
@@ -47,6 +49,7 @@ class PricingService:
         self._shipping = shipping
         self._coupons = coupons
         self._members = members
+        self._wallet = wallet
         self._max_lines = max_lines
 
     def price(
@@ -81,19 +84,29 @@ class PricingService:
             and self._members.is_member(context.user_id)
         )
         result = quote(quote_lines, rules, terms, member=member)
+        available = (
+            self._wallet.usable(
+                context.user_id, result.subtotal - result.discount, lock=context.lock
+            )
+            if context.user_id is not None
+            else ZERO
+        )
+        cashback = available if context.use_cashback else ZERO
         return (
             QuoteView(
                 lines=tuple(_line_view(line) for line in priced),
                 subtotal=result.subtotal,
                 discount=result.discount,
                 shipping_fee=result.shipping_fee,
-                total=result.total,
+                total=result.total - cashback,
                 free_shipping_remaining=result.free_shipping_remaining,
                 shipping_zone=rules.zone,
                 delivery_estimate=rules.delivery_estimate,
                 coupon_code=terms.code if terms else None,
                 coupon_error=error,
                 member_free_shipping=member,
+                cashback=cashback,
+                cashback_available=available,
             ),
             coupon,
         )

@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from apps.loyalty.api.v1.serializers import (
     AdminMemberOutput,
     AdminRequestOutput,
+    BalanceOutput,
     LoyaltySettingsInput,
     MemberFiltersInput,
     MemberOutput,
@@ -15,7 +16,7 @@ from apps.loyalty.api.v1.serializers import (
 )
 from apps.loyalty.domain.membership import MembershipStatus, RequestMembership, RequestStatus
 from apps.loyalty.domain.settings import LoyaltySettingsChanges
-from apps.loyalty.facades import LoyaltyFacade, MembershipFacade
+from apps.loyalty.facades import CashbackFacade, LoyaltyFacade, MembershipFacade
 from apps.loyalty.permissions import LOYALTY_MANAGE, MEMBERSHIP_MANAGE, MEMBERSHIP_SUBSCRIBE
 from core.api.pagination import page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
@@ -99,3 +100,12 @@ class MemberAdminViewSet(UseCaseViewSet):
         return page_response(
             request, page, total=total, results=AdminMemberOutput(rows, many=True).data
         )
+
+
+class MyCashbackViewSet(UseCaseViewSet):
+    action_permissions = {"retrieve": (MEMBERSHIP_SUBSCRIBE,)}
+    cashback = Inject(CashbackFacade)
+
+    @extend_schema(responses=BalanceOutput)
+    def retrieve(self, request: Request) -> Response:
+        return self.respond(BalanceOutput, self.cashback.mine(self.actor))

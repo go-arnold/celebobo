@@ -166,6 +166,7 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 409 | `membership_request_pending` | Une demande d'abonnement attend déjà la confirmation du paiement. |
 | 404 | `membership_request_not_found` | Demande d'abonnement introuvable. |
 | 409 | `membership_request_handled` | Cette demande a déjà été traitée. |
+| 409 | `cashback_unavailable` | Votre cagnotte a changé. Mettez à jour votre commande. |
 
 ## Push notifications
 

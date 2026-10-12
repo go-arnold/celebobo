@@ -91,6 +91,10 @@ class Order(models.Model):
     coupon_code = models.CharField(max_length=40, blank=True)
     shipping_zone = models.CharField(max_length=80, blank=True)
     shipping_fee = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
+    # paid from the client's cashback balance, deducted like a discount
+    cashback = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
+    )
     total = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     cancel_reason = models.CharField(max_length=24, choices=CANCEL_CHOICES, blank=True)
     cancel_details = models.CharField(max_length=500, blank=True)
@@ -109,7 +113,10 @@ class Order(models.Model):
         constraints = (
             models.CheckConstraint(
                 condition=models.Q(
-                    total=models.F("subtotal") - models.F("discount") + models.F("shipping_fee")
+                    total=models.F("subtotal")
+                    - models.F("discount")
+                    - models.F("cashback")
+                    + models.F("shipping_fee")
                 ),
                 name="orders_order_total_consistent",
             ),

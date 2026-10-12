@@ -26,6 +26,7 @@ def to_programmes(settings: LoyaltySettings) -> Programmes:
         ),
         cashback=CashbackTerms(
             enabled=settings.cashback_enabled,
+            members_only=settings.cashback_members_only,
             percent=settings.cashback_percent,
             max_share=settings.cashback_max_share,
             min_balance=settings.cashback_min_balance,

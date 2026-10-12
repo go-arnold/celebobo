@@ -56,6 +56,7 @@ class QuoteInput(serializers.Serializer[Any]):
 class QuoteRequestInput(QuoteInput):
     city = serializers.CharField(max_length=120, required=False, allow_blank=True)
     coupon_code = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    use_cashback = serializers.BooleanField(required=False, default=False)
 
 
 class AssignableSearchInput(serializers.Serializer[Any]):
@@ -80,6 +81,7 @@ class PlaceOrderInput(QuoteInput):
     )
     address = DeliveryAddressInput(required=False, allow_null=True)
     note = serializers.CharField(max_length=1000, required=False, allow_blank=True, default="")
+    use_cashback = serializers.BooleanField(required=False, default=False)
 
     def validate_payment_method(self, value: str) -> PaymentMethod:
         return PaymentMethod(value)
@@ -180,6 +182,8 @@ class QuoteOutput(serializers.Serializer[Any]):
     coupon_code = serializers.CharField(allow_null=True)
     coupon_error = serializers.CharField(allow_null=True)
     member_free_shipping = serializers.BooleanField()
+    cashback = serializers.DecimalField(max_digits=10, decimal_places=2)
+    cashback_available = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 
 class CartLineOutput(serializers.Serializer[Any]):
@@ -257,6 +261,8 @@ class OrderDetailOutput(serializers.Serializer[Any]):
     coupon_code = serializers.CharField()
     shipping_zone = serializers.CharField()
     shipping_fee = serializers.DecimalField(max_digits=10, decimal_places=2)
+    cashback = serializers.DecimalField(max_digits=10, decimal_places=2)
+    cashback_earned = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
     cancel_reason = serializers.CharField()
     history = StatusEntryOutput(many=True)
     allowed_transitions = serializers.ListField(child=serializers.CharField())

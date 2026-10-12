@@ -3,11 +3,13 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 
+from apps.loyalty.domain.cashback import EntryKind
 from apps.loyalty.domain.membership import Plan, RequestStatus
 
 SETTINGS_ID = 1
 PLAN_CHOICES = [(item.value, item.value) for item in Plan]
 REQUEST_STATUS_CHOICES = [(item.value, item.value) for item in RequestStatus]
+ENTRY_KIND_CHOICES = [(item.value, item.value) for item in EntryKind]
 MONEY_DIGITS = 10
 MONEY_PLACES = 2
 
@@ -24,6 +26,7 @@ class LoyaltySettings(models.Model):
     membership_trial_days = models.PositiveSmallIntegerField(default=30)
     membership_reminder_days = models.PositiveSmallIntegerField(default=3)
     cashback_enabled = models.BooleanField("cagnotte active", default=False)
+    cashback_members_only = models.BooleanField("cagnotte réservée aux abonnés", default=True)
     cashback_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("3.00"))
     cashback_max_share = models.PositiveSmallIntegerField(default=50)
     cashback_min_balance = models.DecimalField(
@@ -97,3 +100,37 @@ class MembershipRequest(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} — {self.plan}"
+
+
+# credits (earn, refund) keep what is left to spend; debits are negative lines
+class CashbackEntry(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cashback_entries"
+    )
+    order = models.ForeignKey(
+        "orders.Order", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    kind = models.CharField(max_length=10, choices=ENTRY_KIND_CHOICES)
+    amount = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
+    remaining = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
+    )
+    available_at = models.DateTimeField(db_index=True)
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "mouvement de cagnotte"
+        verbose_name_plural = "mouvements de cagnotte"
+        ordering = ("created_at", "pk")
+        indexes = (models.Index(fields=("user", "available_at"), name="loyalty_cashback_user"),)
+        constraints = (
+            models.UniqueConstraint(
+                fields=("order", "kind"),
+                condition=models.Q(order__isnull=False) & ~models.Q(kind="expiry"),
+                name="loyalty_cashback_once_per_order",
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.user} {self.amount:+}"

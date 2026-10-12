@@ -545,6 +545,10 @@ Membership, cashback and mobile app links ([rules](docs/business/12-loyalty.md))
   - Staff (`membership.manage`): `GET /bo/membership/requests/?status=`, `POST <id>/confirm/`, `POST <id>/reject/ {note}`, `GET /bo/memberships/?status=`.
   - Orders ask the `Members` port whether a client is a member; zones with `member_free_shipping` then ship for free.
   - An hourly task reminds members `membership_reminder_days` before the end; every step notifies through messaging.
+- **Cashback**: `CashbackEntry` is a ledger per client. Credits (`earn`, `refund`) keep their `remaining` amount and expiry; debits (`spend`, `reversal`, `expiry`) are negative lines, one of each kind per order at most.
+  - Orders reach it through the `Wallet` port: the quote asks what is `usable` (eligibility, `$1` minimum, `50 %` cap), checkout `spend`s it inside the order transaction (oldest expiry first, rows locked), order details show `cashback_earned`.
+  - `OrderStatusChanged` to `delivered` earns `cashback_percent` of what the products cost after discounts and cashback, available after `return_days`; `cancelled` or `returned` refunds what was spent and reverses what was earned.
+  - `GET /me/cashback/` returns the balance; a daily task expires old credits.
 
 ### `apps.push`
 

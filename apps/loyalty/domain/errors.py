@@ -27,3 +27,8 @@ class MembershipRequestNotFound(NotFound):
 class RequestAlreadyHandled(Conflict):
     default_code = "membership_request_handled"
     default_detail = "Cette demande a déjà été traitée."
+
+
+class CashbackUnavailable(Conflict):
+    default_code = "cashback_unavailable"
+    default_detail = "Votre cagnotte a changé. Mettez à jour votre commande."

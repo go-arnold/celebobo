@@ -134,6 +134,7 @@ class QuoteViewSet(UseCaseViewSet):
             data["lines"],
             city=data.get("city") or None,
             coupon_code=data.get("coupon_code") or None,
+            use_cashback=data.get("use_cashback", False),
         )
         return self.respond(QuoteOutput, quote)
 

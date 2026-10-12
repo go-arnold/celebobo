@@ -55,8 +55,9 @@ class AdjustmentService:
             (line.unit_price * line.quantity for line in self._orders.items(order)), Decimal(0)
         )
         order.discount = min(order.discount, order.subtotal)
-        order.total = order.subtotal - order.discount + order.shipping_fee
-        self._orders.save(order, fields=("subtotal", "discount", "total"))
+        order.cashback = min(order.cashback, order.subtotal - order.discount)
+        order.total = order.subtotal - order.discount - order.cashback + order.shipping_fee
+        self._orders.save(order, fields=("subtotal", "discount", "cashback", "total"))
         return Repricing(order, item, previous)
 
     def _load(self, order_id: int, item_id: int, *, for_update: bool) -> tuple[Order, OrderItem]:

@@ -31,11 +31,24 @@ How it works:
 
 | Rule | Default |
 |---|---|
-| Rate | 3 % of the amount paid for the products, after coupons and deals, delivery excluded |
+| Who | Celebobo Plus members only (`cashback_members_only`, on by default); everyone when turned off |
+| Rate | 3 % of the amount paid for the products, after coupons, deals and the cashback used, delivery excluded |
 | Credit | Pending once the order is delivered, available once the return period is over; a return or cancellation takes it back |
 | Use | A "Cagnotte" line at checkout, up to 50 % of the products, from a $1 balance; never paid out in cash |
 | Expiry | 12 months after the credit |
 | Scope | Online customer orders only, not resellers' in-store sales |
+
+How it works:
+- `GET /me/cashback/` gives what the client can spend (`available`), what waits for the return
+  period (`pending`), the next expiry and whether they qualify (`eligible`).
+- The quote (`POST /checkout/quote/`) returns `cashback_available`; with `use_cashback: true` it
+  applies it as a "Cagnotte" line (`cashback`), and `POST /orders/` takes the same flag.
+- Spending uses the credits that expire first. An order shows what it used (`cashback`) and, once
+  delivered, what it earned (`cashback_earned`); the invoice prints the "Cagnotte" line.
+- A cancelled or returned order gives back what it used and loses what it earned.
+- A daily task expires credits left unused after their validity.
+- Like coupons, the cashback lowers what the client pays but not the sales recorded for resellers'
+  commissions.
 
 ## Mobile app
 
@@ -44,4 +57,4 @@ sent by SMS.
 
 ## Status
 
-Settings and membership are live. Cashback comes next; until then its switch stays off.
+Settings, membership and cashback are live. Each stays hidden until an admin turns it on.

@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from decimal import Decimal
 
 from django.db.models import Sum
 
@@ -62,6 +63,17 @@ class AccountsResellerDirectory:
             )
             for reseller in ResellerSelector().assignable(search)
         ]
+
+
+class NoWallet:
+    def usable(self, user_id: int, base: Decimal, *, lock: bool = False) -> Decimal:
+        return Decimal(0)
+
+    def spend(self, user_id: int, order_id: int, amount: Decimal) -> None:
+        return None
+
+    def earned(self, order_id: int) -> Decimal | None:
+        return None
 
 
 class NoMembers:

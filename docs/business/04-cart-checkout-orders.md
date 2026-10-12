@@ -41,6 +41,9 @@ total     = subtotal − discount + shipping
 
 Only one zone can be the default; marking a zone as default unsets the previous one.
 
+**Cashback**: with `use_cashback`, the client's cashback pays part of the products (see
+[loyalty](12-loyalty.md)); `total = subtotal − discount − cashback + shipping`.
+
 **Coupons** (`coupons.manage`): code (stored upper-case, unique), kind `percent` (≤ 100) or `fixed`
 amount, optional maximum discount, minimum subtotal, start/end dates, total usage limit, per-user
 limit, free-shipping flag, active flag. A coupon is refused when:
