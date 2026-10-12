@@ -8,6 +8,7 @@ from rest_framework.throttling import BaseThrottle
 
 from apps.orders.api.v1.serializers import (
     AssignableResellerOutput,
+    AssignableSearchInput,
     AssignInput,
     CancelInput,
     CartContextInput,
@@ -251,10 +252,9 @@ class DispatchViewSet(UseCaseViewSet):
         )
 
     @extend_schema(
-        parameters=[OpenApiParameter("search", str, required=False)],
-        responses=AssignableResellerOutput(many=True),
+        parameters=[AssignableSearchInput], responses=AssignableResellerOutput(many=True)
     )
     def assignable(self, request: Request) -> Response:
-        search = request.query_params.get("search")
-        resellers = self.dispatch_orders.assignable(str(search) if search else None)
+        search = self.validated(AssignableSearchInput, data=request.query_params).get("search")
+        resellers = self.dispatch_orders.assignable(search or None)
         return self.respond(AssignableResellerOutput, resellers, many=True)

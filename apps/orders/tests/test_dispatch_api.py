@@ -101,6 +101,11 @@ class TestAssignment:
         assert order.assigned_reseller is None
         assert published_events.single(AssignmentDeclined).reason == "Indisponible"
 
+    def test_assignable_search_rejects_null_bytes(self, as_user, manager):
+        response = as_user(manager).get("/api/v1/bo/resellers/assignable/", {"search": "\x00"})
+
+        assert response.status_code == 400
+
     def test_assignable_resellers_with_workload(self, as_user, manager, reseller, order):
         assign(as_user(manager), order, reseller)
 

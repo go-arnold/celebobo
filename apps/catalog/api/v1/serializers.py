@@ -132,6 +132,10 @@ class FacetsOutput(serializers.Serializer[Any]):
     on_sale = serializers.IntegerField()
 
 
+class SuggestInput(serializers.Serializer[Any]):
+    q = serializers.CharField(required=False, allow_blank=True, default="", max_length=100)
+
+
 class SuggestionOutput(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     slug = serializers.SlugField()

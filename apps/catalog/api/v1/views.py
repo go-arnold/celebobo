@@ -16,6 +16,7 @@ from apps.catalog.api.v1.serializers import (
     ReviewInput,
     ReviewOutput,
     ReviewSummaryOutput,
+    SuggestInput,
     SuggestionOutput,
 )
 from apps.catalog.domain.queries import PostReview, ProductQuery
@@ -88,7 +89,8 @@ class SuggestViewSet(UseCaseViewSet):
 
     @extend_schema(parameters=[SEARCH_PARAMETER], responses=SuggestionOutput(many=True))
     def list(self, request: Request) -> Response:
-        suggestions = self.catalog.suggest(str(request.query_params.get("q", "")))
+        query = self.validated(SuggestInput, data=request.query_params)["q"]
+        suggestions = self.catalog.suggest(query)
         return self.respond(SuggestionOutput, suggestions, many=True)
 
 
