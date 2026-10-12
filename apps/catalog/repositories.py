@@ -10,6 +10,7 @@ from apps.catalog.domain.management import OptionInput
 from apps.catalog.domain.queries import StockSource
 from apps.catalog.models import (
     Category,
+    Deal,
     Favorite,
     Product,
     ProductFeature,
@@ -280,6 +281,38 @@ class CategoryAdminRepository:
     def reorder(self, ids: Sequence[int]) -> None:
         for position, category_id in enumerate(ids, start=1):
             Category.objects.filter(pk=category_id).update(position=position)
+
+
+class DealRepository:
+    def get(self, deal_id: int, *, for_update: bool = False) -> Deal | None:
+        deals = Deal.objects.select_for_update() if for_update else Deal.objects
+        return deals.filter(pk=deal_id).first()
+
+    def create(self, **fields: Any) -> Deal:
+        deal: Deal = Deal.objects.create(**fields)
+        return deal
+
+    def save(self, deal: Deal, *, fields: Iterable[str]) -> None:
+        deal.save(update_fields=[*fields, "updated_at"])
+
+    def delete(self, deal: Deal) -> None:
+        deal.delete()
+
+    def overlaps(self, deal: Deal) -> bool:
+        return (
+            Deal.objects.filter(
+                product_id=deal.product_id,
+                is_active=True,
+                starts_at__lt=deal.ends_at,
+                ends_at__gt=deal.starts_at,
+            )
+            .exclude(pk=deal.pk)
+            .exists()
+        )
+
+    def announce(self, statuses: dict[int, str]) -> None:
+        for deal_id, status in statuses.items():
+            Deal.objects.filter(pk=deal_id).update(announced=status)
 
 
 class ReviewAdminRepository:

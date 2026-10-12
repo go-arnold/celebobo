@@ -12,9 +12,19 @@ from apps.catalog.domain.backoffice import (
     ProductStats,
     StockMovementView,
 )
+from apps.catalog.domain.deals import (
+    AdminDeal,
+    DealChanges,
+    DealDraft,
+    DealOfTheDay,
+    DealStatus,
+    card_on_deal,
+    detail_on_deal,
+)
 from apps.catalog.domain.enums import ReviewStatus, StockReason
 from apps.catalog.domain.errors import (
     CategoryNotFound,
+    DealNotFound,
     ReviewNotFound,
     VariantNotFound,
     VariantsManageStock,
@@ -56,9 +66,10 @@ from apps.catalog.domain.read_models import (
     ReviewView,
     Suggestion,
 )
-from apps.catalog.models import Category, Product, ProductVariant, StockMovement
+from apps.catalog.models import Category, Deal, Product, ProductVariant, StockMovement
 from apps.catalog.repositories import (
     CategoryAdminRepository,
+    DealRepository,
     ProductAdminRepository,
     ReviewAdminRepository,
     StockRepository,
@@ -77,6 +88,7 @@ from apps.catalog.selectors import (
     to_review_view,
 )
 from apps.catalog.services.contracts import RelatedProducts
+from apps.catalog.services.deals import DealAdminService, LiveDeals
 from apps.catalog.services.engagement import FavoriteService, ReviewService
 from apps.catalog.services.inventory import InventoryService
 from apps.catalog.services.management import (
@@ -127,6 +139,7 @@ class CatalogFacade:
         related: RelatedProducts,
         cache: CatalogCache,
         sitemap: SitemapSelector,
+        deals: LiveDeals,
         related_limit: int,
         suggestion_limit: int,
     ) -> None:
@@ -138,6 +151,7 @@ class CatalogFacade:
         self._favorites = favorites
         self._related = related
         self._cache = cache
+        self._deals = deals
         self._related_limit = related_limit
         self._suggestion_limit = suggestion_limit
 
@@ -163,11 +177,16 @@ class CatalogFacade:
         )
 
     def product(self, actor: Actor, slug: str) -> ProductDetail:
-        detail = self._cache.get_or_set(
-            cache_key("product", slug), lambda: self._details.by_slug(slug)
-        )
+        detail = self._cache.get_or_set(cache_key("product", slug), lambda: self._detail(slug))
         favorites = self._favorite_ids(actor, (detail.card.id,))
         return replace(detail, card=_flag(detail.card, favorites))
+
+    def deal_of_the_day(self, actor: Actor) -> DealOfTheDay | None:
+        deal = self._deals.featured()
+        if deal is None:
+            return None
+        slug = self._details.slug_for(deal.product_id)
+        return DealOfTheDay(terms=deal, product=self.product(actor, slug)) if slug else None
 
     def related(self, actor: Actor, slug: str) -> list[ProductCard]:
         product_id = self._details.id_for(slug)
@@ -211,9 +230,15 @@ class CatalogFacade:
         return [_flag(card, favorites) for card in self._cached_cards(ids)]
 
     def _cached_cards(self, ids: Sequence[int]) -> list[ProductCard]:
-        return self._cache.get_or_set(
-            cache_key("cards", tuple(ids)), lambda: self._cards.cards(ids)
-        )
+        return self._cache.get_or_set(cache_key("cards", tuple(ids)), lambda: self._on_deal(ids))
+
+    def _on_deal(self, ids: Sequence[int]) -> list[ProductCard]:
+        deals = self._deals.by_product(ids) if ids else {}
+        return [card_on_deal(card, deals.get(card.id)) for card in self._cards.cards(ids)]
+
+    def _detail(self, slug: str) -> ProductDetail:
+        detail = self._details.by_slug(slug)
+        return detail_on_deal(detail, self._deals.by_product((detail.card.id,)).get(detail.card.id))
 
     def _favorite_ids(self, actor: Actor, ids: Sequence[int]) -> frozenset[int]:
         if actor.user_id is None or not ids:
@@ -324,8 +349,8 @@ class InventoryFacade:
         self._stock = stock
         self._publisher = publisher
 
-    def price(self, lines: Sequence[StockLine]) -> list[PricedLine]:
-        return self._inventory.price(lines)
+    def price(self, lines: Sequence[StockLine], *, lock: bool = False) -> list[PricedLine]:
+        return self._inventory.price(lines, lock=lock)
 
     def reserve(
         self,
@@ -613,3 +638,54 @@ def _announce_low(
         publisher.publish(
             StockLow(product_id=product_id, variant_id=variant_id, stock=level, threshold=threshold)
         )
+
+
+@logged_facade
+class DealAdminFacade:
+    def __init__(
+        self,
+        *,
+        deals: DealAdminService,
+        repository: DealRepository,
+        publisher: EventPublisher,
+    ) -> None:
+        self._deals = deals
+        self._repository = repository
+        self._publisher = publisher
+
+    def page(self, status: DealStatus | None) -> list[AdminDeal]:
+        return self._deals.page(status)
+
+    def create(self, actor: Actor, draft: DealDraft) -> AdminDeal:
+        with transaction.atomic():
+            deal = self._deals.create(draft)
+            self._changed(actor, deal.product_id)
+        return self._deals.one(deal.pk)
+
+    def update(self, actor: Actor, deal_id: int, changes: DealChanges) -> AdminDeal:
+        with transaction.atomic():
+            deal = self._deals.update(self._locked(deal_id), changes)
+            self._changed(actor, deal.product_id)
+        return self._deals.one(deal_id)
+
+    def delete(self, actor: Actor, deal_id: int) -> None:
+        with transaction.atomic():
+            deal = self._locked(deal_id)
+            self._deals.delete(deal)
+            self._changed(actor, deal.product_id)
+
+    def announce(self) -> list[int]:
+        with transaction.atomic():
+            product_ids = self._deals.tick()
+            if product_ids:
+                self._publisher.publish(ProductsChanged(product_ids=tuple(product_ids)))
+        return product_ids
+
+    def _locked(self, deal_id: int) -> Deal:
+        deal = self._repository.get(deal_id, for_update=True)
+        if deal is None:
+            raise DealNotFound
+        return deal
+
+    def _changed(self, actor: Actor, product_id: int) -> None:
+        self._publisher.publish(ProductChanged(product_id=product_id, actor_id=actor.user_id))

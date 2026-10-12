@@ -4,6 +4,7 @@ from rest_framework.response import Response
 
 from apps.catalog.api.v1.backoffice_serializers import (
     AdminCategoryOutput,
+    AdminDealOutput,
     AdminProductDetailOutput,
     AdminProductFiltersInput,
     AdminProductRowOutput,
@@ -12,6 +13,9 @@ from apps.catalog.api.v1.backoffice_serializers import (
     BulkOutput,
     CategoryDeleteInput,
     CategoryFieldsSerializer,
+    DealCreateInput,
+    DealFieldsInput,
+    DealFiltersInput,
     LowStockOutput,
     ModerateInput,
     ProductCreateInput,
@@ -24,6 +28,7 @@ from apps.catalog.api.v1.backoffice_serializers import (
     VariantInput,
     VariantPatchInput,
 )
+from apps.catalog.domain.deals import DealChanges, DealDraft, DealStatus
 from apps.catalog.domain.enums import ReviewStatus
 from apps.catalog.domain.management import (
     BackofficeProductFilters,
@@ -37,7 +42,12 @@ from apps.catalog.domain.management import (
     VariantChanges,
     VariantDraft,
 )
-from apps.catalog.facades import CategoryAdminFacade, ProductAdminFacade, ReviewModerationFacade
+from apps.catalog.facades import (
+    CategoryAdminFacade,
+    DealAdminFacade,
+    ProductAdminFacade,
+    ReviewModerationFacade,
+)
 from apps.catalog.permissions import (
     CATEGORIES_MANAGE,
     PRODUCTS_MANAGE,
@@ -233,3 +243,34 @@ class AdminReviewViewSet(UseCaseViewSet):
     def partial_update(self, request: Request, review_id: int) -> Response:
         status = ReviewStatus(self.validated(ModerateInput)["status"])
         return self.respond(AdminReviewOutput, self.reviews.moderate(self.actor, review_id, status))
+
+
+class AdminDealViewSet(UseCaseViewSet):
+    action_permissions = {
+        "list": MANAGE,
+        "create": MANAGE,
+        "partial_update": MANAGE,
+        "destroy": MANAGE,
+    }
+    deals = Inject(DealAdminFacade)
+
+    @extend_schema(parameters=[DealFiltersInput], responses=AdminDealOutput(many=True))
+    def list(self, request: Request) -> Response:
+        filters = self.validated(DealFiltersInput, data=request.query_params)
+        status = DealStatus(filters["status"]) if "status" in filters else None
+        return self.respond(AdminDealOutput, self.deals.page(status), many=True)
+
+    @extend_schema(request=DealCreateInput, responses={201: AdminDealOutput})
+    def create(self, request: Request) -> Response:
+        draft = self.parse(DealCreateInput, into=DealDraft)
+        return self.respond(AdminDealOutput, self.deals.create(self.actor, draft), status=201)
+
+    @extend_schema(request=DealFieldsInput, responses=AdminDealOutput)
+    def partial_update(self, request: Request, deal_id: int) -> Response:
+        changes = self.parse(DealFieldsInput, into=DealChanges, partial=True)
+        return self.respond(AdminDealOutput, self.deals.update(self.actor, deal_id, changes))
+
+    @extend_schema(responses={204: None})
+    def destroy(self, request: Request, deal_id: int) -> Response:
+        self.deals.delete(self.actor, deal_id)
+        return Response(status=204)

@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 
+from apps.catalog.domain.deals import DealOfTheDay
 from apps.catalog.domain.enums import ProductOrdering
 from apps.catalog.domain.queries import ProductQuery
 from apps.catalog.domain.read_models import CatalogSitemap, CategoryView, ProductCard
@@ -11,6 +12,9 @@ from core.domain.actor import Actor
 
 
 class CatalogShowcase:
+    def deal(self, actor: Actor) -> DealOfTheDay | None:
+        return container.resolve(CatalogFacade).deal_of_the_day(actor)
+
     def deals(self, actor: Actor, *, limit: int) -> list[ProductCard]:
         return self._browse(
             actor,

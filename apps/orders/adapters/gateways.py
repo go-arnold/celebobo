@@ -1,5 +1,7 @@
 from collections.abc import Sequence
 
+from django.db.models import Sum
+
 from apps.accounts.selectors import AddressSelector, ResellerSelector
 from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
@@ -13,8 +15,8 @@ from core.container import container
 
 
 class CatalogInventory:
-    def price(self, lines: Sequence[StockLine]) -> list[PricedLine]:
-        return container.resolve(InventoryFacade).price(lines)
+    def price(self, lines: Sequence[StockLine], *, lock: bool = False) -> list[PricedLine]:
+        return container.resolve(InventoryFacade).price(lines, lock=lock)
 
     def reserve(self, lines: Sequence[StockLine], source: StockSource) -> None:
         container.resolve(InventoryFacade).reserve(lines, source)
@@ -68,6 +70,17 @@ class NoOrderThreads:
 
     def thread_for(self, order_id: int) -> int | None:
         return None
+
+
+class OrderDealSales:
+    def sold(self, deal_ids: Sequence[int]) -> dict[int, int]:
+        rows = (
+            OrderItem.objects.filter(deal_id__in=deal_ids)
+            .exclude(order__status=OrderStatus.CANCELLED.value)
+            .values("deal_id")
+            .annotate(units=Sum("quantity"))
+        )
+        return {row["deal_id"]: row["units"] for row in rows}
 
 
 class DeliveredOrderPurchases:

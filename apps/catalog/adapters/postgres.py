@@ -117,6 +117,11 @@ class NoPurchaseHistory:
         return False
 
 
+class NoDealSales:
+    def sold(self, deal_ids: Sequence[int]) -> dict[int, int]:
+        return {}
+
+
 def document_vector(document: ProductDocument) -> SearchVector | CombinedExpression:
     config = catalog_settings().search_config
     vectors = [

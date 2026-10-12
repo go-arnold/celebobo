@@ -27,8 +27,14 @@ from apps.catalog.domain.backoffice import (
     ProductStats,
     StockMovementView,
 )
+from apps.catalog.domain.deals import DealProduct, DealStatus, DealTerms
 from apps.catalog.domain.enums import Badge, CategoryIcon, ReviewStatus, StockReason
-from apps.catalog.domain.errors import CategoryNotFound, ProductNotFound, ReviewNotFound
+from apps.catalog.domain.errors import (
+    CategoryNotFound,
+    DealNotFound,
+    ProductNotFound,
+    ReviewNotFound,
+)
 from apps.catalog.domain.management import BackofficeProductFilters, ProductStatus, ReviewFilters
 from apps.catalog.domain.management_rules import margin
 from apps.catalog.domain.read_models import (
@@ -54,6 +60,7 @@ from apps.catalog.domain.rules import (
 )
 from apps.catalog.models import (
     Category,
+    Deal,
     Favorite,
     Product,
     ProductImage,
@@ -206,6 +213,9 @@ class ProductDetailSelector:
         if product_id is None:
             raise ProductNotFound
         return product_id
+
+    def slug_for(self, product_id: int) -> str | None:
+        return visible_products().filter(pk=product_id).values_list("slug", flat=True).first()
 
 
 class ProductDocumentSelector:
@@ -465,6 +475,81 @@ class StockSelector:
 
     def movement(self, movement_id: int) -> StockMovementView:
         return _movement_view(StockMovement.objects.select_related("actor").get(pk=movement_id))
+
+
+class DealSelector:
+    def live(
+        self, product_ids: Iterable[int] | None, *, now: datetime, lock: bool = False
+    ) -> list[DealTerms]:
+        deals = Deal.objects.filter(
+            is_active=True,
+            starts_at__lte=now,
+            ends_at__gt=now,
+            product__in=visible_products().values("pk"),
+        )
+        if product_ids is not None:
+            deals = deals.filter(product_id__in=list(product_ids))
+        if lock:
+            deals = deals.select_for_update(of=("self",))
+        return [deal_terms(deal) for deal in deals.select_related("product", "variant")]
+
+    def unsettled(self, *, now: datetime) -> list[tuple[DealTerms, str]]:
+        deals = Deal.objects.filter(
+            ~Q(announced=DealStatus.ENDED.value) | Q(is_active=True, ends_at__gt=now)
+        ).select_related("product", "variant")
+        return [(deal_terms(deal), deal.announced) for deal in deals]
+
+    def all(self) -> list[tuple[DealTerms, DealProduct, str]]:
+        deals = Deal.objects.select_related("product", "variant").prefetch_related(
+            Prefetch("product__images", queryset=ProductImage.objects.order_by("position", "pk"))
+        )
+        return [_admin_deal_row(deal) for deal in deals]
+
+    def one(self, deal_id: int) -> tuple[DealTerms, DealProduct, str]:
+        deal = (
+            Deal.objects.select_related("product", "variant")
+            .prefetch_related("product__images")
+            .filter(pk=deal_id)
+            .first()
+        )
+        if deal is None:
+            raise DealNotFound
+        return _admin_deal_row(deal)
+
+
+def deal_terms(deal: Deal) -> DealTerms:
+    variant = deal.variant
+    return DealTerms(
+        id=deal.pk,
+        product_id=deal.product_id,
+        variant_id=deal.variant_id,
+        deal_price=deal.deal_price,
+        regular_price=(
+            variant.price
+            if variant is not None and variant.price is not None
+            else deal.product.current_price
+        ),
+        starts_at=deal.starts_at,
+        ends_at=deal.ends_at,
+        quantity=deal.quantity,
+        gift_label=deal.gift_label,
+        is_active=deal.is_active,
+    )
+
+
+def _admin_deal_row(deal: Deal) -> tuple[DealTerms, DealProduct, str]:
+    product = deal.product
+    images = list(product.images.all())
+    return (
+        deal_terms(deal),
+        DealProduct(
+            id=product.pk,
+            slug=product.slug,
+            name=product.name,
+            image=images[0].url if images else "",
+        ),
+        deal.variant.label if deal.variant is not None else "",
+    )
 
 
 class AdminCategorySelector:

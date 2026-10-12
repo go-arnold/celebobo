@@ -30,6 +30,10 @@ class PurchaseVerifier(Protocol):
     def has_received(self, user_id: int, product_id: int) -> bool: ...
 
 
+class DealSales(Protocol):
+    def sold(self, deal_ids: Sequence[int]) -> dict[int, int]: ...
+
+
 class ProductStore(Protocol):
     def visible(self, product_id: int) -> Product | None: ...
 

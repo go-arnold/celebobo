@@ -1,12 +1,13 @@
 from django.utils import timezone
 
-from apps.catalog.services.contracts import PurchaseVerifier
+from apps.catalog.services.contracts import DealSales, PurchaseVerifier
 from apps.orders.adapters.gateways import (
     AccountsAddressBook,
     AccountsResellerDirectory,
     CatalogInventory,
     DeliveredOrderPurchases,
     NoOrderThreads,
+    OrderDealSales,
 )
 from apps.orders.conf import order_settings
 from apps.orders.domain.state_machine import OrderStateMachine, TransitionPolicyFactory
@@ -45,6 +46,7 @@ def register(container: Container) -> None:
     container.register(OrderThreads, lambda _: NoOrderThreads())
     container.register(OrderStateMachine, lambda _: OrderStateMachine(TransitionPolicyFactory()))
     container.register(PurchaseVerifier, lambda _: DeliveredOrderPurchases(), replace=True)
+    container.register(DealSales, lambda _: OrderDealSales(), replace=True)
 
     container.register(CartFacade, _cart_facade, lifetime=Lifetime.TRANSIENT)
     container.register(CheckoutFacade, _checkout_facade, lifetime=Lifetime.TRANSIENT)

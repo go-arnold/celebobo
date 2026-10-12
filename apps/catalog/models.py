@@ -10,6 +10,7 @@ from django.db.models.functions import Lower
 from safedelete.config import SOFT_DELETE
 from safedelete.models import SafeDeleteModel
 
+from apps.catalog.domain.deals import DealStatus
 from apps.catalog.domain.enums import Badge, CategoryIcon, ReviewStatus, StockReason
 from apps.catalog.domain.rules import current_price
 
@@ -17,6 +18,7 @@ BADGE_CHOICES = [(item.value, item.label) for item in Badge]
 ICON_CHOICES = [(item.value, item.value) for item in CategoryIcon]
 STOCK_REASON_CHOICES = [(item.value, item.label) for item in StockReason]
 REVIEW_STATUS_CHOICES = [(item.value, item.value) for item in ReviewStatus]
+DEAL_STATUS_CHOICES = [(item.value, item.value) for item in DealStatus]
 MONEY_DIGITS = 10
 MONEY_PLACES = 2
 
@@ -202,6 +204,44 @@ class ProductVariant(models.Model):
 
     def __str__(self) -> str:
         return f"{self.product} — {self.label}"
+
+
+class Deal(TimestampedModel):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="deals")
+    variant = models.ForeignKey(
+        ProductVariant, null=True, blank=True, on_delete=models.CASCADE, related_name="deals"
+    )
+    deal_price = models.DecimalField(
+        "prix de l'offre", max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES
+    )
+    starts_at = models.DateTimeField("début", db_index=True)
+    ends_at = models.DateTimeField("fin", db_index=True)
+    quantity = models.PositiveIntegerField("quantité", null=True, blank=True)
+    gift_label = models.CharField("cadeau", max_length=80, blank=True)
+    is_active = models.BooleanField(default=True)
+    # last status the storefront was told about, so the clock only announces transitions
+    announced = models.CharField(max_length=12, choices=DEAL_STATUS_CHOICES, blank=True)
+
+    class Meta:
+        verbose_name = "offre du jour"
+        verbose_name_plural = "offres du jour"
+        ordering = ("-starts_at", "-pk")
+        constraints = (
+            models.CheckConstraint(
+                condition=models.Q(deal_price__gt=0), name="catalog_deal_price_positive"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(ends_at__gt=models.F("starts_at")),
+                name="catalog_deal_ends_after_start",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quantity__isnull=True) | models.Q(quantity__gte=1),
+                name="catalog_deal_quantity_positive",
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.product} à {self.deal_price}"
 
 
 class StockMovement(models.Model):

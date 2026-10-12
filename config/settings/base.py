@@ -384,6 +384,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "analytics.refresh_sales_facts",
         "schedule": env.int("ANALYTICS_REFRESH_SECONDS", default=600),
     },
+    "announce-deals": {
+        "task": "catalog.announce_deals",
+        "schedule": 60,
+    },
     "purge-document-jobs": {
         "task": "documents.purge_jobs",
         "schedule": 24 * 60 * 60,

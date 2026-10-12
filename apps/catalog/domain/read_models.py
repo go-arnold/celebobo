@@ -175,6 +175,7 @@ class PricedLine:
     free_shipping: bool
     shipping_fee: Decimal | None
     cost_price: Decimal | None = None
+    deal_id: int | None = None
 
     @property
     def total(self) -> Decimal:

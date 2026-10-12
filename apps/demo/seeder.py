@@ -24,9 +24,16 @@ from apps.accounts.facades import (
 from apps.accounts.models import User
 from apps.analytics.facades import FactsFacade
 from apps.assistant.facades import AssistantInsightsFacade
+from apps.catalog.domain.deals import DealDraft
 from apps.catalog.domain.management import CategoryDraft, OptionInput, ProductDraft, VariantDraft
 from apps.catalog.domain.queries import PostReview
-from apps.catalog.facades import CategoryAdminFacade, ProductAdminFacade, ReviewFacade
+from apps.catalog.facades import (
+    CategoryAdminFacade,
+    DealAdminFacade,
+    ProductAdminFacade,
+    ReviewFacade,
+)
+from apps.catalog.models import ProductVariant
 from apps.catalog.services.indexing import ProductIndexer
 from apps.content.domain.commands import (
     BannerFields,
@@ -161,6 +168,7 @@ class DemoSeeder:
             self._payouts(resellers)
             self._reviews(delivered)
             self._community(clients)
+            self._deal()
             self._refresh()
         self._embed()
         return self.report
@@ -401,6 +409,26 @@ class DemoSeeder:
                 )
             )
             self.report.add("coupons")
+
+    def _deal(self) -> None:
+        slug, attributes, price, quantity, gift, days = content.DEAL
+        variant = ProductVariant.objects.get(product__slug=slug, attributes=attributes)
+        ends_at = timezone.localtime(self._now + timedelta(days=days)).replace(
+            hour=21, minute=0, second=0, microsecond=0
+        )
+        container.resolve(DealAdminFacade).create(
+            self._actor,
+            DealDraft(
+                product_id=variant.product_id,
+                variant_id=variant.pk,
+                deal_price=Decimal(price),
+                starts_at=self._now,
+                ends_at=ends_at,
+                quantity=quantity,
+                gift_label=gift,
+            ),
+        )
+        self.report.add("deals")
 
     def _shipping_zones(self) -> None:
         promotions = container.resolve(PromotionFacade)

@@ -3,7 +3,7 @@ from typing import Any
 
 from rest_framework import serializers
 
-from apps.catalog.api.v1.serializers import CategoryOutput, ProductCardOutput
+from apps.catalog.api.v1.serializers import CategoryOutput, DealOutput, ProductCardOutput
 from apps.content.domain.enums import ContactStatus, ContactSubject
 
 PHONE_PATTERN = r"^\+?[\d\s().-]{7,20}$"
@@ -214,6 +214,7 @@ class CategoryBlockOutput(serializers.Serializer[Any]):
 
 class HomeOutput(serializers.Serializer[Any]):
     banners = BannerOutput(many=True)
+    deal = DealOutput(allow_null=True)
     deals = ProductCardOutput(many=True)
     new_arrivals = ProductCardOutput(many=True)
     best_sellers = ProductCardOutput(many=True)

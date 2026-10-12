@@ -89,6 +89,22 @@ author and a note (history at `/bo/products/{id}/stock-movements/`).
 - **Search** uses PostgreSQL full text in French, accent-insensitive; the search bar offers up to 6 suggestions.
 - **Related products**: up to 8 from the same category first.
 
+## Deals of the day
+
+- A deal sets a **deal price** on one product, or on one variant when the product has variants, between a
+  start and an end. It must be lower than the price paid without it. It can be limited to a
+  **quantity** and can announce a **gift** ("Coque offerte").
+- While it is live, the deal price is the price **everywhere**: cards, product page, cart, quote and order.
+  The order line remembers its deal.
+- **Units sold** are the units of order lines placed at the deal price, cancelled orders excluded: a
+  cancellation gives the unit back.
+- The deal ends at its end date or once every unit is sold; the normal price then returns on its own.
+  A line asking for more units than are left pays the normal price.
+- Two active deals of the same product cannot overlap.
+- Every minute a scheduled task announces deals that start or end, so the shop pages are refreshed.
+- The home page shows the live deal that ends first, with its countdown and "sold x / y" bar.
+- Price filters and sorting still use the normal price.
+
 ## Reviews
 
 - Only a client who has **received** the product (an order containing it reached **delivered**) can

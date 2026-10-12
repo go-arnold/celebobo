@@ -8,6 +8,7 @@ from apps.catalog.facades import (
     CatalogCache,
     CatalogFacade,
     CategoryAdminFacade,
+    DealAdminFacade,
     FavoriteFacade,
     InventoryFacade,
     ProductAdminFacade,
@@ -16,6 +17,7 @@ from apps.catalog.facades import (
 )
 from apps.catalog.repositories import (
     CategoryAdminRepository,
+    DealRepository,
     FavoriteRepository,
     ProductAdminRepository,
     ProductRepository,
@@ -28,6 +30,7 @@ from apps.catalog.selectors import (
     AdminProductSelector,
     AdminReviewSelector,
     CategorySelector,
+    DealSelector,
     FavoriteSelector,
     ProductCardSelector,
     ProductDetailSelector,
@@ -37,12 +40,14 @@ from apps.catalog.selectors import (
     StockSelector,
 )
 from apps.catalog.services.contracts import (
+    DealSales,
     MediaUrls,
     PurchaseVerifier,
     RelatedProducts,
     SearchEngine,
     SearchIndex,
 )
+from apps.catalog.services.deals import DealAdminService, LiveDeals
 from apps.catalog.services.engagement import FavoriteService, ReviewService
 from apps.catalog.services.indexing import ProductIndexer
 from apps.catalog.services.inventory import InventoryService
@@ -74,6 +79,7 @@ def register(container: Container) -> None:
     )
     container.register(RelatedProducts, lambda _: postgres.SameCategoryRelated())
     container.register(PurchaseVerifier, lambda _: postgres.NoPurchaseHistory())
+    container.register(DealSales, lambda _: postgres.NoDealSales())
     container.register(
         CatalogCache, lambda _: CatalogCache(CACHE_NAMESPACE, ttl=catalog_settings().cache_ttl)
     )
@@ -86,10 +92,15 @@ def register(container: Container) -> None:
     container.register(ProductAdminFacade, _product_admin_facade, lifetime=Lifetime.TRANSIENT)
     container.register(CategoryAdminFacade, _category_admin_facade, lifetime=Lifetime.TRANSIENT)
     container.register(ReviewModerationFacade, _moderation_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(DealAdminFacade, _deal_admin_facade, lifetime=Lifetime.TRANSIENT)
 
 
 def _indexer(container: Container) -> ProductIndexer:
     return ProductIndexer(container.resolve(SearchIndex), ProductDocumentSelector())
+
+
+def _live_deals(container: Container) -> LiveDeals:
+    return LiveDeals(DealSelector(), container.resolve(DealSales), clock=timezone.now)
 
 
 def _cards() -> ProductCardSelector:
@@ -115,6 +126,7 @@ def _catalog_facade(container: Container) -> CatalogFacade:
         related=container.resolve(RelatedProducts),
         cache=container.resolve(CatalogCache),
         sitemap=SitemapSelector(limit=settings.sitemap_limit),
+        deals=_live_deals(container),
         related_limit=settings.related_limit,
         suggestion_limit=settings.suggestion_limit,
     )
@@ -142,7 +154,7 @@ def _favorite_facade(container: Container) -> FavoriteFacade:
 def _inventory_facade(container: Container) -> InventoryFacade:
     stock = StockRepository()
     return InventoryFacade(
-        inventory=InventoryService(stock),
+        inventory=InventoryService(stock, _live_deals(container)),
         stock=stock,
         publisher=container.resolve(EventPublisher),
     )
@@ -181,5 +193,20 @@ def _moderation_facade(container: Container) -> ReviewModerationFacade:
         moderation=ReviewModerationService(ReviewAdminRepository(), ProductRepository()),
         repository=ReviewAdminRepository(),
         selector=AdminReviewSelector(),
+        publisher=container.resolve(EventPublisher),
+    )
+
+
+def _deal_admin_facade(container: Container) -> DealAdminFacade:
+    deals = DealRepository()
+    return DealAdminFacade(
+        deals=DealAdminService(
+            deals,
+            ProductAdminRepository(),
+            DealSelector(),
+            container.resolve(DealSales),
+            clock=timezone.now,
+        ),
+        repository=deals,
         publisher=container.resolve(EventPublisher),
     )

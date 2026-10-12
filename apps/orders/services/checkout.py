@@ -75,6 +75,7 @@ class CheckoutService:
                     "quantity": line.quantity,
                     "unit_price": line.unit_price,
                     "list_unit_price": line.unit_price,
+                    "deal_id": line.deal_id,
                 }
                 for line in priced
             ),

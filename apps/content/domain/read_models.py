@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
+from apps.catalog.domain.deals import DealOfTheDay
 from apps.catalog.domain.read_models import CategoryView, ProductCard, SitemapEntry
 from apps.content.domain.enums import ContactStatus, ContactSubject
 
@@ -114,6 +115,7 @@ class CategoryBlock:
 @dataclass(frozen=True, slots=True, kw_only=True)
 class HomePage:
     banners: list[BannerView]
+    deal: DealOfTheDay | None
     deals: list[ProductCard]
     new_arrivals: list[ProductCard]
     best_sellers: list[ProductCard]

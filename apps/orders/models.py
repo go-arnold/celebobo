@@ -135,6 +135,9 @@ class OrderItem(models.Model):
         on_delete=models.SET_NULL,
         related_name="+",
     )
+    deal = models.ForeignKey(
+        "catalog.Deal", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     product_name = models.CharField(max_length=255)
     variant_label = models.CharField(max_length=255, blank=True)
     product_image = models.URLField(max_length=500, blank=True)
