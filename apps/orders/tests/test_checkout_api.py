@@ -58,7 +58,7 @@ class TestPlaceOrder:
         assert body["number"].startswith("CB-")
         assert body["total"] == "240.00"
         assert body["items"][0]["name"] == "Galaxy A55"
-        assert body["address"]["quarter"] == "Gombe"
+        assert body["address"]["quarter"] == "Ibanda"
         assert body["allowed_transitions"] == []
         assert "client" not in body
         assert [entry["status"] for entry in body["history"]] == ["pending"]

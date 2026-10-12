@@ -171,7 +171,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "fr"
-TIME_ZONE = env.str("TIME_ZONE", default="Africa/Kinshasa")
+# Bukavu and Goma (UTC+2), where the shop operates
+TIME_ZONE = env.str("TIME_ZONE", default="Africa/Lubumbashi")
 USE_I18N = True
 USE_TZ = True
 
@@ -439,7 +440,7 @@ ASSISTANT = {
 }
 DOCUMENTS = {
     "COMPANY_NAME": env.str("DOCUMENTS_COMPANY_NAME", default="Celebobo"),
-    "COMPANY_ADDRESS": env.str("DOCUMENTS_COMPANY_ADDRESS", default="Kinshasa, RD Congo"),
+    "COMPANY_ADDRESS": env.str("DOCUMENTS_COMPANY_ADDRESS", default="Bukavu · Goma, RD Congo"),
     "COMPANY_CONTACT": env.str("DOCUMENTS_COMPANY_CONTACT", default="contact@celebobo.cd"),
     "RETENTION_DAYS": env.int("DOCUMENTS_RETENTION_DAYS", default=7),
 }

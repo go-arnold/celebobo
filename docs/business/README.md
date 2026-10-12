@@ -21,7 +21,7 @@ When the code and this document disagree, the code wins — update the document.
 
 ## The business in one paragraph
 
-Celebobo sells phones, computers and accessories in Kinshasa. A **client** browses the shop, fills a
+Celebobo sells phones, computers and accessories in Bukavu and Goma first, then their surroundings, then the rest of the DRC. A **client** browses the shop, fills a
 cart and places an **order** (no online payment: Mobile Money or cash, settled with a person). Each
 order opens a **conversation**. A **manager** assigns the order to a **reseller**, who talks with the
 client, may adjust a price, and moves the order forward until delivery. Delivered orders are
@@ -44,4 +44,4 @@ Resellers also record walk-in sales directly, and recruit clients with their **r
 | Referral code | A reseller's 4-digit code (1000–9999); clients who sign up with it are the reseller's invitees. |
 | Job | An asynchronous export, import or report; its file is downloaded when ready. |
 
-All amounts are in **US dollars** with 2 decimals. Dates are stored in UTC and shown in Kinshasa time.
+All amounts are in **US dollars** with 2 decimals. Dates are stored in UTC and shown in Bukavu and Goma time (`Africa/Lubumbashi`, UTC+2).

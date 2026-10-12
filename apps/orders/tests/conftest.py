@@ -14,8 +14,8 @@ ADDRESS = {
     "recipient": "Aline Mbuyi",
     "phone": "+243 81 234 5678",
     "line1": "Av. Lumumba n°12",
-    "quarter": "Gombe",
-    "city": "Kinshasa",
+    "quarter": "Ibanda",
+    "city": "Bukavu",
     "country": "RD Congo",
 }
 

@@ -20,5 +20,12 @@ class UserManager(BaseUserManager["User"]):
         return user
 
     def create_superuser(self, email: str, password: str | None = None, **fields: Any) -> "User":
+        from allauth.account.models import EmailAddress
+
         fields.update(is_staff=True, is_superuser=True, role=Role.ADMIN.value)
-        return self.create_user(email, password, **fields)
+        user = self.create_user(email, password, **fields)
+        # created from the command line: the address is trusted, so the site login works at once
+        EmailAddress.objects.update_or_create(
+            user=user, email=user.email, defaults={"verified": True, "primary": True}
+        )
+        return user

@@ -34,5 +34,9 @@ class ProductDocuments(Protocol):
     def all_ids(self) -> list[int]: ...
 
 
+class DeliveryZones(Protocol):
+    def lines(self) -> list[str]: ...
+
+
 class ProductCards(Protocol):
     def cards(self, actor: Actor, ids: Sequence[int]) -> list[ProductCard]: ...

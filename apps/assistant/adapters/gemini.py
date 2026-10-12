@@ -1,6 +1,7 @@
 from collections.abc import AsyncIterator, Sequence
 from typing import Any
 
+import structlog
 from google import genai
 from google.genai import errors, types
 
@@ -18,6 +19,8 @@ from apps.assistant.domain.enums import EmbeddingTask, Role
 from apps.assistant.domain.errors import AssistantUnavailable
 
 TASKS = {EmbeddingTask.DOCUMENT: "RETRIEVAL_DOCUMENT", EmbeddingTask.QUERY: "RETRIEVAL_QUERY"}
+
+logger = structlog.get_logger(__name__)
 
 
 class GeminiChatModel:
@@ -73,7 +76,7 @@ class GeminiChatModel:
                     )
                 contents.append(types.Content(role="user", parts=responses))
         except errors.APIError as error:
-            raise AssistantUnavailable from error
+            raise _unavailable(error) from error
         yield usage
 
     def complete(self, *, system: str, prompt: str) -> str:
@@ -84,7 +87,7 @@ class GeminiChatModel:
                 config=types.GenerateContentConfig(system_instruction=system or None),
             )
         except errors.APIError as error:
-            raise AssistantUnavailable from error
+            raise _unavailable(error) from error
         return response.text or ""
 
 
@@ -103,7 +106,7 @@ class GeminiEmbedder:
                 ),
             )
         except errors.APIError as error:
-            raise AssistantUnavailable from error
+            raise _unavailable(error) from error
         return [list(embedding.values or []) for embedding in response.embeddings or []]
 
 
@@ -132,3 +135,8 @@ def _usage(chunk: types.GenerateContentResponse, current: Usage) -> Usage:
         input_tokens=int(metadata.prompt_token_count or current.input_tokens),
         output_tokens=int(metadata.candidates_token_count or current.output_tokens),
     )
+
+
+def _unavailable(error: errors.APIError) -> AssistantUnavailable:
+    logger.warning("assistant.provider_failed", status=error.code, reason=error.status)
+    return AssistantUnavailable()

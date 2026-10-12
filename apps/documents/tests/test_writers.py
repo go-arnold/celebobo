@@ -26,7 +26,7 @@ def test_csv_is_excel_friendly_and_formula_safe():
 
     assert content.startswith("﻿Produit;Total;Date")
     assert "'=HYPERLINK" in content
-    assert "12.50;2026-01-05 10:30" in content
+    assert "12.50;2026-01-05 11:30" in content
 
 
 def test_xlsx_keeps_numbers_numeric():

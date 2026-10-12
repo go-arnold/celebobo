@@ -11,7 +11,8 @@ A shopping assistant available to **everyone**, logged in or not (`assistant.cha
   `/produits/{slug}`.
 - Search is semantic: products are indexed as embeddings, refreshed automatically whenever a product
   or category changes. Admins can rebuild the whole index (`embeddings.reindex`).
-- Facts it states: prices in US dollars, delivery in 24–48 h in Kinshasa. When it doesn't know, it
+- Facts it states: prices in US dollars; delivery fees and delays read from the active shipping zones
+  at every message (Bukavu, Goma, their surroundings, the rest of the country). When it does not know, it
   says so and suggests contacting the team.
 - Replies are **streamed** word by word.
 

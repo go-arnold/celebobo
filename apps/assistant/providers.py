@@ -1,6 +1,6 @@
 from django.utils import timezone
 
-from apps.assistant.adapters.gateways import CatalogCards, CatalogDocuments
+from apps.assistant.adapters.gateways import CatalogCards, CatalogDocuments, OrdersDeliveryZones
 from apps.assistant.adapters.offline import HashingEmbedder, OfflineChatModel
 from apps.assistant.conf import AssistantSettings, assistant_settings
 from apps.assistant.facades import AssistantFacade, AssistantInsightsFacade
@@ -65,6 +65,7 @@ def _assistant_facade(container: Container) -> AssistantFacade:
         SessionRepository(),
         MessageRepository(),
         container.resolve(EventPublisher),
+        OrdersDeliveryZones(),
         memory_messages=settings.memory_messages,
         max_question_length=settings.max_question_length,
         daily_messages=settings.daily_messages,

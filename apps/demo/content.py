@@ -4,11 +4,12 @@ PAGES = (
     (
         "a-propos",
         "À propos de Celebobo",
-        "Votre boutique high-tech de confiance à Kinshasa.",
-        "## Notre histoire\n\nCelebobo est né à Kinshasa avec une idée simple : rendre la technologie "
+        "Votre boutique high-tech de confiance à Bukavu et à Goma.",
+        "## Notre histoire\n\nCelebobo est né au Kivu, à Bukavu et à Goma, avec une idée simple : rendre la technologie "
         "accessible, avec des produits authentiques, des prix clairs et un vrai conseil.\n\n"
         "## Nos engagements\n\n- Des produits neufs et garantis\n- Un réseau de revendeurs partout "
-        "en RDC\n- Une livraison rapide à Kinshasa\n- Un service client joignable par WhatsApp",
+        "en RDC\n- Une livraison rapide à Bukavu, à Goma et dans leurs environs\n"
+        "- Un service client joignable par WhatsApp",
     ),
     (
         "guide",
@@ -17,7 +18,8 @@ PAGES = (
         "1. **Choisissez** vos produits et ajoutez-les au panier.\n2. **Validez** votre adresse de "
         "livraison.\n3. **Payez** par Orange Money, M-Pesa, Airtel Money ou à la livraison.\n4. "
         "**Suivez** votre commande et échangez avec votre conseiller.\n5. **Recevez** votre colis : "
-        "24 à 48 h à Kinshasa, 3 à 7 jours dans les autres villes.",
+        "24 à 48 h à Bukavu et à Goma, 2 à 4 jours dans leurs environs, 3 à 7 jours ailleurs en "
+        "RDC.",
     ),
     (
         "conditions",
@@ -39,12 +41,14 @@ FAQ = (
     (
         "Livraison",
         "Quels sont les délais de livraison ?",
-        "24 à 48 h à Kinshasa, 3 à 7 jours dans les autres villes.",
+        "24 à 48 h à Bukavu et à Goma, 2 à 4 jours dans leurs environs (Uvira, Kavumu, Sake…), "
+        "3 à 7 jours dans le reste du pays.",
     ),
     (
         "Livraison",
         "Combien coûte la livraison ?",
-        "2,98 $ à Kinshasa, offerte dès 199 $ d'achat. À partir de 7,50 $ ailleurs.",
+        "2,98 $ à Bukavu et à Goma, offerte dès 199 $ d'achat ; 5 $ dans leurs environs ; "
+        "7,50 $ dans le reste du pays.",
     ),
     (
         "Paiement",
@@ -54,7 +58,7 @@ FAQ = (
     (
         "Paiement",
         "Puis-je payer à la livraison ?",
-        "Oui, à Kinshasa, en espèces ou par mobile money au moment de la remise.",
+        "Oui, à Bukavu et à Goma, en espèces ou par mobile money au moment de la remise.",
     ),
     (
         "Produits",
@@ -81,7 +85,12 @@ BANNERS = (
         "/categories/ordinateurs",
         "Découvrir",
     ),
-    ("Livraison offerte dès 199 $", "À Kinshasa, en 24 à 48 h", "/guide", "En savoir plus"),
+    (
+        "Livraison offerte dès 199 $",
+        "À Bukavu et à Goma, en 24 à 48 h",
+        "/guide",
+        "En savoir plus",
+    ),
 )
 
 COUPONS = (
@@ -96,7 +105,22 @@ COUPONS = (
         None,
     ),
     ("RENTREE25", "25 $ dès 300 $ d'achat", CouponKind.FIXED, "25", None, "300", None, 200),
-    ("KIN5", "5 $ de réduction dès 50 $ d'achat", CouponKind.FIXED, "5", None, "50", 3, None),
+    ("KIVU5", "5 $ de réduction dès 50 $ d'achat", CouponKind.FIXED, "5", None, "50", 3, None),
+)
+
+# provisional fees and delays: the team adjusts them in the back-office
+SHIPPING_ZONES = (
+    ("Bukavu", ("Bukavu",), "2.98", "199", "24 à 48 h", False),
+    ("Goma", ("Goma",), "2.98", "199", "24 à 48 h", False),
+    (
+        "Environs de Bukavu et Goma",
+        ("Kabare", "Kavumu", "Walungu", "Kalehe", "Uvira", "Sake", "Minova", "Kibumba", "Rutshuru"),
+        "5.00",
+        None,
+        "2 à 4 jours",
+        False,
+    ),
+    ("Reste du pays", (), "7.50", None, "3 à 7 jours", True),
 )
 
 OPENING_HOURS = (

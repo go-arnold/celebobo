@@ -1,9 +1,11 @@
 from collections.abc import Sequence
 from typing import Any
 
+from apps.assistant.domain.prompts import delivery_line
 from apps.catalog.domain.read_models import ProductCard
 from apps.catalog.facades import CatalogFacade
 from apps.catalog.selectors import ProductDocumentSelector
+from apps.orders.facades import PromotionFacade
 from core.container import container
 from core.domain.actor import Actor
 
@@ -22,3 +24,19 @@ class CatalogDocuments:
 class CatalogCards:
     def cards(self, actor: Actor, ids: Sequence[int]) -> list[ProductCard]:
         return container.resolve(CatalogFacade).cards_for(actor, list(ids))
+
+
+class OrdersDeliveryZones:
+    def lines(self) -> list[str]:
+        zones = container.resolve(PromotionFacade).shipping_zones(active_only=True)
+        return [
+            delivery_line(
+                zone.name,
+                zone.cities,
+                zone.fee,
+                zone.free_threshold,
+                zone.delivery_estimate,
+                default=zone.is_default,
+            )
+            for zone in sorted(zones, key=lambda zone: (zone.is_default, zone.position))
+        ]
