@@ -233,7 +233,7 @@ class DemoSeeder:
         ):
             media_id = self._image(
                 f"banner-{position}",
-                partial(banner_image, title, subtitle, shape, colors),
+                partial(banner_image, shape, colors),
                 "category_image",
             )
             image = (

@@ -6,7 +6,8 @@ from django.core.management import CommandError, call_command
 
 from apps.accounts.models import User
 from apps.accounts.tests.factories import AdminFactory
-from apps.catalog.models import Deal, Product, ProductVariant
+from apps.catalog.models import Category, Deal, Product, ProductVariant
+from apps.content.models import Banner
 from apps.demo.people import DemoPerson, email_for
 from apps.demo.uploads import ImageStore
 from apps.media.models import UploadedMedia
@@ -20,6 +21,14 @@ def seed() -> str:
     return out.getvalue()
 
 
+def links_somewhere(url: str) -> bool:
+    _, section, slug = url.split("/", 2) if url.count("/") == 2 else ("", url.strip("/"), "")
+    targets = {"categorie": Category.objects, "produits": Product.objects}
+    if section in targets:
+        return targets[section].filter(slug=slug).exists()
+    return section in {"guide", "a-propos", "contact"}
+
+
 @pytest.mark.django_db(transaction=True)
 def test_seed_fills_an_empty_database_and_refuses_a_second_run():
     output = seed()
@@ -31,6 +40,7 @@ def test_seed_fills_an_empty_database_and_refuses_a_second_run():
     assert Sale.objects.exists()
     assert Deal.objects.filter(variant__attributes={"Stockage": "128 Go"}).exists()
     assert not User.objects.filter(email__regex=r"[^\x00-\x7F]").exists()
+    assert all(links_somewhere(banner.link_url) for banner in Banner.objects.all())
     with pytest.raises(CommandError):
         seed()
 
