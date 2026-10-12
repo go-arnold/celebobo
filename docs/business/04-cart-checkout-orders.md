@@ -27,7 +27,8 @@ shipping  = see below (0 if the coupon gives free shipping)
 total     = subtotal − discount + shipping
 ```
 
-**Shipping** depends on the delivery **city**:
+**Shipping** depends on the delivery **city** (for a signed-in client who has not given one yet, the
+city of their default address):
 1. The city is matched (case/accent-insensitive) against the cities of the active **shipping zones**;
    if none matches, the **default zone** is used; if there is no zone at all, global settings apply
    (free from **$199**, otherwise **$2.98**).

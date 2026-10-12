@@ -40,6 +40,11 @@ class AccountsAddressBook:
             country=address.country,
         )
 
+    def default_city(self, user_id: int) -> str | None:
+        addresses = AddressSelector().for_user(user_id)
+        default = next((address for address in addresses if address.is_default), None)
+        return default.city if default else None
+
 
 class AccountsResellerDirectory:
     def active(self, reseller_id: int) -> PersonBrief | None:

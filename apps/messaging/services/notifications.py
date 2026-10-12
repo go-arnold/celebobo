@@ -218,13 +218,21 @@ class NotificationFanout:
     def membership_requested(self, *, client_name: str, plan: str) -> None:
         self._notifications.notify(
             self._directory.staff_ids(),
-            render(NotificationKind.MEMBERSHIP_REQUESTED, client=client_name, plan=_plan(plan)),
+            render(
+                NotificationKind.MEMBERSHIP_REQUESTED,
+                client=client_name,
+                plan=FORMULA_LABELS.get(plan, plan),
+            ),
         )
 
     def membership_started(self, *, user_id: int, plan: str, ends_at: datetime) -> None:
         self._notifications.notify(
             [user_id],
-            render(NotificationKind.MEMBERSHIP_STARTED, plan=_plan(plan), ends_on=_day(ends_at)),
+            render(
+                NotificationKind.MEMBERSHIP_STARTED,
+                plan=MEMBERSHIP_LABELS.get(plan, plan),
+                ends_on=_day(ends_at),
+            ),
         )
 
     def membership_rejected(self, *, user_id: int, note: str) -> None:
@@ -238,11 +246,9 @@ class NotificationFanout:
         )
 
 
-PLAN_LABELS = {"trial": "d'essai", "monthly": "mensuelle", "yearly": "annuelle"}
-
-
-def _plan(plan: str) -> str:
-    return PLAN_LABELS.get(plan, plan)
+# "votre abonnement mensuel" for the client, "la formule mensuelle" for staff
+MEMBERSHIP_LABELS = {"trial": "d'essai", "monthly": "mensuel", "yearly": "annuel"}
+FORMULA_LABELS = {"trial": "d'essai", "monthly": "mensuelle", "yearly": "annuelle"}
 
 
 def _day(moment: datetime) -> str:

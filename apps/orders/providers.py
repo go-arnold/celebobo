@@ -79,6 +79,7 @@ def _pricing(container: Container) -> PricingService:
         _coupons(),
         container.resolve(Members),
         container.resolve(Wallet),
+        addresses=container.resolve(AddressBook),
         max_lines=settings.max_lines,
     )
 
