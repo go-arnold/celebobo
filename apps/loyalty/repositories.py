@@ -1,11 +1,19 @@
 from collections.abc import Iterable
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
-from django.db.models import F
+from django.db.models import F, Sum
 
+from apps.loyalty.domain.cashback import CREDITS, EntryKind
 from apps.loyalty.domain.membership import RequestStatus
-from apps.loyalty.models import SETTINGS_ID, LoyaltySettings, Membership, MembershipRequest
+from apps.loyalty.models import (
+    SETTINGS_ID,
+    CashbackEntry,
+    LoyaltySettings,
+    Membership,
+    MembershipRequest,
+)
 
 
 class LoyaltySettingsRepository:
@@ -66,3 +74,42 @@ class MembershipRequestRepository:
 
     def save(self, request: MembershipRequest, *, fields: Iterable[str]) -> None:
         request.save(update_fields=list(fields))
+
+
+class CashbackRepository:
+    def credits(self, user_id: int, now: datetime, *, lock: bool = False) -> list[CashbackEntry]:
+        rows = CashbackEntry.objects.filter(
+            user_id=user_id,
+            kind__in=[kind.value for kind in CREDITS],
+            remaining__gt=0,
+            available_at__lte=now,
+            expires_at__gt=now,
+        ).order_by("expires_at", "pk")
+        return list(rows.select_for_update() if lock else rows)
+
+    def pending(self, user_id: int, now: datetime) -> Decimal:
+        total = CashbackEntry.objects.filter(
+            user_id=user_id, kind=EntryKind.EARN.value, remaining__gt=0, available_at__gt=now
+        ).aggregate(total=Sum("remaining"))["total"]
+        return total or Decimal(0)
+
+    def for_order(
+        self, order_id: int, kind: EntryKind, *, lock: bool = False
+    ) -> CashbackEntry | None:
+        rows = CashbackEntry.objects.filter(order_id=order_id, kind=kind.value)
+        return (rows.select_for_update() if lock else rows).first()
+
+    def expired(self, now: datetime) -> list[CashbackEntry]:
+        return list(
+            CashbackEntry.objects.select_for_update().filter(
+                kind__in=[kind.value for kind in CREDITS], remaining__gt=0, expires_at__lte=now
+            )
+        )
+
+    def add(self, **fields: Any) -> CashbackEntry:
+        entry: CashbackEntry = CashbackEntry.objects.create(**fields)
+        return entry
+
+    def use(self, entry: CashbackEntry, remaining: Decimal) -> None:
+        entry.remaining = remaining
+        entry.save(update_fields=["remaining"])

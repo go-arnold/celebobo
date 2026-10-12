@@ -31,6 +31,7 @@ def test_programmes_start_disabled_with_the_approved_rules():
         },
         "cashback": {
             "enabled": False,
+            "members_only": True,
             "percent": "3.00",
             "max_share": 50,
             "min_balance": "1.00",

@@ -397,6 +397,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "catalog.announce_deals",
         "schedule": 60,
     },
+    "expire-cashback": {
+        "task": "loyalty.expire_cashback",
+        "schedule": 24 * 60 * 60,
+    },
     "remind-memberships": {
         "task": "loyalty.remind_memberships",
         "schedule": 60 * 60,

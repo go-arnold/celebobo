@@ -46,7 +46,7 @@ from apps.orders.selectors import OrderSelector, PromotionSelector, scoped_order
 from apps.orders.services.adjustments import AdjustmentService
 from apps.orders.services.cart import CartOwner, CartService
 from apps.orders.services.checkout import CheckoutService
-from apps.orders.services.contracts import OrderThreads, ResellerDirectory
+from apps.orders.services.contracts import OrderThreads, ResellerDirectory, Wallet
 from apps.orders.services.lifecycle import OrderLifecycleService, StatusChange
 from apps.orders.services.pricing import PricingContext, PricingService
 from apps.orders.services.promotions import CouponAdminService, ShippingZoneService
@@ -110,8 +110,10 @@ class CheckoutFacade:
         carts: CartRepository,
         selector: OrderSelector,
         threads: OrderThreads,
+        wallet: Wallet,
         publisher: EventPublisher,
     ) -> None:
+        self._wallet = wallet
         self._checkout = checkout
         self._pricing = pricing
         self._carts = carts
@@ -126,8 +128,11 @@ class CheckoutFacade:
         *,
         city: str | None = None,
         coupon_code: str | None = None,
+        use_cashback: bool = False,
     ) -> QuoteView:
-        context = PricingContext(city=city, coupon_code=coupon_code, user_id=actor.user_id)
+        context = PricingContext(
+            city=city, coupon_code=coupon_code, user_id=actor.user_id, use_cashback=use_cashback
+        )
         return self._pricing.price(lines, context).view
 
     def place(self, actor: Actor, command: PlaceOrder) -> OrderDetail:
@@ -149,7 +154,11 @@ class CheckoutFacade:
         return self._with_thread(self._selector.client_detail(client_id, order.number))
 
     def _with_thread(self, detail: OrderDetail) -> OrderDetail:
-        return replace(detail, conversation_id=self._threads.thread_for(detail.summary.id))
+        return replace(
+            detail,
+            conversation_id=self._threads.thread_for(detail.summary.id),
+            cashback_earned=self._wallet.earned(detail.summary.id),
+        )
 
 
 @logged_facade
@@ -161,12 +170,14 @@ class ClientOrderFacade:
         lifecycle: OrderLifecycleService,
         selector: OrderSelector,
         threads: OrderThreads,
+        wallet: Wallet,
         publisher: EventPublisher,
     ) -> None:
         self._orders = orders
         self._lifecycle = lifecycle
         self._selector = selector
         self._threads = threads
+        self._wallet = wallet
         self._publisher = publisher
 
     def page(
@@ -201,6 +212,7 @@ class ClientOrderFacade:
             detail,
             allowed_transitions=self._lifecycle.allowed(order, actor),
             conversation_id=self._threads.thread_for(order.pk),
+            cashback_earned=self._wallet.earned(order.pk),
         )
 
 
@@ -214,6 +226,7 @@ class DispatchFacade:
         selector: OrderSelector,
         resellers: ResellerDirectory,
         threads: OrderThreads,
+        wallet: Wallet,
         publisher: EventPublisher,
     ) -> None:
         self._orders = orders
@@ -221,6 +234,7 @@ class DispatchFacade:
         self._selector = selector
         self._resellers = resellers
         self._threads = threads
+        self._wallet = wallet
         self._publisher = publisher
 
     def page(self, actor: Actor, filters: OrderFilters, *, offset: int, limit: int) -> OrderPage:
@@ -236,6 +250,7 @@ class DispatchFacade:
             detail,
             allowed_transitions=self._lifecycle.allowed(order, actor),
             conversation_id=self._threads.thread_for(order_id),
+            cashback_earned=self._wallet.earned(order_id),
         )
 
     def assign(self, actor: Actor, order_id: int, command: AssignOrder) -> OrderDetail:

@@ -4,7 +4,7 @@ from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.errors import AddressRequired
 from apps.orders.models import Order
 from apps.orders.repositories import OrderRepository
-from apps.orders.services.contracts import AddressBook, Inventory
+from apps.orders.services.contracts import AddressBook, Inventory, Wallet
 from apps.orders.services.coupons import CouponService
 from apps.orders.services.pricing import PricingContext, PricingService, stock_line
 from core.domain.actor import Actor, Role
@@ -20,12 +20,15 @@ class CheckoutService:
         inventory: Inventory,
         addresses: AddressBook,
         coupons: CouponService,
+        *,
+        wallet: Wallet,
     ) -> None:
         self._orders = orders
         self._pricing = pricing
         self._inventory = inventory
         self._addresses = addresses
         self._coupons = coupons
+        self._wallet = wallet
 
     def place(self, client_id: int, command: PlaceOrder) -> Order:
         address = self._address(client_id, command)
@@ -37,6 +40,7 @@ class CheckoutService:
                 user_id=client_id,
                 strict=True,
                 lock=True,
+                use_cashback=command.use_cashback,
             ),
         )
         quote, priced = priced_quote.view, priced_quote.lines
@@ -53,11 +57,14 @@ class CheckoutService:
             note=" ".join(command.note.split()),
             subtotal=quote.subtotal,
             discount=quote.discount,
+            cashback=quote.cashback,
             coupon_code=quote.coupon_code or "",
             shipping_zone=quote.shipping_zone,
             shipping_fee=quote.shipping_fee,
             total=quote.total,
         )
+        if quote.cashback:
+            self._wallet.spend(client_id, order.pk, quote.cashback)
         if priced_quote.coupon is not None:
             self._coupons.redeem(
                 priced_quote.coupon, order, user_id=client_id, amount=quote.discount

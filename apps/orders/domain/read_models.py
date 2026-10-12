@@ -30,6 +30,8 @@ class QuoteView:
     coupon_code: str | None = None
     coupon_error: str | None = None
     member_free_shipping: bool = False
+    cashback: Decimal = Decimal("0.00")
+    cashback_available: Decimal = Decimal("0.00")
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -117,6 +119,8 @@ class OrderDetail:
     discount: Decimal = Decimal("0.00")
     coupon_code: str = ""
     shipping_zone: str = ""
+    cashback: Decimal = Decimal("0.00")
+    cashback_earned: Decimal | None = None
     history: tuple[StatusEntry, ...]
     allowed_transitions: tuple[OrderStatus, ...]
     client: PersonBrief

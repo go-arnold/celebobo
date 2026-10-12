@@ -1,8 +1,10 @@
 from collections.abc import Callable
 from datetime import datetime
+from decimal import Decimal
 
 from django.db import transaction
 
+from apps.loyalty.domain.cashback import Balance
 from apps.loyalty.domain.events import (
     LoyaltySettingsChanged,
     MembershipEnding,
@@ -21,6 +23,7 @@ from apps.loyalty.domain.membership import (
 from apps.loyalty.domain.settings import LoyaltySettingsChanges, Programmes
 from apps.loyalty.models import Membership
 from apps.loyalty.selectors import MembershipSelector, to_programmes
+from apps.loyalty.services.cashback import CashbackService
 from apps.loyalty.services.contracts import People
 from apps.loyalty.services.membership import MembershipService
 from apps.loyalty.services.settings import LoyaltySettingsService
@@ -144,3 +147,33 @@ def _user_id(actor: Actor) -> int:
     if actor.user_id is None:
         raise Unauthenticated
     return actor.user_id
+
+
+@logged_facade
+class CashbackFacade:
+    def __init__(self, *, cashback: CashbackService) -> None:
+        self._cashback = cashback
+
+    def mine(self, actor: Actor) -> Balance:
+        return self._cashback.balance(_user_id(actor))
+
+    def usable(self, user_id: int, base: Decimal, *, lock: bool = False) -> Decimal:
+        return self._cashback.usable(user_id, base, lock=lock)
+
+    def spend(self, user_id: int, order_id: int, amount: Decimal) -> None:
+        self._cashback.spend(user_id, order_id, amount)
+
+    def earned(self, order_id: int) -> Decimal | None:
+        return self._cashback.earned(order_id)
+
+    def delivered(self, order_id: int, delivered_at: datetime) -> None:
+        with transaction.atomic():
+            self._cashback.earn(order_id, delivered_at)
+
+    def undone(self, order_id: int) -> None:
+        with transaction.atomic():
+            self._cashback.undo(order_id)
+
+    def expire(self) -> int:
+        with transaction.atomic():
+            return self._cashback.expire()

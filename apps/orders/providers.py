@@ -8,6 +8,7 @@ from apps.orders.adapters.gateways import (
     DeliveredOrderPurchases,
     NoMembers,
     NoOrderThreads,
+    NoWallet,
     OrderDealSales,
 )
 from apps.orders.conf import order_settings
@@ -36,6 +37,7 @@ from apps.orders.services.contracts import (
     Members,
     OrderThreads,
     ResellerDirectory,
+    Wallet,
 )
 from apps.orders.services.coupons import CouponService
 from apps.orders.services.lifecycle import OrderLifecycleService
@@ -52,6 +54,7 @@ def register(container: Container) -> None:
     container.register(ResellerDirectory, lambda _: AccountsResellerDirectory())
     container.register(OrderThreads, lambda _: NoOrderThreads())
     container.register(Members, lambda _: NoMembers())
+    container.register(Wallet, lambda _: NoWallet())
     container.register(OrderStateMachine, lambda _: OrderStateMachine(TransitionPolicyFactory()))
     container.register(PurchaseVerifier, lambda _: DeliveredOrderPurchases(), replace=True)
     container.register(DealSales, lambda _: OrderDealSales(), replace=True)
@@ -75,6 +78,7 @@ def _pricing(container: Container) -> PricingService:
         ShippingResolver(ShippingZoneRepository(), settings.shipping_rules),
         _coupons(),
         container.resolve(Members),
+        container.resolve(Wallet),
         max_lines=settings.max_lines,
     )
 
@@ -108,11 +112,13 @@ def _checkout_facade(container: Container) -> CheckoutFacade:
             container.resolve(Inventory),
             container.resolve(AddressBook),
             _coupons(),
+            wallet=container.resolve(Wallet),
         ),
         pricing=pricing,
         carts=CartRepository(),
         selector=OrderSelector(),
         threads=container.resolve(OrderThreads),
+        wallet=container.resolve(Wallet),
         publisher=container.resolve(EventPublisher),
     )
 
@@ -123,6 +129,7 @@ def _client_facade(container: Container) -> ClientOrderFacade:
         lifecycle=_lifecycle(container),
         selector=OrderSelector(),
         threads=container.resolve(OrderThreads),
+        wallet=container.resolve(Wallet),
         publisher=container.resolve(EventPublisher),
     )
 
@@ -134,6 +141,7 @@ def _dispatch_facade(container: Container) -> DispatchFacade:
         selector=OrderSelector(),
         resellers=container.resolve(ResellerDirectory),
         threads=container.resolve(OrderThreads),
+        wallet=container.resolve(Wallet),
         publisher=container.resolve(EventPublisher),
     )
 

@@ -32,6 +32,7 @@ class PlaceOrder:
     address: DeliveryAddress | None = None
     note: str = ""
     coupon_code: str | None = None
+    use_cashback: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

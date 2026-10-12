@@ -25,6 +25,7 @@
   <tfoot>
     <tr><td colspan="4" class="num">Sous-total</td><td class="num">{{ order.subtotal }} $</td></tr>
     {% if order.discount %}<tr><td colspan="4" class="num">Remise{% if order.coupon_code %} ({{ order.coupon_code }}){% endif %}</td><td class="num">-{{ order.discount }} $</td></tr>{% endif %}
+    {% if order.cashback %}<tr><td colspan="4" class="num">Cagnotte</td><td class="num">-{{ order.cashback }} $</td></tr>{% endif %}
     <tr><td colspan="4" class="num">Livraison{% if order.shipping_zone %} ({{ order.shipping_zone }}){% endif %}</td><td class="num">{{ order.shipping_fee }} $</td></tr>
     <tr class="totals"><td colspan="4" class="num">Total</td><td class="num">{{ order.summary.total }} $</td></tr>
   </tfoot>

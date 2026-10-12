@@ -152,6 +152,7 @@ class OrderSelector:
             subtotal=order.subtotal,
             discount=order.discount,
             coupon_code=order.coupon_code,
+            cashback=order.cashback,
             shipping_zone=order.shipping_zone,
             shipping_fee=order.shipping_fee,
             cancel_reason=order.cancel_reason,

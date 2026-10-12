@@ -96,3 +96,4 @@ Two journals, kept **365 days**:
 | Delete orphan uploads | daily |
 | Announce deals that start or end | every minute |
 | Remind members whose Plus membership ends soon | hourly |
+| Expire unused cashback | daily |

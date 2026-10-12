@@ -16,6 +16,7 @@ class MembershipTerms:
 @dataclass(frozen=True, slots=True, kw_only=True)
 class CashbackTerms:
     enabled: bool
+    members_only: bool
     percent: Decimal
     max_share: int
     min_balance: Decimal
@@ -43,6 +44,7 @@ class LoyaltySettingsChanges:
     membership_trial_days: Maybe[int] = UNSET
     membership_reminder_days: Maybe[int] = UNSET
     cashback_enabled: Maybe[bool] = UNSET
+    cashback_members_only: Maybe[bool] = UNSET
     cashback_percent: Maybe[Decimal] = UNSET
     cashback_max_share: Maybe[int] = UNSET
     cashback_min_balance: Maybe[Decimal] = UNSET

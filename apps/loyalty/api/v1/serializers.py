@@ -18,6 +18,7 @@ class LoyaltySettingsInput(serializers.Serializer[Any]):
     membership_trial_days = serializers.IntegerField(min_value=0, max_value=365)
     membership_reminder_days = serializers.IntegerField(min_value=0, max_value=30)
     cashback_enabled = serializers.BooleanField()
+    cashback_members_only = serializers.BooleanField()
     cashback_percent = serializers.DecimalField(
         max_digits=5, decimal_places=2, min_value=Decimal("0.01"), max_value=Decimal("50")
     )
@@ -38,6 +39,7 @@ class MembershipTermsOutput(serializers.Serializer[Any]):
 
 class CashbackTermsOutput(serializers.Serializer[Any]):
     enabled = serializers.BooleanField()
+    members_only = serializers.BooleanField()
     percent = serializers.DecimalField(max_digits=5, decimal_places=2)
     max_share = serializers.IntegerField()
     min_balance = money()
@@ -116,3 +118,10 @@ class AdminMemberOutput(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=[item.value for item in MembershipStatus])
     plan = serializers.ChoiceField(choices=[item.value for item in Plan])
     ends_at = serializers.DateTimeField()
+
+
+class BalanceOutput(serializers.Serializer[Any]):
+    eligible = serializers.BooleanField()
+    available = money()
+    pending = money()
+    next_expiry = serializers.DateTimeField(allow_null=True)

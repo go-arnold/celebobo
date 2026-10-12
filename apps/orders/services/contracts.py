@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from decimal import Decimal
 from typing import Protocol
 
 from apps.catalog.domain.enums import StockReason
@@ -17,6 +18,14 @@ class Inventory(Protocol):
     def release(
         self, lines: Sequence[StockLine], source: StockSource, *, reason: StockReason, note: str
     ) -> None: ...
+
+
+class Wallet(Protocol):
+    def usable(self, user_id: int, base: Decimal, *, lock: bool = False) -> Decimal: ...
+
+    def spend(self, user_id: int, order_id: int, amount: Decimal) -> None: ...
+
+    def earned(self, order_id: int) -> Decimal | None: ...
 
 
 class Members(Protocol):
