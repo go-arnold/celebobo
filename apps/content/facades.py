@@ -1,4 +1,4 @@
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from uuid import UUID
 
 from django.db import transaction
@@ -283,10 +283,13 @@ class StorefrontFacade:
         self._schedule = schedule
         self._debounce = debounce
 
-    def product_changed(self, product_id: int) -> None:
-        location = self._enabled and self._catalog.product_location(product_id)
-        if location:
-            self._queue(product_tags(*location))
+    def products_changed(self, product_ids: Sequence[int]) -> None:
+        if not self._enabled:
+            return
+        locations = self._catalog.product_locations(product_ids)
+        tags = dict.fromkeys(tag for location in locations for tag in product_tags(*location))
+        if tags:
+            self._queue(tuple(tags))
 
     def category_changed(self, category_id: int) -> None:
         slug = self._enabled and self._catalog.category_slug(category_id)

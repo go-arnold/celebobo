@@ -1,4 +1,4 @@
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict
 from datetime import datetime
 from decimal import Decimal
@@ -34,6 +34,13 @@ class ShippingZoneService:
 
     def delete(self, zone_id: int) -> None:
         self._get(zone_id).delete()
+
+    def reorder(self, ids: Sequence[int]) -> None:
+        zones = ShippingZone.objects.select_for_update().filter(pk__in=ids)
+        if zones.count() != len(ids):
+            raise ShippingZoneNotFound
+        for position, zone_id in enumerate(ids, start=1):
+            ShippingZone.objects.filter(pk=zone_id).update(position=position)
 
     @staticmethod
     def _release_default(values: dict[str, Any], keep: int | None = None) -> None:

@@ -9,10 +9,12 @@ from apps.catalog.domain.management import (
     BulkAction,
     OptionInput,
     ProductStatus,
+    VariantDraft,
 )
 from core.api.fields import MAX_INTEGER
 
 MAX_IMAGES = 8
+MAX_VARIANTS = 200
 
 
 def _choices(enum: type[Any]) -> list[str]:
@@ -75,14 +77,6 @@ class ProductFieldsSerializer(serializers.Serializer[Any]):
         return attrs
 
 
-class ProductCreateInput(ProductFieldsSerializer):
-    stock = serializers.IntegerField(min_value=0, required=False, default=0, max_value=MAX_INTEGER)
-
-
-class ProductPatchInput(ProductFieldsSerializer):
-    pass
-
-
 class VariantInput(serializers.Serializer[Any]):
     attributes = serializers.DictField(child=serializers.CharField(max_length=60))
     sku = serializers.CharField(max_length=64, required=False, allow_null=True)
@@ -92,6 +86,47 @@ class VariantInput(serializers.Serializer[Any]):
         min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
     )
     is_active = serializers.BooleanField(required=False, default=True)
+
+
+class FormVariantInput(VariantInput):
+    id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
+
+    # the product patch is partial, but each listed variant is a full row
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        missing = [name for name in ("attributes", "stock") if name not in attrs]
+        if missing:
+            raise serializers.ValidationError(
+                {name: ["Ce champ est obligatoire."] for name in missing}
+            )
+        return attrs
+
+
+def _variant_drafts(attrs: dict[str, Any]) -> dict[str, Any]:
+    if "variants" in attrs:
+        attrs["variants"] = tuple(VariantDraft(**variant) for variant in attrs["variants"])
+    return attrs
+
+
+class ProductCreateInput(ProductFieldsSerializer):
+    stock = serializers.IntegerField(min_value=0, required=False, default=0, max_value=MAX_INTEGER)
+    variants: serializers.ListSerializer[Any] = serializers.ListSerializer(
+        child=VariantInput(), required=False, max_length=MAX_VARIANTS
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _variant_drafts(super().validate(attrs))
+
+
+class ProductPatchInput(ProductFieldsSerializer):
+    stock = serializers.IntegerField(min_value=0, max_value=MAX_INTEGER)
+    variants: serializers.ListSerializer[Any] = serializers.ListSerializer(
+        child=FormVariantInput(), max_length=MAX_VARIANTS
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        return _variant_drafts(super().validate(attrs))
 
 
 class VariantPatchInput(serializers.Serializer[Any]):

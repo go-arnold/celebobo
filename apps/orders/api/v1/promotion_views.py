@@ -8,6 +8,7 @@ from apps.orders.api.v1.promotion_serializers import (
     CouponInput,
     CouponOutput,
     ZoneInput,
+    ZoneOrderInput,
     ZoneOutput,
 )
 from apps.orders.domain.commands import CouponChanges, CouponFields, ZoneChanges, ZoneFields
@@ -29,7 +30,7 @@ class ShippingZonePublicViewSet(UseCaseViewSet):
 
 class ShippingZoneAdminViewSet(UseCaseViewSet):
     action_permissions = dict.fromkeys(
-        ("list", "create", "partial_update", "destroy"), (SHIPPING_MANAGE,)
+        ("list", "create", "partial_update", "destroy", "reorder"), (SHIPPING_MANAGE,)
     )
     promotions = Inject(PromotionFacade)
 
@@ -53,6 +54,11 @@ class ShippingZoneAdminViewSet(UseCaseViewSet):
     def destroy(self, request: Request, zone_id: int) -> Response:
         self.promotions.delete_zone(zone_id)
         return Response(status=204)
+
+    @extend_schema(request=ZoneOrderInput, responses=ZoneOutput(many=True))
+    def reorder(self, request: Request) -> Response:
+        ids = self.validated(ZoneOrderInput)["ids"]
+        return self.respond(ZoneOutput, self.promotions.reorder_zones(ids), many=True)
 
 
 class CouponAdminViewSet(UseCaseViewSet):

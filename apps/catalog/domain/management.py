@@ -37,6 +37,18 @@ class OptionInput:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class VariantDraft:
+    attributes: Mapping[str, str]
+    sku: str | None = None
+    price: Decimal | None = None
+    stock: int = 0
+    image_id: int | None = None
+    is_active: bool = True
+    # set on the product form: an existing variant to keep, None for a new one
+    id: int | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ProductDraft:
     name: str
     description: str
@@ -60,6 +72,7 @@ class ProductDraft:
     features: tuple[str, ...] = ()
     options: tuple[OptionInput, ...] = ()
     image_ids: tuple[int, ...] = ()
+    variants: tuple[VariantDraft, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -85,16 +98,8 @@ class ProductChanges:
     features: Maybe[tuple[str, ...]] = UNSET
     options: Maybe[tuple[OptionInput, ...]] = UNSET
     image_ids: Maybe[tuple[int, ...]] = UNSET
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class VariantDraft:
-    attributes: Mapping[str, str]
-    sku: str | None = None
-    price: Decimal | None = None
-    stock: int = 0
-    image_id: int | None = None
-    is_active: bool = True
+    stock: Maybe[int] = UNSET
+    variants: Maybe[tuple[VariantDraft, ...]] = UNSET
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

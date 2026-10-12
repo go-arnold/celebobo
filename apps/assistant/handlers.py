@@ -1,7 +1,13 @@
 from apps.assistant.adapters.gateways import CatalogDocuments
 from apps.assistant.domain.events import AssistantReplied, EmbeddingsReindexRequested
 from apps.assistant.facades import AssistantInsightsFacade
-from apps.catalog.domain.events import CategoryChanged, ProductChanged, ProductRemoved
+from apps.catalog.domain.events import (
+    CategoryChanged,
+    ProductChanged,
+    ProductRemoved,
+    ProductsChanged,
+    ProductsRemoved,
+)
 from core.container import container
 from core.events.bus import event_bus
 
@@ -10,9 +16,11 @@ def _insights() -> AssistantInsightsFacade:
     return container.resolve(AssistantInsightsFacade)
 
 
-@event_bus.on(ProductChanged, ProductRemoved, background=True)
-def embed_product(event: ProductChanged | ProductRemoved) -> None:
-    _insights().refresh_embeddings([event.product_id])
+@event_bus.on(ProductChanged, ProductsChanged, ProductRemoved, ProductsRemoved, background=True)
+def embed_products(
+    event: ProductChanged | ProductsChanged | ProductRemoved | ProductsRemoved,
+) -> None:
+    _insights().refresh_embeddings(list(event.product_ids))
 
 
 @event_bus.on(CategoryChanged, background=True)

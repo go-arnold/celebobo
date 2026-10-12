@@ -11,6 +11,17 @@ def money(**options: Any) -> serializers.DecimalField:
     return serializers.DecimalField(max_digits=10, decimal_places=2, **options)
 
 
+class ZoneOrderInput(serializers.Serializer[Any]):
+    ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1, max_value=MAX_INTEGER),
+        allow_empty=False,
+        max_length=100,
+    )
+
+    def validate_ids(self, value: list[int]) -> tuple[int, ...]:
+        return tuple(dict.fromkeys(value))
+
+
 class ZoneInput(serializers.Serializer[Any]):
     name = serializers.CharField(max_length=80)
     fee = money(min_value=Decimal(0))

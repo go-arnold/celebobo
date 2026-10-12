@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from apps.catalog.domain.enums import ProductOrdering
 from apps.catalog.domain.queries import ProductQuery
 from apps.catalog.domain.read_models import CatalogSitemap, CategoryView, ProductCard
@@ -35,8 +37,8 @@ class CatalogShowcase:
     def sitemap(self) -> CatalogSitemap:
         return container.resolve(CatalogFacade).sitemap()
 
-    def product_location(self, product_id: int) -> tuple[str, str] | None:
-        return container.resolve(CatalogFacade).product_location(product_id)
+    def product_locations(self, product_ids: Sequence[int]) -> list[tuple[str, str]]:
+        return container.resolve(CatalogFacade).product_locations(product_ids)
 
     def category_slug(self, category_id: int) -> str | None:
         return container.resolve(CatalogFacade).category_slug(category_id)

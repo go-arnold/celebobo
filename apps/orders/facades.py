@@ -380,6 +380,11 @@ class PromotionFacade:
         with transaction.atomic():
             self._zones.delete(zone_id)
 
+    def reorder_zones(self, ids: Sequence[int]) -> list[ShippingZoneView]:
+        with transaction.atomic():
+            self._zones.reorder(ids)
+        return self._selector.zones(active_only=False)
+
     def coupons(
         self, *, search: str | None, active: bool | None, offset: int, limit: int
     ) -> tuple[list[CouponView], int]:

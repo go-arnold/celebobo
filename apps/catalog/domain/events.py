@@ -5,10 +5,29 @@ from core.events.base import DomainEvent, domain_event
 class ProductChanged(DomainEvent):
     product_id: int
 
+    @property
+    def product_ids(self) -> tuple[int, ...]:
+        return (self.product_id,)
+
 
 @domain_event
 class ProductRemoved(DomainEvent):
     product_id: int
+
+    @property
+    def product_ids(self) -> tuple[int, ...]:
+        return (self.product_id,)
+
+
+# one event for a whole bulk action, so handlers index and revalidate the batch at once
+@domain_event
+class ProductsChanged(DomainEvent):
+    product_ids: tuple[int, ...]
+
+
+@domain_event
+class ProductsRemoved(DomainEvent):
+    product_ids: tuple[int, ...]
 
 
 @domain_event

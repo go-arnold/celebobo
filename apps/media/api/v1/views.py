@@ -2,7 +2,13 @@ from drf_spectacular.utils import extend_schema
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from apps.media.api.v1.serializers import CompleteInput, MediaOutput, SignatureOutput, SignInput
+from apps.media.api.v1.serializers import (
+    CompleteInput,
+    CompleteManyInput,
+    MediaOutput,
+    SignatureOutput,
+    SignInput,
+)
 from apps.media.domain.policies import UploadPurpose
 from apps.media.domain.uploads import CompletedUpload
 from apps.media.facades import MediaFacade
@@ -12,7 +18,11 @@ from core.container import Inject
 
 
 class UploadViewSet(UseCaseViewSet):
-    action_permissions = {"sign": (MEDIA_UPLOAD,), "complete": (MEDIA_UPLOAD,)}
+    action_permissions = {
+        "sign": (MEDIA_UPLOAD,),
+        "complete": (MEDIA_UPLOAD,),
+        "complete_many": (MEDIA_UPLOAD,),
+    }
     throttle_scope = "uploads"
     media = Inject(MediaFacade)
 
@@ -25,3 +35,12 @@ class UploadViewSet(UseCaseViewSet):
     def complete(self, request: Request) -> Response:
         upload = self.parse(CompleteInput, into=CompletedUpload)
         return self.respond(MediaOutput, self.media.complete(self.actor, upload), status=201)
+
+    @extend_schema(request=CompleteManyInput, responses={201: MediaOutput(many=True)})
+    def complete_many(self, request: Request) -> Response:
+        uploads = [
+            CompletedUpload(**upload) for upload in self.validated(CompleteManyInput)["uploads"]
+        ]
+        return self.respond(
+            MediaOutput, self.media.complete_many(self.actor, uploads), status=201, many=True
+        )

@@ -117,9 +117,9 @@ Managers (`products.manage`, `stock.adjust`, `categories.manage`, `reviews.moder
 
 | Endpoint | Purpose |
 |---|---|
-| `GET · POST /api/v1/bo/products/` | List (`search` also matches SKU, `category_id`, `status=active\|inactive\|trash\|all`, `on_sale`, `out_of_stock`, `low_stock`, `badge`, price range; `meta.stats`) or create |
-| `GET · PATCH · DELETE /api/v1/bo/products/<id>/` · `restore/` · `duplicate/` | Detail with cost and margin, edit, soft delete, restore, copy (created inactive) |
-| `POST /api/v1/bo/products/bulk/` | `activate`, `deactivate`, `trash`, `restore`, `set_category`, `set_discount` (1–90 %), `clear_discount` |
+| `GET · POST /api/v1/bo/products/` | List (`search` also matches SKU, `category_id`, `status=active\|inactive\|trash\|all`, `on_sale`, `out_of_stock`, `low_stock`, `badge`, price range; `meta.stats`) or create; the create takes its `variants` (each with its initial stock), all in one transaction |
+| `GET · PATCH · DELETE /api/v1/bo/products/<id>/` · `restore/` · `duplicate/` | Detail with cost and margin, edit, soft delete, restore, copy (created inactive). The edit also takes `stock` (simple product, saved as a correction) and the full `variants` list of the form: rows with an `id` are updated with their stock, rows without one are created, missing ones are removed |
+| `POST /api/v1/bo/products/bulk/` | `activate`, `deactivate`, `trash`, `restore`, `set_category`, `set_discount` (1–90 %), `clear_discount`; publishes one `ProductsChanged` or `ProductsRemoved` for the whole batch |
 | `POST /api/v1/bo/products/<id>/variants/` · `PATCH · DELETE /api/v1/bo/variants/<id>/` | Variants; deleting a variant that has stock history deactivates it instead |
 | `POST /api/v1/bo/products/<id>/stock-adjustments/` · `GET stock-movements/` | Adjust stock by `delta` or `set`, with a reason; movement history |
 | `GET /api/v1/bo/stock/alerts/` | Products and variants at or below their threshold |
@@ -138,6 +138,8 @@ Cloudinary signed direct uploads, no SDK. The browser uploads straight to Cloudi
    - the format and size limits.
 
    It then stores an `UploadedMedia` and rebuilds the delivery URL itself.
+
+   `POST /api/v1/uploads/complete/batch/ {uploads: [...]}` does the same for up to 8 uploads at once (all or none). One signature is valid for every file of a form for an hour, so a form signs once and uploads its files in parallel.
 
 | Purpose | Permission | Max size | Transformation |
 |---|---|---|---|
@@ -198,7 +200,7 @@ Cancellations and returns put the stock back.
 | `POST /api/v1/checkout/quote/` | Also takes `city` and `coupon_code`; coupon problems come back as `coupon_error` |
 | `POST /api/v1/orders/` | Takes `coupon_code`; an invalid code is a `400 coupon_rejected` with `meta.reason` |
 | `GET /api/v1/shipping/zones/` | Active zones |
-| `/api/v1/bo/shipping-zones/` (+ `<id>/`) | Zone management (`shipping.manage`, managers) |
+| `/api/v1/bo/shipping-zones/` (+ `<id>/`, `POST reorder/ {ids}`) | Zone management (`shipping.manage`, managers) |
 | `/api/v1/bo/coupons/` (+ `<id>/`) | Coupons with uses and total discount; `DELETE` deactivates (`coupons.manage`, managers) |
 
 ### `apps.messaging`
