@@ -83,6 +83,30 @@ TEMPLATES: Mapping[NotificationKind, NotificationTemplate] = MappingProxyType(
             link="/admin/messages/{conversation_id}",
             topic=STATUS_CHANGED_TOPIC,
         ),
+        NotificationKind.MEMBERSHIP_REQUESTED: NotificationTemplate(
+            title="Abonnement Plus à confirmer",
+            body="{client} a choisi la formule {plan}. Confirmez dès réception du paiement.",
+            link="/admin/abonnements",
+            topic=ORDER_ASSIGNED_TOPIC,
+        ),
+        NotificationKind.MEMBERSHIP_STARTED: NotificationTemplate(
+            title="Bienvenue dans Celebobo Plus",
+            body="Votre abonnement {plan} est actif jusqu'au {ends_on}.",
+            link="/compte/abonnement",
+            topic=STATUS_CHANGED_TOPIC,
+        ),
+        NotificationKind.MEMBERSHIP_REJECTED: NotificationTemplate(
+            title="Demande d'abonnement refusée",
+            body="Votre demande d'abonnement Plus n'a pas été confirmée. {note}",
+            link="/compte/abonnement",
+            topic=STATUS_CHANGED_TOPIC,
+        ),
+        NotificationKind.MEMBERSHIP_ENDING: NotificationTemplate(
+            title="Votre abonnement Plus se termine bientôt",
+            body="Il prend fin le {ends_on}. Renouvelez-le pour garder la livraison offerte.",
+            link="/compte/abonnement",
+            topic=STATUS_CHANGED_TOPIC,
+        ),
     }
 )
 

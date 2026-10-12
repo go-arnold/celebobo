@@ -85,6 +85,7 @@ class ZoneFields:
     is_default: bool = False
     is_active: bool = True
     position: int = 0
+    member_free_shipping: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -97,6 +98,7 @@ class ZoneChanges:
     is_default: Maybe[bool] = UNSET
     is_active: Maybe[bool] = UNSET
     position: Maybe[int] = UNSET
+    member_free_shipping: Maybe[bool] = UNSET
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

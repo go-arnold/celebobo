@@ -2,6 +2,12 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
+from apps.loyalty.domain.events import (
+    MembershipEnding,
+    MembershipRequested,
+    MembershipRequestRejected,
+    MembershipStarted,
+)
 from apps.messaging.domain.commands import (
     ConversationFilters,
     OpenSupport,
@@ -303,6 +309,20 @@ class NotificationRouter:
 
     def order_placed(self, event: OrderPlaced) -> None:
         self._fanout.order_placed(event.order_id)
+
+    def membership_requested(self, event: MembershipRequested) -> None:
+        self._fanout.membership_requested(client_name=event.client_name, plan=event.plan)
+
+    def membership_started(self, event: MembershipStarted) -> None:
+        self._fanout.membership_started(
+            user_id=event.user_id, plan=event.plan, ends_at=event.ends_at
+        )
+
+    def membership_rejected(self, event: MembershipRequestRejected) -> None:
+        self._fanout.membership_rejected(user_id=event.user_id, note=event.note)
+
+    def membership_ending(self, event: MembershipEnding) -> None:
+        self._fanout.membership_ending(user_id=event.user_id, ends_at=event.ends_at)
 
     def order_assigned(self, event: OrderAssigned) -> None:
         self._fanout.order_assigned(event.order_id, event.reseller_id)

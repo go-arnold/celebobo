@@ -157,6 +157,16 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 404 | `coupon_not_found` | Code promo introuvable. |
 | 409 | `coupon_code_taken` | Un code promo utilise déjà ce code. |
 
+## Loyalty
+
+| HTTP | Code | Message |
+|---|---|---|
+| 422 | `membership_closed` | L'abonnement Celebobo Plus n'est pas proposé pour le moment. |
+| 422 | `trial_unavailable` | `meta.reason`: `email_unverified`, `phone_missing`, `trial_used`, `already_member` or `phone_used` |
+| 409 | `membership_request_pending` | Une demande d'abonnement attend déjà la confirmation du paiement. |
+| 404 | `membership_request_not_found` | Demande d'abonnement introuvable. |
+| 409 | `membership_request_handled` | Cette demande a déjà été traitée. |
+
 ## Push notifications
 
 | HTTP | Code | Message |

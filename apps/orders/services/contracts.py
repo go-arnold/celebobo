@@ -19,6 +19,10 @@ class Inventory(Protocol):
     ) -> None: ...
 
 
+class Members(Protocol):
+    def is_member(self, user_id: int) -> bool: ...
+
+
 class AddressBook(Protocol):
     def snapshot(self, user_id: int, address_id: int) -> DeliveryAddress: ...
 

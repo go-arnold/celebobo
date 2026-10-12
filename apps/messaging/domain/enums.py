@@ -34,3 +34,7 @@ class NotificationKind(StrEnum):
     CONVERSATION_ASSIGNED = "conversation_assigned"
     PRICE_PROPOSED = "price_proposed"
     PRICE_ANSWERED = "price_answered"
+    MEMBERSHIP_REQUESTED = "membership_requested"
+    MEMBERSHIP_STARTED = "membership_started"
+    MEMBERSHIP_REJECTED = "membership_rejected"
+    MEMBERSHIP_ENDING = "membership_ending"

@@ -1,5 +1,11 @@
 from django.db import transaction
 
+from apps.loyalty.domain.events import (
+    MembershipEnding,
+    MembershipRequested,
+    MembershipRequestRejected,
+    MembershipStarted,
+)
 from apps.messaging.domain.events import (
     ConversationAssigned,
     ConversationOpened,
@@ -87,3 +93,23 @@ def notify_price_proposed(event: PriceProposed) -> None:
 @event_bus.on(PriceProposalAnswered, background=True)
 def notify_price_answered(event: PriceProposalAnswered) -> None:
     container.resolve(NotificationRouter).price_answered(event)
+
+
+@event_bus.on(MembershipRequested, background=True)
+def notify_membership_requested(event: MembershipRequested) -> None:
+    container.resolve(NotificationRouter).membership_requested(event)
+
+
+@event_bus.on(MembershipStarted, background=True)
+def notify_membership_started(event: MembershipStarted) -> None:
+    container.resolve(NotificationRouter).membership_started(event)
+
+
+@event_bus.on(MembershipRequestRejected, background=True)
+def notify_membership_rejected(event: MembershipRequestRejected) -> None:
+    container.resolve(NotificationRouter).membership_rejected(event)
+
+
+@event_bus.on(MembershipEnding, background=True)
+def notify_membership_ending(event: MembershipEnding) -> None:
+    container.resolve(NotificationRouter).membership_ending(event)

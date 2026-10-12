@@ -3,6 +3,9 @@ from typing import Any
 
 from rest_framework import serializers
 
+from apps.loyalty.domain.membership import MembershipStatus, Plan, RequestStatus
+from apps.orders.domain.enums import PaymentMethod
+
 
 def money(**options: Any) -> serializers.DecimalField:
     return serializers.DecimalField(max_digits=10, decimal_places=2, **options)
@@ -50,3 +53,66 @@ class ProgrammesOutput(serializers.Serializer[Any]):
     membership = MembershipTermsOutput()
     cashback = CashbackTermsOutput()
     app_links = AppLinksOutput()
+
+
+class MembershipRequestInput(serializers.Serializer[Any]):
+    plan = serializers.ChoiceField(choices=[Plan.MONTHLY.value, Plan.YEARLY.value])
+    payment_method = serializers.ChoiceField(choices=[item.value for item in PaymentMethod])
+
+    def validate_plan(self, value: str) -> Plan:
+        return Plan(value)
+
+
+class RejectInput(serializers.Serializer[Any]):
+    note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+
+
+class RequestFiltersInput(serializers.Serializer[Any]):
+    status = serializers.ChoiceField(choices=[item.value for item in RequestStatus], required=False)
+
+
+class MemberFiltersInput(serializers.Serializer[Any]):
+    status = serializers.ChoiceField(
+        choices=[item.value for item in MembershipStatus if item is not MembershipStatus.NONE],
+        required=False,
+    )
+
+
+class RequestOutput(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    plan = serializers.ChoiceField(choices=[item.value for item in Plan])
+    price = money()
+    payment_method = serializers.CharField()
+    status = serializers.ChoiceField(choices=[item.value for item in RequestStatus])
+    note = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    handled_at = serializers.DateTimeField(allow_null=True)
+
+
+class MemberOutput(serializers.Serializer[Any]):
+    status = serializers.ChoiceField(choices=[item.value for item in MembershipStatus])
+    plan = serializers.ChoiceField(choices=[item.value for item in Plan], allow_null=True)
+    ends_at = serializers.DateTimeField(allow_null=True)
+    trial_available = serializers.BooleanField()
+    pending_request = RequestOutput(allow_null=True)
+
+
+class MemberRefOutput(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    email = serializers.EmailField()
+    phone = serializers.CharField()
+
+
+class AdminRequestOutput(serializers.Serializer[Any]):
+    member = MemberRefOutput()
+
+    def to_representation(self, instance: Any) -> dict[str, Any]:
+        return {**RequestOutput(instance.request).data, **super().to_representation(instance)}
+
+
+class AdminMemberOutput(serializers.Serializer[Any]):
+    member = MemberRefOutput()
+    status = serializers.ChoiceField(choices=[item.value for item in MembershipStatus])
+    plan = serializers.ChoiceField(choices=[item.value for item in Plan])
+    ends_at = serializers.DateTimeField()

@@ -9,7 +9,7 @@ from apps.orders.domain.errors import CouponRejected, EmptyOrder, TooManyLines
 from apps.orders.domain.pricing import ZERO, CouponTerms, QuoteLine, quote
 from apps.orders.domain.read_models import QuoteLineView, QuoteView
 from apps.orders.models import Coupon
-from apps.orders.services.contracts import Inventory
+from apps.orders.services.contracts import Inventory, Members
 from apps.orders.services.coupons import CouponService
 from apps.orders.services.shipping import ShippingResolver
 
@@ -39,12 +39,14 @@ class PricingService:
         inventory: Inventory,
         shipping: ShippingResolver,
         coupons: CouponService,
+        members: Members,
         *,
         max_lines: int,
     ) -> None:
         self._inventory = inventory
         self._shipping = shipping
         self._coupons = coupons
+        self._members = members
         self._max_lines = max_lines
 
     def price(
@@ -73,7 +75,12 @@ class PricingService:
         subtotal = sum((line.total for line in quote_lines), ZERO)
         coupon, terms, error = self._coupon(context, subtotal)
         rules = self._shipping.rules_for(context.city)
-        result = quote(quote_lines, rules, terms)
+        member = (
+            rules.member_free
+            and context.user_id is not None
+            and self._members.is_member(context.user_id)
+        )
+        result = quote(quote_lines, rules, terms, member=member)
         return (
             QuoteView(
                 lines=tuple(_line_view(line) for line in priced),
@@ -86,6 +93,7 @@ class PricingService:
                 delivery_estimate=rules.delivery_estimate,
                 coupon_code=terms.code if terms else None,
                 coupon_error=error,
+                member_free_shipping=member,
             ),
             coupon,
         )

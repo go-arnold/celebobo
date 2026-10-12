@@ -540,6 +540,11 @@ Membership, cashback and mobile app links ([rules](docs/business/12-loyalty.md))
 - `LoyaltySettings` is a single row holding every rule (prices, trial, rate, cap, expiry, store links), each programme off by default.
 - `GET · PATCH /api/v1/bo/loyalty/settings/` (`loyalty.manage`, admins) edits them; `GET /settings/public/` returns them under `programmes`.
 - A change publishes `LoyaltySettingsChanged`, which refreshes the cached public settings and revalidates the shop pages.
+- **Membership**: `Membership` (one per client: plan, end date, trial and its phone, last reminder) and `MembershipRequest` (paid plans waiting for staff to confirm the payment).
+  - Client: `GET /me/membership/`, `POST /me/membership/trial/`, `POST /me/membership/requests/`, `POST /me/membership/requests/<id>/cancel/`.
+  - Staff (`membership.manage`): `GET /bo/membership/requests/?status=`, `POST <id>/confirm/`, `POST <id>/reject/ {note}`, `GET /bo/memberships/?status=`.
+  - Orders ask the `Members` port whether a client is a member; zones with `member_free_shipping` then ship for free.
+  - An hourly task reminds members `membership_reminder_days` before the end; every step notifies through messaging.
 
 ### `apps.push`
 

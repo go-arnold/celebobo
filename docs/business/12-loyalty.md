@@ -15,6 +15,18 @@ edits in `/bo/loyalty/settings/` (`loyalty.manage`); `GET /settings/public/` ret
 | Renewal | None automatic; a reminder 3 days before the end |
 | End | The normal delivery fee applies again; orders already placed keep their free delivery |
 
+How it works:
+- `GET /me/membership/` gives the status (`none`, `trial`, `active`, `expired`), the plan, the end
+  date, whether the trial is still available and the request waiting for payment, if any.
+- `POST /me/membership/trial/` starts the trial (`trial_unavailable` with a `reason` otherwise).
+- `POST /me/membership/requests/ {plan: monthly|yearly, payment_method}` asks for a paid plan at
+  today's price; one request at a time, which the client can cancel.
+- Staff (`membership.manage`) see the requests in `/bo/membership/requests/`, confirm one once the
+  money is received or refuse it with a note; `/bo/memberships/` lists members by status.
+- A confirmed period starts when the current one ends, so no day is lost. The client is notified
+  when it starts, when a request is refused and before the end.
+- Free delivery applies to the shipping zones an admin marks for members (Bukavu and Goma to start).
+
 ## Cashback ("Cagnotte")
 
 | Rule | Default |
@@ -32,5 +44,4 @@ sent by SMS.
 
 ## Status
 
-The settings are live. Cashback and membership are built next, in that order; until then their
-switches stay off.
+Settings and membership are live. Cashback comes next; until then its switch stays off.

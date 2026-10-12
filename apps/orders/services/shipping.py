@@ -33,4 +33,5 @@ def to_rules(zone: ShippingZone) -> ShippingRules:
         flat_fee=zone.fee,
         zone=zone.name,
         delivery_estimate=zone.delivery_estimate,
+        member_free=zone.member_free_shipping,
     )

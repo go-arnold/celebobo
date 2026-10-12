@@ -94,3 +94,5 @@ Two journals, kept **365 days**:
 | Delete expired job files | daily |
 | Purge audit entries older than the retention period | daily |
 | Delete orphan uploads | daily |
+| Announce deals that start or end | every minute |
+| Remind members whose Plus membership ends soon | hourly |
