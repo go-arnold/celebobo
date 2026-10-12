@@ -314,12 +314,9 @@ def category_image(shape: str, name: str, colors: tuple[str, str], *, size: int 
     return _jpeg(image)
 
 
-def banner_image(title: str, subtitle: str, shape: str, colors: tuple[str, str]) -> bytes:
+def banner_image(shape: str, colors: tuple[str, str]) -> bytes:
     width, height = 1800, 640
     image = _gradient((width, height), *colors)
-    draw = ImageDraw.Draw(image)
-    draw.text((110, 250), title, fill=WHITE, font=_font(84), anchor="ls")
-    draw.text((110, 340), subtitle, fill=WHITE, font=_font(44), anchor="ls")
     device = Image.new("RGBA", (height, height), (0, 0, 0, 0))
     PAINTERS[shape](ImageDraw.Draw(device), height, ("#ffffff", "#cbd5e1"))
     image.paste(device, (width - height - 80, 0), device)
