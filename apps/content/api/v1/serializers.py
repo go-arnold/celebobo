@@ -9,7 +9,7 @@ from apps.catalog.api.v1.serializers import (
     DealOutput,
     ProductCardOutput,
 )
-from apps.content.domain.enums import BannerTone, ContactStatus, ContactSubject
+from apps.content.domain.enums import BannerTone, ContactStatus, ContactSubject, SectionKind
 from apps.content.domain.placements import HERO, MAX_PLACEMENT_LENGTH, valid_placement
 from core.api.fields import MAX_INTEGER
 
@@ -266,6 +266,41 @@ class CategoryBlockOutput(serializers.Serializer[Any]):
     products = ProductCardOutput(many=True)
 
 
+class SectionFieldsInput(serializers.Serializer[Any]):
+    kind = serializers.ChoiceField(choices=[item.value for item in SectionKind])
+    category_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
+    title = serializers.CharField(max_length=80, required=False, allow_blank=True, default="")
+    is_active = serializers.BooleanField(default=True)
+
+    def validate_kind(self, value: str) -> SectionKind:
+        return SectionKind(value)
+
+
+class SectionOrderInput(serializers.Serializer[Any]):
+    ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1, max_value=MAX_INTEGER),
+        allow_empty=False,
+        max_length=50,
+    )
+
+
+class SectionOutput(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    kind = serializers.ChoiceField(choices=[item.value for item in SectionKind])
+    category_id = serializers.IntegerField()
+    title = serializers.CharField()
+    position = serializers.IntegerField()
+    is_active = serializers.BooleanField()
+
+
+class SectionBlockOutput(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    kind = serializers.ChoiceField(choices=[item.value for item in SectionKind])
+    title = serializers.CharField()
+    category = CategoryOutput()
+    products = ProductCardOutput(many=True)
+
+
 class HomeOutput(serializers.Serializer[Any]):
     banners = serializers.DictField(
         child=BannerOutput(many=True), help_text="Bannières en cours, par emplacement."
@@ -276,6 +311,7 @@ class HomeOutput(serializers.Serializer[Any]):
     best_sellers = ProductCardOutput(many=True)
     categories = CategoryBlockOutput(many=True)
     brands = BrandOutput(many=True)
+    sections = SectionBlockOutput(many=True)
 
 
 class SitemapEntryOutput(serializers.Serializer[Any]):

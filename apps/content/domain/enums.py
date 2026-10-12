@@ -29,3 +29,8 @@ class ContactStatus(StrEnum):
 class BannerTone(StrEnum):
     LIGHT = "light"
     DARK = "dark"
+
+
+class SectionKind(StrEnum):
+    SHOWCASE = "showcase"
+    COLUMN = "column"

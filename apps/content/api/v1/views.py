@@ -29,6 +29,9 @@ from apps.content.api.v1.serializers import (
     PageOutput,
     PageSummaryOutput,
     PublicSettingsOutput,
+    SectionFieldsInput,
+    SectionOrderInput,
+    SectionOutput,
     SettingsInput,
     SitemapOutput,
     SubscribeInput,
@@ -46,6 +49,8 @@ from apps.content.domain.commands import (
     HandleContactMessage,
     PageChanges,
     PageFields,
+    SectionChanges,
+    SectionFields,
     SendContactMessage,
     SettingsChanges,
 )
@@ -309,3 +314,39 @@ class BannerAdminViewSet(UseCaseViewSet):
         order = self.validated(BannerOrderInput)
         banners = self.content.reorder_banners(self.actor, order["placement"], order["ids"])
         return self.respond(BannerOutput, banners, many=True)
+
+
+class SectionAdminViewSet(UseCaseViewSet):
+    action_permissions = dict.fromkeys(
+        ("list", "create", "partial_update", "destroy", "reorder"), (CONTENT_MANAGE,)
+    )
+    content = Inject(SiteContentFacade)
+
+    @extend_schema(responses=SectionOutput(many=True))
+    def list(self, request: Request) -> Response:
+        return self.respond(SectionOutput, self.content.sections(), many=True)
+
+    @extend_schema(request=SectionFieldsInput, responses={201: SectionOutput})
+    def create(self, request: Request) -> Response:
+        fields = self.parse(SectionFieldsInput, into=SectionFields)
+        created = self.content.create_section(self.actor, fields)
+        return self.respond(SectionOutput, created, status=201)
+
+    @extend_schema(request=SectionFieldsInput, responses=SectionOutput)
+    def partial_update(self, request: Request, item_id: int) -> Response:
+        changes = self.parse(SectionFieldsInput, into=SectionChanges, partial=True)
+        return self.respond(
+            SectionOutput, self.content.update_section(self.actor, item_id, changes)
+        )
+
+    @extend_schema(responses={204: None})
+    def destroy(self, request: Request, item_id: int) -> Response:
+        self.content.delete_section(self.actor, item_id)
+        return Response(status=204)
+
+    @extend_schema(request=SectionOrderInput, responses=SectionOutput(many=True))
+    def reorder(self, request: Request) -> Response:
+        ids = self.validated(SectionOrderInput)["ids"]
+        return self.respond(
+            SectionOutput, self.content.reorder_sections(self.actor, ids), many=True
+        )

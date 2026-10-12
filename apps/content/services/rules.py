@@ -4,10 +4,11 @@ from typing import Any
 from apps.content.domain.errors import (
     BannerProductUnavailable,
     InvalidSchedule,
+    SectionCategoryUnavailable,
     SlugTaken,
     UnknownPaymentMethod,
 )
-from apps.content.models import Banner, Page
+from apps.content.models import Banner, HomeSection, Page
 from apps.content.repositories import ModelRepository
 from apps.orders.domain.enums import PaymentMethod
 
@@ -31,6 +32,16 @@ def valid_schedule(banner: Banner | None, values: dict[str, Any]) -> None:
     ends_at = values.get("ends_at", banner.ends_at if banner else None)
     if starts_at and ends_at and ends_at <= starts_at:
         raise InvalidSchedule
+
+
+class SectionRules:
+    def __init__(self, visible: Callable[[int], bool]) -> None:
+        self._visible = visible
+
+    def __call__(self, _section: HomeSection | None, values: dict[str, Any]) -> None:
+        category_id = values.get("category_id")
+        if category_id is not None and not self._visible(category_id):
+            raise SectionCategoryUnavailable
 
 
 class BannerRules:

@@ -2,9 +2,9 @@ from collections.abc import Iterable, Sequence
 from typing import Any
 from uuid import UUID
 
-from django.db.models import Model
+from django.db.models import Max, Model
 
-from apps.content.models import Banner, ContactMessage, SiteSettings, Subscriber
+from apps.content.models import Banner, ContactMessage, HomeSection, SiteSettings, Subscriber
 
 SETTINGS_ID = 1
 
@@ -41,6 +41,21 @@ class BannerRepository(ModelRepository[Banner]):
             return False
         for position, banner_id in enumerate(ids, start=1):
             Banner.objects.filter(pk=banner_id).update(position=position)
+        return True
+
+
+class SectionRepository(ModelRepository[HomeSection]):
+    def __init__(self) -> None:
+        super().__init__(HomeSection)
+
+    def next_position(self) -> int:
+        return int(HomeSection.objects.aggregate(top=Max("position"))["top"] or 0) + 1
+
+    def reorder(self, ids: Sequence[int]) -> bool:
+        if HomeSection.objects.filter(pk__in=ids).count() != len(set(ids)):
+            return False
+        for position, section_id in enumerate(ids, start=1):
+            HomeSection.objects.filter(pk=section_id).update(position=position)
         return True
 
 

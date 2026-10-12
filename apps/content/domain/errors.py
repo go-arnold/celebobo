@@ -65,3 +65,16 @@ class BannersOutsidePlacement(ValidationFailed):
 
     def __init__(self) -> None:
         super().__init__(errors={"ids": [self.default_detail]})
+
+
+class SectionNotFound(NotFound):
+    default_code = "home_section_not_found"
+    default_detail = "Section introuvable."
+
+
+class SectionCategoryUnavailable(ValidationFailed):
+    default_code = "section_category_unavailable"
+    default_detail = "Cette catégorie n'est pas visible dans la boutique."
+
+    def __init__(self) -> None:
+        super().__init__(errors={"category_id": [self.default_detail]})

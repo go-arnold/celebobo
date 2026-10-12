@@ -118,6 +118,25 @@ class CategoryBlock:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class SectionView:
+    id: int
+    kind: str
+    category_id: int
+    title: str
+    position: int
+    is_active: bool
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SectionBlock:
+    id: int
+    kind: str
+    title: str
+    category: CategoryView
+    products: list[ProductCard]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class HomePage:
     banners: dict[str, list[BannerView]]
     deal: DealOfTheDay | None
@@ -126,6 +145,7 @@ class HomePage:
     best_sellers: list[ProductCard]
     categories: list[CategoryBlock]
     brands: list[BrandView]
+    sections: list[SectionBlock]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

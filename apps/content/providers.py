@@ -6,7 +6,12 @@ from apps.content.adapters.gateways import CatalogShowcase, OrdersShipping
 from apps.content.adapters.media_references import ContentMediaReferences
 from apps.content.adapters.storefront import HttpRevalidator
 from apps.content.conf import storefront_settings
-from apps.content.domain.errors import BannerNotFound, FaqEntryNotFound, PageNotFound
+from apps.content.domain.errors import (
+    BannerNotFound,
+    FaqEntryNotFound,
+    PageNotFound,
+    SectionNotFound,
+)
 from apps.content.facades import (
     ContactFacade,
     NewsletterFacade,
@@ -17,6 +22,7 @@ from apps.content.models import ContactMessage, FaqEntry, Page
 from apps.content.repositories import (
     BannerRepository,
     ModelRepository,
+    SectionRepository,
     SettingsRepository,
     SubscriberRepository,
 )
@@ -25,16 +31,17 @@ from apps.content.selectors import (
     ContactSelector,
     FaqSelector,
     PageSelector,
+    SectionSelector,
     SubscriberSelector,
 )
 from apps.content.services.cache import ContentCache
 from apps.content.services.contact import ContactService
 from apps.content.services.contracts import PageRevalidator, ShippingSource, Showcase
 from apps.content.services.editors import Editor
-from apps.content.services.home import HomeService
+from apps.content.services.home import HomeService, flatten
 from apps.content.services.mailer import ContentMailer
 from apps.content.services.newsletter import NewsletterService
-from apps.content.services.rules import BannerRules, UniqueSlug
+from apps.content.services.rules import BannerRules, SectionRules, UniqueSlug
 from apps.content.services.site import SiteSettingsService
 from apps.content.services.storefront import PendingTags
 from apps.content.tasks import revalidate_storefront
@@ -82,16 +89,28 @@ def _content_facade(container: Container) -> SiteContentFacade:
     pages = ModelRepository(Page)
     banners = BannerSelector(timezone.now)
     banner_repository = BannerRepository()
+    sections = SectionSelector()
+    section_repository = SectionRepository()
     showcase = container.resolve(Showcase)
 
     def visible(product_id: int) -> bool:
         return bool(showcase.cards(Actor.anonymous(), [product_id]))
+
+    def visible_category(category_id: int) -> bool:
+        return any(category.id == category_id for category in flatten(showcase.categories()))
 
     return SiteContentFacade(
         pages=Editor(pages, not_found=PageNotFound, validate=UniqueSlug(pages)),
         faq=Editor(ModelRepository(FaqEntry), not_found=FaqEntryNotFound),
         banners=Editor(banner_repository, not_found=BannerNotFound, validate=BannerRules(visible)),
         banner_repository=banner_repository,
+        sections=Editor(
+            section_repository,
+            not_found=SectionNotFound,
+            validate=SectionRules(visible_category),
+        ),
+        section_repository=section_repository,
+        section_selector=sections,
         page_selector=PageSelector(),
         faq_selector=FaqSelector(),
         banner_selector=banners,
@@ -100,6 +119,7 @@ def _content_facade(container: Container) -> SiteContentFacade:
         home=HomeService(
             container.resolve(Showcase),
             banners,
+            sections,
             section_size=HOME_SECTION_SIZE,
             category_blocks=HOME_CATEGORY_BLOCKS,
         ),

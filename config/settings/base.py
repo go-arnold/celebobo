@@ -242,6 +242,7 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
     "SCHEMA_PATH_PREFIX": r"/api/v[0-9]+",
     "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
+    "ENUM_NAME_OVERRIDES": {"SectionKindEnum": ["showcase", "column"]},
 }
 
 CORS_ALLOWED_ORIGINS: list[str] = env.list("CORS_ALLOWED_ORIGINS", default=[])

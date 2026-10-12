@@ -1,4 +1,6 @@
+from collections import defaultdict
 from collections.abc import Iterable, Iterator, Sequence
+from dataclasses import replace
 from datetime import datetime
 from decimal import Decimal
 
@@ -78,13 +80,14 @@ from apps.catalog.models import (
 
 class CategorySelector:
     def active(self) -> list[CategoryView]:
-        return [_category_view(category) for category in self._annotated()]
+        return _tree(list(self._annotated()))
 
     def by_slug(self, slug: str) -> CategoryView:
-        category = self._annotated().filter(slug=slug).first()
-        if category is None:
-            raise CategoryNotFound
-        return _category_view(category)
+        for category in self.active():
+            for candidate in (category, *category.children):
+                if candidate.slug == slug:
+                    return candidate
+        raise CategoryNotFound
 
     def names(self) -> dict[str, str]:
         return dict(Category.objects.filter(is_active=True).values_list("slug", "name"))
@@ -336,7 +339,37 @@ def _first_images() -> Prefetch[str, QuerySet[ProductImage], str]:
     )
 
 
-def _category_view(category: Category) -> CategoryView:
+# top-level categories carry their sub-categories, and count their products too;
+# a sub-category whose parent is hidden is hidden with it
+def _tree(categories: list[Category]) -> list[CategoryView]:
+    by_id = {category.pk: category for category in categories}
+    children: defaultdict[int, list[CategoryView]] = defaultdict(list)
+    for category in categories:
+        parent = by_id.get(category.parent_id) if category.parent_id else None
+        if parent is not None:
+            children[parent.pk].append(
+                _category_view(
+                    category,
+                    parent=CategoryRef(id=parent.pk, slug=parent.slug, name=parent.name),
+                )
+            )
+    tree = []
+    for category in categories:
+        if category.parent_id is not None:
+            continue
+        view = _category_view(category)
+        nested = tuple(children[category.pk])
+        tree.append(
+            replace(
+                view,
+                children=nested,
+                products_count=view.products_count + sum(c.products_count for c in nested),
+            )
+        )
+    return tree
+
+
+def _category_view(category: Category, parent: CategoryRef | None = None) -> CategoryView:
     return CategoryView(
         id=category.pk,
         slug=category.slug,
@@ -348,6 +381,7 @@ def _category_view(category: Category) -> CategoryView:
         icon=CategoryIcon(category.icon),
         products_count=getattr(category, "products_count", 0),
         updated_at=category.updated_at,
+        parent=parent,
     )
 
 
@@ -776,6 +810,7 @@ def _admin_category(category: Category) -> AdminCategory:
         is_active=category.is_active,
         position=category.position,
         products_count=getattr(category, "products_count", 0),
+        parent_id=category.parent_id,
     )
 
 

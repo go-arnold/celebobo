@@ -576,13 +576,20 @@ class CategoryAdminFacade:
     def create(self, actor: Actor, draft: CategoryDraft) -> AdminCategory:
         with transaction.atomic():
             category = self._categories.create(draft)
-            self._changed(actor, category.pk)
+            for changed_id in dict.fromkeys((category.pk, category.parent_id)):
+                if changed_id is not None:
+                    self._changed(actor, changed_id)
         return self._selector.one(category.pk)
 
+    # a parent page lists its sub-categories, so the old and new parents change too
     def update(self, actor: Actor, category_id: int, changes: CategoryChanges) -> AdminCategory:
         with transaction.atomic():
-            self._categories.update(self._locked(category_id), changes)
-            self._changed(actor, category_id)
+            category = self._locked(category_id)
+            previous = category.parent_id
+            self._categories.update(category, changes)
+            for changed_id in dict.fromkeys((category_id, previous, category.parent_id)):
+                if changed_id is not None:
+                    self._changed(actor, changed_id)
         return self._selector.one(category_id)
 
     def delete(self, actor: Actor, category_id: int, move_to: int | None) -> None:

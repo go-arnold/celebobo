@@ -5,12 +5,13 @@ from django.conf import settings
 from django.db import models
 from django.db.models.functions import Lower
 
-from apps.content.domain.enums import BannerTone, ContactStatus, ContactSubject
+from apps.content.domain.enums import BannerTone, ContactStatus, ContactSubject, SectionKind
 from apps.content.domain.placements import HERO, MAX_PLACEMENT_LENGTH
 
 SUBJECT_CHOICES = [(item.value, item.label) for item in ContactSubject]
 STATUS_CHOICES = [(item.value, item.value) for item in ContactStatus]
 TONE_CHOICES = [(item.value, item.value) for item in BannerTone]
+SECTION_CHOICES = [(item.value, item.value) for item in SectionKind]
 
 
 class ContactMessage(models.Model):
@@ -128,6 +129,22 @@ class Banner(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class HomeSection(models.Model):
+    kind = models.CharField(max_length=10, choices=SECTION_CHOICES)
+    category = models.ForeignKey("catalog.Category", on_delete=models.CASCADE, related_name="+")
+    title = models.CharField("titre", max_length=80, blank=True)
+    position = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "section de l'accueil"
+        verbose_name_plural = "sections de l'accueil"
+        ordering = ("position", "pk")
+
+    def __str__(self) -> str:
+        return self.title or str(self.category)
 
 
 class SiteSettings(models.Model):

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from apps.content.domain.enums import BannerTone, ContactStatus, ContactSubject
+from apps.content.domain.enums import BannerTone, ContactStatus, ContactSubject, SectionKind
 from apps.content.domain.placements import HERO
 from core.domain.values import UNSET, Maybe
 
@@ -113,3 +113,20 @@ class SettingsChanges:
     social_links: Maybe[dict[str, str]] = UNSET
     newsletter_code: Maybe[str] = UNSET
     newsletter_discount: Maybe[int] = UNSET
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SectionFields:
+    kind: SectionKind
+    category_id: int
+    title: str = ""
+    is_active: bool = True
+    position: int = 0
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SectionChanges:
+    kind: Maybe[SectionKind] = UNSET
+    category_id: Maybe[int] = UNSET
+    title: Maybe[str] = UNSET
+    is_active: Maybe[bool] = UNSET

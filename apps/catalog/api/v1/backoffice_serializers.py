@@ -238,6 +238,9 @@ class CategoryFieldsSerializer(serializers.Serializer[Any]):
         min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
     )
     is_active = serializers.BooleanField(required=False)
+    parent_id = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
+    )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         if "icon" in attrs:
@@ -378,6 +381,7 @@ class AdminCategoryOutput(serializers.Serializer[Any]):
     is_active = serializers.BooleanField()
     position = serializers.IntegerField()
     products_count = serializers.IntegerField()
+    parent_id = serializers.IntegerField(allow_null=True)
 
 
 class ProductRefOutput(serializers.Serializer[Any]):

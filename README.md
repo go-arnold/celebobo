@@ -93,7 +93,7 @@ Categories, products (variants, options, images, features), the stock movement l
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/v1/categories/` · `<slug>/` | Active categories with visible product counts |
+| `GET /api/v1/categories/` · `<slug>/` | Active top-level categories with their `children` (two levels) and visible product counts, sub-categories included |
 | `GET /api/v1/brands/` | Active brands with visible product counts |
 | `GET /api/v1/products/` | `search`, `category`, `brand` (repeat it or separate slugs with commas), `ids`, `on_sale`, `in_stock`, `badge`, `min_price`, `max_price`, `ordering`, `page`, `page_size` |
 | `GET /api/v1/products/facets/` | Category counts, price range, stock and sale counts for the same filters |
@@ -124,7 +124,7 @@ Managers (`products.manage`, `stock.adjust`, `categories.manage`, `reviews.moder
 | `POST /api/v1/bo/products/<id>/variants/` · `PATCH · DELETE /api/v1/bo/variants/<id>/` | Variants; deleting a variant that has stock history deactivates it instead |
 | `POST /api/v1/bo/products/<id>/stock-adjustments/` · `GET stock-movements/` | Adjust stock by `delta` or `set`, with a reason; movement history |
 | `GET /api/v1/bo/stock/alerts/` | Products and variants at or below their threshold |
-| `GET · POST /api/v1/bo/categories/` · `PATCH · DELETE <id>/?move_to=` · `POST reorder/` | Categories; deleting a non-empty category without `move_to` returns 409 with `products_count` |
+| `GET · POST /api/v1/bo/categories/` · `PATCH · DELETE <id>/?move_to=` · `POST reorder/` | Categories, with an optional `parent_id` (two levels); deleting a non-empty category without `move_to` returns 409 with `products_count`, and its sub-categories become top-level |
 | `GET · POST /api/v1/bo/brands/` · `PATCH · DELETE <id>/` · `POST reorder/` | Brands (`categories.manage`): name, logo (`brand_logo` upload), featured on the home page; deleting a brand leaves its products without one. Products take a `brand_id` |
 | `GET · POST /api/v1/bo/deals/?status=live\|scheduled\|ended` · `PATCH · DELETE <id>/` | Deals of the day: deal price, period, optional quantity and gift; each row returns `sold` and `status`. A product with variants needs a `variant_id`; two active deals of one product cannot overlap |
 | `GET /api/v1/bo/reviews/` · `PATCH <id>/` | Review moderation (`published` or `hidden`); the product's rating is recomputed |
@@ -499,7 +499,7 @@ The first migration creates the `vector` extension (`pgvector.django.VectorExten
 The public site content and its back-office editors.
 
 **Home and site content**
-- `GET /home/` assembles the live banners (active and within `starts_at`/`ends_at`), grouped by placement (`{"hero": [...], "hero_mini": [...], "showcase:smartphones": [...]}`; a banner tied to a product carries its card), the deal of the day (`deal`, the live deal ending first, or `null`), the featured brands that have visible products (`brands`), deals, new arrivals, best sellers, and the best sellers of the first four categories. Products come from the catalogue through the `Showcase` port, so favourites and caching still apply.
+- `GET /home/` assembles the live banners (active and within `starts_at`/`ends_at`), grouped by placement (`{"hero": [...], "hero_mini": [...], "showcase:smartphones": [...]}`; a banner tied to a product carries its card), the deal of the day (`deal`, the live deal ending first, or `null`), the featured brands that have visible products (`brands`), the sections laid out in `/bo/home-sections/` (`sections`, each with its category, sub-categories and best sellers), deals, new arrivals, best sellers, and the best sellers of the first four categories. Products come from the catalogue through the `Showcase` port, so favourites and caching still apply.
 - `SiteSettings` is a single row:
   - exchange rate (`usd_to_cdf`), hotline, WhatsApp, e-mail, address;
   - opening hours, enabled payment methods (checked against `PaymentMethod`), social links;
@@ -526,7 +526,7 @@ The public site content and its back-office editors.
 | `GET · PATCH /api/v1/bo/settings/` | Site settings (admins) |
 | `GET /api/v1/bo/contact-messages/` · `GET · PATCH <id>/` | Inbox with `meta.counts`; set `status` (new, handled, spam) and an internal `note` |
 | `GET /api/v1/bo/newsletter/subscribers/` · `export/` | Subscribers (`active`, `search`) and a CSV export |
-| `/api/v1/bo/pages/` · `bo/faq/` · `bo/banners/` (+ `<id>/`) | Content editors (managers); banners also take `?placement=` and `POST reorder/ {placement, ids}` |
+| `/api/v1/bo/pages/` · `bo/faq/` · `bo/banners/` (+ `<id>/`) | Content editors (managers); `bo/home-sections/` (+ `<id>/`, `POST reorder/`) lays out the home blocks and columns; banners also take `?placement=` and `POST reorder/ {placement, ids}` |
 
 Permissions:
 - managers: `contact.inbox`, `newsletter.view`, `content.manage`;

@@ -39,6 +39,8 @@ class CategoryView:
     icon: CategoryIcon
     products_count: int
     updated_at: datetime
+    parent: CategoryRef | None = None
+    children: tuple["CategoryView", ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

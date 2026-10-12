@@ -3,7 +3,7 @@
 ## Home page
 
 `GET /home/` (public) returns, in one call: the active **banners** grouped by placement, the **deal
-of the day**, the featured **brands**, **deals** (products on sale),
+of the day**, the featured **brands**, the **sections** laid out by staff, **deals** (products on sale),
 **new arrivals**, **best sellers**, and each visible **category with some of its products**.
 Public content is cached and refreshed automatically when content or categories change.
 
@@ -12,6 +12,7 @@ Public content is cached and refreshed automatically when content or categories 
 | Item | Fields and rules |
 |---|---|
 | **Banner** | Title, subtitle, image (`banner` upload), link URL and label, position, active flag, optional start/end dates (end must follow start, `invalid_schedule`). Only active banners within their dates are shown. A **placement** says where it goes: `hero` (carousel, the default), `hero_mini`, `hero_side`, `deal_side`, `showcase:<category>` or `column:<category>`. It can point to a **product** (must be visible, `banner_product_unavailable`): the shop then shows the product's real price and link. A small **eyebrow** ("Audio", "Nouveau") and a **tone** (`light` image with dark text, `dark` image with light text) complete it. The order is set per placement. |
+| **Home section** | `/bo/home-sections/`: a category shown as a large block (`showcase`) or a column (`column`), with an optional title (the category name otherwise), active flag and order (`POST reorder/ {ids}`). The home page returns each active section with the category's best sellers and its sub-categories. The category must be visible (`section_category_unavailable`). |
 | **Page** (CMS) | Slug (unique, `slug_taken`), title, summary, body, published flag, position. Shop URL `/pages/{slug}`. Seeded: `a-propos`, `guide`, `conditions`, `retours`. |
 | **FAQ** | Question, answer, category (groups the FAQ page), position, published flag. |
 

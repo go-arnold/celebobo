@@ -131,6 +131,7 @@ class CategoryDraft:
     seo_description: str = ""
     image_id: int | None = None
     is_active: bool = True
+    parent_id: int | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -142,6 +143,7 @@ class CategoryChanges:
     seo_description: Maybe[str] = UNSET
     image_id: Maybe[int | None] = UNSET
     is_active: Maybe[bool] = UNSET
+    parent_id: Maybe[int | None] = UNSET
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
