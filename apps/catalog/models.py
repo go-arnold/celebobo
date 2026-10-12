@@ -43,6 +43,10 @@ class Category(SafeDeleteModel, TimestampedModel):
     icon = models.CharField(max_length=16, choices=ICON_CHOICES, default=CategoryIcon.MOBILE.value)
     is_active = models.BooleanField(default=True)
     position = models.PositiveIntegerField(default=0, db_index=True)
+    # two levels at most: a sub-category ("iPhone") belongs to a top-level one ("Smartphones")
+    parent = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="children"
+    )
 
     class Meta:
         verbose_name = "catégorie"
@@ -337,4 +341,10 @@ class Favorite(models.Model):
 
 
 def visible_products() -> models.QuerySet[Product]:
-    return Product.objects.filter(is_active=True, category__is_active=True, category__deleted=None)
+    return Product.objects.filter(
+        models.Q(category__parent__isnull=True)
+        | models.Q(category__parent__is_active=True, category__parent__deleted=None),
+        is_active=True,
+        category__is_active=True,
+        category__deleted=None,
+    )

@@ -88,6 +88,35 @@ CATEGORIES = (
     ),
 )
 
+# (name, parent key, products moved into it)
+SUBCATEGORIES = (
+    ("iPhone (iOS)", "smartphones", ("iPhone 15",)),
+    (
+        "Android",
+        "smartphones",
+        (
+            "Samsung Galaxy A55 5G",
+            "Samsung Galaxy S24",
+            "Xiaomi Redmi Note 13",
+            "Tecno Spark 20 Pro",
+            "Infinix Hot 40i",
+        ),
+    ),
+    ("MacBook", "ordinateurs", ("MacBook Air M2",)),
+    (
+        "PC portables",
+        "ordinateurs",
+        ("HP 15s Ryzen 5", "Lenovo IdeaPad Slim 3", "Dell Latitude 3540"),
+    ),
+)
+HOME_SECTIONS = (
+    ("showcase", "smartphones"),
+    ("showcase", "ordinateurs"),
+    ("column", "audio"),
+    ("column", "gaming"),
+    ("column", "montres"),
+)
+
 FEATURED_BRANDS = ("Samsung", "Apple", "Xiaomi", "Tecno", "Infinix", "Lenovo", "JBL", "Anker")
 
 STORAGE = "Stockage"

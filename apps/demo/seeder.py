@@ -46,10 +46,11 @@ from apps.content.domain.commands import (
     BannerFields,
     FaqFields,
     PageFields,
+    SectionFields,
     SendContactMessage,
     SettingsChanges,
 )
-from apps.content.domain.enums import ContactSubject
+from apps.content.domain.enums import ContactSubject, SectionKind
 from apps.content.facades import ContactFacade, NewsletterFacade, SiteContentFacade
 from apps.demo import catalogue, content, people
 from apps.demo.images import banner_image, category_image, product_image
@@ -154,6 +155,7 @@ class DemoSeeder:
         self._random = random.Random(2026)  # nosec B311
         self._now = timezone.now()
         self.report = SeedReport()
+        self._category_ids: dict[str, int] = {}
 
     def run(self) -> SeedReport:
         with quiet_side_effects():
@@ -176,6 +178,7 @@ class DemoSeeder:
             self._reviews(delivered)
             self._community(clients)
             self._deal()
+            self._home_sections()
             self._refresh()
         self._embed()
         return self.report
@@ -279,6 +282,16 @@ class DemoSeeder:
             )
             category_ids[item.key] = created.id
             self.report.add("categories")
+        self._category_ids = dict(category_ids)
+        icons = {item.key: item.icon for item in catalogue.CATEGORIES}
+        placed: dict[str, int] = {}
+        for name, parent, members in catalogue.SUBCATEGORIES:
+            child = categories.create(
+                self._actor,
+                CategoryDraft(name=name, icon=icons[parent], parent_id=category_ids[parent]),
+            )
+            placed.update(dict.fromkeys(members, child.id))
+            self.report.add("sub-categories")
         colors = {item.key: item.color for item in catalogue.CATEGORIES}
         brand_ids = self._brands()
         products = []
@@ -295,7 +308,7 @@ class DemoSeeder:
                     name=product.name,
                     description=product.description,
                     long_description=product.description,
-                    category_id=category_ids[product.category],
+                    category_id=placed.get(product.name, category_ids[product.category]),
                     brand_id=brand_ids[product.brand],
                     price=price,
                     sale_price=sale_price,
@@ -430,6 +443,15 @@ class DemoSeeder:
                 )
             )
             self.report.add("coupons")
+
+    def _home_sections(self) -> None:
+        site = container.resolve(SiteContentFacade)
+        for kind, key in catalogue.HOME_SECTIONS:
+            site.create_section(
+                self._actor,
+                SectionFields(kind=SectionKind(kind), category_id=self._category_ids[key]),
+            )
+            self.report.add("home sections")
 
     def _deal(self) -> None:
         slug, attributes, price, quantity, gift, days = content.DEAL

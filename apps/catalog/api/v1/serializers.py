@@ -80,7 +80,7 @@ class CategoryRefOutput(serializers.Serializer[Any]):
     name = serializers.CharField()
 
 
-class CategoryOutput(CategoryRefOutput):
+class SubCategoryOutput(CategoryRefOutput):
     description = serializers.CharField()
     seo_title = serializers.CharField()
     seo_description = serializers.CharField()
@@ -88,6 +88,11 @@ class CategoryOutput(CategoryRefOutput):
     icon = serializers.CharField()
     products_count = serializers.IntegerField()
     updated_at = serializers.DateTimeField()
+    parent = CategoryRefOutput(allow_null=True)
+
+
+class CategoryOutput(SubCategoryOutput):
+    children = SubCategoryOutput(many=True)
 
 
 class ProductCardOutput(serializers.Serializer[Any]):

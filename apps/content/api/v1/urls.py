@@ -10,6 +10,7 @@ from apps.content.api.v1.views import (
     NewsletterViewSet,
     PageAdminViewSet,
     PublicSiteViewSet,
+    SectionAdminViewSet,
     SettingsViewSet,
     SubscriberViewSet,
 )
@@ -68,6 +69,17 @@ urlpatterns = [
     path("bo/pages/<id:item_id>/", PageAdminViewSet.as_view(ITEM), name="bo-page"),
     path("bo/faq/", FaqAdminViewSet.as_view(COLLECTION), name="bo-faq"),
     path("bo/faq/<id:item_id>/", FaqAdminViewSet.as_view(ITEM), name="bo-faq-entry"),
+    path("bo/home-sections/", SectionAdminViewSet.as_view(COLLECTION), name="bo-home-sections"),
+    path(
+        "bo/home-sections/reorder/",
+        SectionAdminViewSet.as_view({"post": "reorder"}),
+        name="bo-home-sections-reorder",
+    ),
+    path(
+        "bo/home-sections/<id:item_id>/",
+        SectionAdminViewSet.as_view(ITEM),
+        name="bo-home-section",
+    ),
     path("bo/banners/", BannerAdminViewSet.as_view(COLLECTION), name="bo-banners"),
     path(
         "bo/banners/reorder/",

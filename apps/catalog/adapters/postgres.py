@@ -5,7 +5,7 @@ from functools import reduce
 from types import MappingProxyType
 
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
-from django.db.models import Count, F, Max, Min, QuerySet, TextField, Value
+from django.db.models import Count, F, Max, Min, Q, QuerySet, TextField, Value
 from django.db.models.expressions import CombinedExpression
 
 from apps.catalog.conf import catalog_settings
@@ -157,7 +157,9 @@ def filtered(query: ProductQuery) -> QuerySet[Product]:
     if query.text:
         products = products.filter(search_vector=text_query(query.text))
     if query.category:
-        products = products.filter(category__slug=query.category)
+        products = products.filter(
+            Q(category__slug=query.category) | Q(category__parent__slug=query.category)
+        )
     if query.brands:
         products = products.filter(brand__slug__in=query.brands)
     if query.ids:

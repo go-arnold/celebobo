@@ -130,6 +130,7 @@ class AdminCategory:
     is_active: bool
     position: int
     products_count: int
+    parent_id: int | None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

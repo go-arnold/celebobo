@@ -64,6 +64,8 @@ class TestCategories:
                 "icon": "mobile",
                 "products_count": 2,
                 "updated_at": phones.updated_at.astimezone().isoformat(),
+                "parent": None,
+                "children": [],
             }
         ]
 

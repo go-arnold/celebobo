@@ -308,6 +308,12 @@ class CategoryAdminRepository:
     def soft_delete(self, category: Category) -> None:
         category.delete()
 
+    def has_children(self, category: Category) -> bool:
+        return Category.objects.filter(parent=category).exists()
+
+    def promote_children(self, category: Category) -> None:
+        Category.all_objects.filter(parent=category).update(parent=None)
+
     def next_position(self) -> int:
         return int(Category.objects.aggregate(top=Max("position"))["top"] or 0) + 1
 

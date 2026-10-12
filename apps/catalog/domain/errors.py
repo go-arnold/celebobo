@@ -156,3 +156,11 @@ class BrandNameTaken(ValidationFailed):
 
     def __init__(self) -> None:
         super().__init__(errors={"name": [self.default_detail]})
+
+
+class InvalidCategoryParent(ValidationFailed):
+    default_code = "invalid_category_parent"
+    default_detail = "Catégorie parente invalide."
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail, errors={"parent_id": [detail]})

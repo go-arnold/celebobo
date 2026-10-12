@@ -12,6 +12,11 @@ Managed by staff (`categories.manage`) at `/bo/categories/`.
 - **Hidden** categories (and their products) disappear from the shop but stay in the back-office.
 - **Delete**: refused while the category still has products (`category_not_empty`) unless a
   destination category is given (`?move_to=`): products are moved first, then the category is deleted.
+  Its sub-categories become top-level categories.
+- **Sub-categories** ("iPhone", "Android" under "Smartphones"): a category can have a parent, on two
+  levels at most (`invalid_category_parent` otherwise). `/categories/` lists the top-level categories,
+  each with its `children`; a parent's product count and its `?category=` filter include its
+  sub-categories. Hiding a parent hides its sub-categories and their products.
 
 ## Products
 

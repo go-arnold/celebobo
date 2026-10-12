@@ -1,4 +1,5 @@
 from collections.abc import Callable, Iterator, Sequence
+from dataclasses import replace
 from uuid import UUID
 
 from django.db import transaction
@@ -12,10 +13,12 @@ from apps.content.domain.commands import (
     HandleContactMessage,
     PageChanges,
     PageFields,
+    SectionChanges,
+    SectionFields,
     SendContactMessage,
     SettingsChanges,
 )
-from apps.content.domain.errors import BannersOutsidePlacement
+from apps.content.domain.errors import BannersOutsidePlacement, SectionNotFound
 from apps.content.domain.events import (
     ContactMessageReceived,
     NewsletterSubscribed,
@@ -28,23 +31,26 @@ from apps.content.domain.read_models import (
     FaqView,
     HomePage,
     PageView,
+    SectionView,
     Sitemap,
     SiteSettingsView,
     SubscriberView,
     Subscription,
 )
 from apps.content.domain.storefront import category_tags, product_tags, section_tags
-from apps.content.models import Banner, FaqEntry, Page
-from apps.content.repositories import BannerRepository
+from apps.content.models import Banner, FaqEntry, HomeSection, Page
+from apps.content.repositories import BannerRepository, SectionRepository
 from apps.content.selectors import (
     BannerSelector,
     ContactSelector,
     FaqSelector,
     PageSelector,
+    SectionSelector,
     SubscriberSelector,
     to_banner_view,
     to_faq_view,
     to_page_view,
+    to_section_view,
     to_settings_view,
 )
 from apps.content.services.banners import with_products
@@ -163,6 +169,9 @@ class SiteContentFacade:
         faq: Editor[FaqEntry],
         banners: Editor[Banner],
         banner_repository: BannerRepository,
+        sections: Editor[HomeSection],
+        section_repository: SectionRepository,
+        section_selector: SectionSelector,
         page_selector: PageSelector,
         faq_selector: FaqSelector,
         banner_selector: BannerSelector,
@@ -177,6 +186,9 @@ class SiteContentFacade:
         self._faq = faq
         self._banners = banners
         self._banner_repository = banner_repository
+        self._sections = sections
+        self._section_repository = section_repository
+        self._section_selector = section_selector
         self._page_selector = page_selector
         self._faq_selector = faq_selector
         self._banner_selector = banner_selector
@@ -265,6 +277,29 @@ class SiteContentFacade:
 
         self._edit(actor, "banners", reorder)
         return self.banners(actor, placement)
+
+    def sections(self) -> list[SectionView]:
+        return self._section_selector.all()
+
+    def create_section(self, actor: Actor, fields: SectionFields) -> SectionView:
+        positioned = replace(fields, position=self._section_repository.next_position())
+        section = self._edit(actor, "sections", lambda: self._sections.create(positioned))
+        return to_section_view(section)
+
+    def update_section(self, actor: Actor, section_id: int, changes: SectionChanges) -> SectionView:
+        section = self._edit(actor, "sections", lambda: self._sections.update(section_id, changes))
+        return to_section_view(section)
+
+    def delete_section(self, actor: Actor, section_id: int) -> None:
+        self._edit(actor, "sections", lambda: self._sections.delete(section_id))
+
+    def reorder_sections(self, actor: Actor, ids: Sequence[int]) -> list[SectionView]:
+        def reorder() -> None:
+            if not self._section_repository.reorder(ids):
+                raise SectionNotFound
+
+        self._edit(actor, "sections", reorder)
+        return self.sections()
 
     def _with_product(self, actor: Actor, banner: BannerView) -> BannerView:
         return with_products([banner], self._showcase, actor)[0]

@@ -75,6 +75,7 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 400 | `sell_by_in_past` | La date limite de vente ne peut pas être passée. |
 | 400 | `category_name_taken` | Une catégorie porte déjà ce nom. |
 | 409 | `category_not_empty` | Cette catégorie contient encore des produits. Choisissez où les déplacer. |
+| 400 | `invalid_category_parent` | Catégorie parente invalide. |
 | 400 | `invalid_variant_attributes` | Les attributs de la variante sont invalides. |
 | 400 | `duplicate_sku` | Ce SKU est déjà utilisé. |
 | 400 | `duplicate_variant` | Une variante avec ces attributs existe déjà. |
@@ -97,6 +98,8 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 400 | `invalid_schedule` | La fin doit suivre le début. |
 | 400 | `banner_product_unavailable` | Ce produit n'est pas visible dans la boutique. |
 | 400 | `banners_outside_placement` | Certaines bannières n'appartiennent pas à cet emplacement. |
+| 404 | `home_section_not_found` | Section introuvable. |
+| 400 | `section_category_unavailable` | Cette catégorie n'est pas visible dans la boutique. |
 | 400 | `unknown_payment_method` | Moyen de paiement inconnu. |
 
 ## Documents and jobs

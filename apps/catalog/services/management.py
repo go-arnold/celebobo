@@ -14,6 +14,7 @@ from apps.catalog.domain.errors import (
     CategoryNotFound,
     DuplicateSku,
     DuplicateVariant,
+    InvalidCategoryParent,
     NegativeStock,
     ProductNotFound,
     UnknownImages,
@@ -469,6 +470,7 @@ class CategoryAdminService:
             icon=draft.icon.value,
             is_active=draft.is_active,
             position=self._categories.next_position(),
+            parent=self._parent(None, draft.parent_id),
         )
 
     def update(self, category: Category, changes: CategoryChanges) -> Category:
@@ -486,6 +488,9 @@ class CategoryAdminService:
         if "icon" in values:
             category.icon = values.pop("icon").value
             fields.append("icon")
+        if "parent_id" in values:
+            category.parent = self._parent(category, values.pop("parent_id"))
+            fields.append("parent")
         for name, value in values.items():
             setattr(category, name, value)
             fields.append(name)
@@ -503,11 +508,24 @@ class CategoryAdminService:
             if target is None or target.pk == category.pk:
                 raise ValidationFailed(errors={"move_to": [CategoryNotFound.default_detail]})
             moved = self._categories.move_products(category, target)
+        self._categories.promote_children(category)
         self._categories.soft_delete(category)
         return moved
 
     def reorder(self, ids: Sequence[int]) -> None:
         self._categories.reorder(ids)
+
+    def _parent(self, category: Category | None, parent_id: int | None) -> Category | None:
+        if parent_id is None:
+            return None
+        parent = self._categories.get(parent_id)
+        if parent is None or (category is not None and parent.pk == category.pk):
+            raise InvalidCategoryParent(CategoryNotFound.default_detail)
+        if parent.parent_id is not None:
+            raise InvalidCategoryParent("Une sous-catégorie ne peut pas avoir de sous-catégories.")
+        if category is not None and self._categories.has_children(category):
+            raise InvalidCategoryParent("Cette catégorie a déjà des sous-catégories.")
+        return parent
 
     def _image(self, media_id: int | None) -> str:
         if media_id is None:

@@ -14,11 +14,20 @@ from apps.content.domain.read_models import (
     FaqGroup,
     FaqView,
     PageView,
+    SectionView,
     ShippingInfo,
     SiteSettingsView,
     SubscriberView,
 )
-from apps.content.models import Banner, ContactMessage, FaqEntry, Page, SiteSettings, Subscriber
+from apps.content.models import (
+    Banner,
+    ContactMessage,
+    FaqEntry,
+    HomeSection,
+    Page,
+    SiteSettings,
+    Subscriber,
+)
 
 DIGITS = re.compile(r"\D")
 # every amount is stored and shown in US dollars (ISO 4217)
@@ -104,6 +113,25 @@ class FaqSelector:
 
     def all(self) -> list[FaqView]:
         return [to_faq_view(entry) for entry in FaqEntry.objects.all()]
+
+
+class SectionSelector:
+    def all(self) -> list[SectionView]:
+        return [to_section_view(section) for section in HomeSection.objects.all()]
+
+    def active(self) -> list[SectionView]:
+        return [to_section_view(section) for section in HomeSection.objects.filter(is_active=True)]
+
+
+def to_section_view(section: HomeSection) -> SectionView:
+    return SectionView(
+        id=section.pk,
+        kind=section.kind,
+        category_id=section.category_id,
+        title=section.title,
+        position=section.position,
+        is_active=section.is_active,
+    )
 
 
 class BannerSelector:
