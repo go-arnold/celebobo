@@ -218,3 +218,6 @@ class TestSuggest:
 
     def test_too_short(self, api: APIClient, iphone):
         assert api.get("/api/v1/search/suggest/", {"q": "i"}).json() == []
+
+    def test_null_bytes_are_rejected(self, api: APIClient):
+        assert api.get("/api/v1/search/suggest/", {"q": "iph\x00"}).status_code == 400

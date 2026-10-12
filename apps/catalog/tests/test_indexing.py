@@ -3,7 +3,12 @@ from io import StringIO
 import pytest
 from django.core.management import call_command
 
-from apps.catalog.domain.events import CategoryChanged, ProductChanged, ProductRemoved
+from apps.catalog.domain.events import (
+    CategoryChanged,
+    ProductChanged,
+    ProductRemoved,
+    ProductsChanged,
+)
 from apps.catalog.tests.factories import CategoryFactory, FeatureFactory, ProductFactory
 from core.container import container
 from core.events.contracts import EventPublisher
@@ -37,6 +42,18 @@ class TestIndexing:
         publish(ProductChanged(product_id=product.pk), django_capture_on_commit_callbacks)
 
         assert search_index.removed == [product.pk]
+
+    def test_bulk_changes_are_indexed_together(
+        self, search_index, django_capture_on_commit_callbacks
+    ):
+        shown, hidden = ProductFactory.create(), ProductFactory.create(is_active=False)
+
+        publish(
+            ProductsChanged(product_ids=(shown.pk, hidden.pk)), django_capture_on_commit_callbacks
+        )
+
+        assert list(search_index.documents) == [shown.pk]
+        assert search_index.removed == [hidden.pk]
 
     def test_removed_products(self, search_index, django_capture_on_commit_callbacks):
         publish(ProductRemoved(product_id=42), django_capture_on_commit_callbacks)

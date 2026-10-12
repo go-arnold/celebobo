@@ -98,9 +98,9 @@ class SitemapSelector:
             categories=_entries(categories[: self._limit]),
         )
 
-    def product_location(self, product_id: int) -> tuple[str, str] | None:
-        rows = Product.all_objects.filter(pk=product_id).values_list("slug", "category__slug")
-        return rows.first()
+    def product_locations(self, product_ids: Sequence[int]) -> list[tuple[str, str]]:
+        rows = Product.all_objects.filter(pk__in=list(product_ids))
+        return list(rows.values_list("slug", "category__slug"))
 
     def category_slug(self, category_id: int) -> str | None:
         return Category.all_objects.filter(pk=category_id).values_list("slug", flat=True).first()

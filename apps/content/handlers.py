@@ -1,4 +1,10 @@
-from apps.catalog.domain.events import CategoryChanged, ProductChanged, ProductRemoved
+from apps.catalog.domain.events import (
+    CategoryChanged,
+    ProductChanged,
+    ProductRemoved,
+    ProductsChanged,
+    ProductsRemoved,
+)
 from apps.content.domain.events import (
     ContactMessageReceived,
     NewsletterSubscribed,
@@ -15,9 +21,11 @@ def invalidate_content_cache(_event: SiteContentChanged | CategoryChanged) -> No
     container.resolve(ContentCache).bump()
 
 
-@event_bus.on(ProductChanged, ProductRemoved)
-def revalidate_product_pages(event: ProductChanged | ProductRemoved) -> None:
-    container.resolve(StorefrontFacade).product_changed(event.product_id)
+@event_bus.on(ProductChanged, ProductsChanged, ProductRemoved, ProductsRemoved)
+def revalidate_product_pages(
+    event: ProductChanged | ProductsChanged | ProductRemoved | ProductsRemoved,
+) -> None:
+    container.resolve(StorefrontFacade).products_changed(event.product_ids)
 
 
 @event_bus.on(CategoryChanged)

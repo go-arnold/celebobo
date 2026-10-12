@@ -5,7 +5,7 @@ from django.test import RequestFactory
 from apps.accounts.tests.factories import AdminFactory
 from apps.catalog.adapters.postgres import PostgresSearch
 from apps.catalog.admin import CategoryAdmin, ProductAdmin
-from apps.catalog.domain.events import CategoryChanged, ProductRemoved
+from apps.catalog.domain.events import CategoryChanged, ProductRemoved, ProductsRemoved
 from apps.catalog.models import Category, Product
 from apps.catalog.providers import register
 from apps.catalog.services.contracts import SearchEngine
@@ -44,8 +44,9 @@ class TestAdminPublishesEvents:
             admin_request, Product.objects.filter(pk__in=[second.pk, third.pk])
         )
 
-        removed = {event.product_id for event in published_events.of_type(ProductRemoved)}
-        assert removed == {first.pk, second.pk, third.pk}
+        assert published_events.single(ProductRemoved).product_id == first.pk
+        batch = published_events.single(ProductsRemoved)
+        assert set(batch.product_ids) == {second.pk, third.pk}
         assert Product.deleted_objects.count() == 3
 
 

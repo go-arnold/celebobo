@@ -51,11 +51,13 @@ from apps.catalog.repositories import (
 )
 from apps.catalog.services.contracts import MediaUrls
 from core.domain.errors import ValidationFailed
-from core.domain.values import provided
+from core.domain.values import UNSET, provided
 
 SLUG_ATTEMPTS = 50
 ADMIN_SOURCE = "backoffice"
 COPY_SUFFIX = " (copie)"
+FORM_NOTE = "Modification depuis la fiche produit"
+INVENTORY_FIELDS = ("stock", "variants")
 
 
 class SlugService:
@@ -123,7 +125,9 @@ class ProductAdminService:
         return product
 
     def update(self, product: Product, changes: ProductChanges) -> Product:
-        values = dict(provided(changes))
+        values = {
+            name: value for name, value in provided(changes).items() if name not in INVENTORY_FIELDS
+        }
         price = values.get("price", product.price)
         sale_price = values.get("sale_price", product.sale_price)
         cost_price = values.get("cost_price", product.cost_price)
@@ -326,6 +330,44 @@ class VariantAdminService:
         self._products.delete_variant(variant)
         self._products.recompute_stock(product)
 
+    # the product form sends its whole variant list: unlisted ones go, listed ones are updated
+    # (image and visibility keep their own endpoint), new ones are added
+    def sync(
+        self, product: Product, drafts: Sequence[VariantDraft], source: StockSource
+    ) -> list[StockMovement]:
+        current = {variant.pk: variant for variant in self._products.variants(product)}
+        kept = {draft.id for draft in drafts if draft.id is not None}
+        if kept - current.keys():
+            raise VariantNotFound
+        for variant_id in current.keys() - kept:
+            self.remove(current[variant_id])
+        movements: list[StockMovement] = []
+        for draft in drafts:
+            if draft.id is None:
+                continue
+            variant = current[draft.id]
+            self.update(variant, _kept_variant_changes(variant, draft))
+            if movement := self._set_stock(product, variant, draft.stock, source):
+                movements.append(movement)
+        for draft in drafts:
+            if draft.id is None:
+                self.add(product, draft, source)
+        return movements
+
+    def _set_stock(
+        self, product: Product, variant: ProductVariant, level: int, source: StockSource
+    ) -> StockMovement | None:
+        if level == variant.stock:
+            return None
+        return self._stock.move(
+            product,
+            variant,
+            delta=level - variant.stock,
+            reason=StockReason.CORRECTION,
+            source=source,
+            note=FORM_NOTE,
+        )
+
     def _next_sku(self, product: Product) -> str:
         index = len(self._products.variants(product)) + 1
         while self._products.sku_taken(candidate := f"CB-{product.pk}-{index}"):
@@ -363,6 +405,17 @@ class StockAdjustmentService:
             reason=command.reason,
             source=source,
             note=" ".join(command.note.split()),
+        )
+
+    def set_level(self, product: Product, level: int, source: StockSource) -> StockMovement | None:
+        if level == product.stock and not self._products.has_active_variants(product):
+            return None
+        return self.adjust(
+            product,
+            StockAdjustment(
+                mode=AdjustmentMode.SET, value=level, reason=StockReason.CORRECTION, note=FORM_NOTE
+            ),
+            source,
         )
 
     def _variant(self, product: Product, variant_id: int | None) -> ProductVariant | None:
@@ -472,3 +525,12 @@ def ensure_product(product: Product | None) -> Product:
 
 def _clean_list(values: Sequence[str]) -> list[str]:
     return list(dict.fromkeys(" ".join(value.split()) for value in values if value.strip()))
+
+
+def _kept_variant_changes(variant: ProductVariant, draft: VariantDraft) -> VariantChanges:
+    sku = (draft.sku or "").strip()
+    return VariantChanges(
+        attributes=draft.attributes,
+        sku=sku if sku and sku.upper() != variant.sku else UNSET,
+        price=draft.price,
+    )

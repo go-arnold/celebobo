@@ -42,6 +42,11 @@ urlpatterns = [
         name="bo-shipping-zones",
     ),
     path(
+        "bo/shipping-zones/reorder/",
+        ShippingZoneAdminViewSet.as_view({"post": "reorder"}),
+        name="bo-shipping-zones-reorder",
+    ),
+    path(
         "bo/shipping-zones/<id:zone_id>/",
         ShippingZoneAdminViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
         name="bo-shipping-zone",

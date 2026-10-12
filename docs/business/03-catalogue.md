@@ -54,6 +54,8 @@ A product can declare **options** (e.g. `Couleur: Noir, Bleu`, `Stockage: 128 Go
 - **When a product has variants, stock is managed per variant** (`variants_manage_stock`); the
   product stock is the sum of its variants.
 - In the shop, a product with variants must be bought with a variant chosen (`variant_required`).
+- The product form saves in **one call**: the creation carries its variants, and an edit carries the
+  whole variant list (kept rows updated with their stock, new rows added, missing rows removed).
 
 ## Stock
 

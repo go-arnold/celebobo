@@ -147,8 +147,8 @@ class Clock:
 
 
 class Catalog:
-    def product_location(self, product_id: int) -> tuple[str, str]:
-        return (f"produit-{product_id}", "smartphones")
+    def product_locations(self, product_ids) -> list[tuple[str, str]]:
+        return [(f"produit-{product_id}", "smartphones") for product_id in product_ids]
 
     def category_slug(self, category_id: int) -> str:
         return "smartphones"
@@ -177,7 +177,7 @@ def test_a_burst_of_changes_is_sent_once_when_it_stops():
     front = storefront(clock, scheduled, recorder)
 
     for product_id in (1, 2, 3):
-        front.product_changed(product_id)
+        front.products_changed([product_id])
         clock.now += 2
     early = front.due_tags()
     clock.now += 5

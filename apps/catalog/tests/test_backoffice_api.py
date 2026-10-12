@@ -6,7 +6,13 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.tests.factories import ManagerFactory, ResellerFactory, UserFactory
-from apps.catalog.domain.events import ProductChanged, ProductRemoved, StockLow
+from apps.catalog.domain.events import (
+    ProductChanged,
+    ProductRemoved,
+    ProductsChanged,
+    ProductsRemoved,
+    StockLow,
+)
 from apps.catalog.domain.queries import StockLine, StockSource
 from apps.catalog.facades import InventoryFacade
 from apps.catalog.models import Category, Product, ProductVariant, StockMovement
@@ -208,7 +214,7 @@ class TestProductManagement:
             "trashed": 0,
         }
 
-    def test_bulk_actions(self, staff_api, phones):
+    def test_bulk_actions(self, staff_api, phones, published_events):
         products = ProductFactory.create_batch(2, category=phones, price=Decimal(100))
         audio = CategoryFactory.create(name="Audio", slug="audio")
         ids = [product.pk for product in products]
@@ -226,6 +232,14 @@ class TestProductManagement:
         assert sorted(move.json()["updated"]) == sorted(ids)
         assert trash.json()["updated"]
         assert Product.objects.count() == 0
+        assert [
+            sorted(event.product_ids) for event in published_events.of_type(ProductsChanged)
+        ] == [
+            sorted(ids),
+            sorted(ids),
+        ]
+        assert sorted(published_events.single(ProductsRemoved).product_ids) == sorted(ids)
+        assert not published_events.of_type(ProductChanged)
 
     def test_invalid_discount(self, staff_api, phones):
         product = ProductFactory.create(category=phones)
@@ -245,6 +259,117 @@ class TestProductManagement:
 
         assert api.get(PRODUCTS).status_code == list_status
         assert api.post(PRODUCTS, payload(phones)).status_code == create_status
+
+
+class TestProductForm:
+    OPTIONS = [{"name": "Couleur", "values": ["Noir", "Bleu", "Rouge"]}]
+
+    def create(self, api, category, variants):
+        return api.post(
+            PRODUCTS, payload(category, stock=0, options=self.OPTIONS, variants=variants)
+        )
+
+    def test_creates_the_product_with_its_variants_in_one_call(
+        self, staff_api, phones, published_events
+    ):
+        response = self.create(
+            staff_api,
+            phones,
+            [
+                {"attributes": {"Couleur": "Noir"}, "stock": 3},
+                {"attributes": {"Couleur": "Bleu"}, "stock": 2, "price": "350.00"},
+            ],
+        )
+
+        body = response.json()
+        assert response.status_code == 201
+        assert [(variant["label"], variant["stock"]) for variant in body["variants"]] == [
+            ("Noir", 3),
+            ("Bleu", 2),
+        ]
+        assert body["stock"] == 5
+        assert published_events.single(ProductChanged).product_id == body["id"]
+
+    def test_stock_belongs_to_the_variants(self, staff_api, phones):
+        response = staff_api.post(
+            PRODUCTS,
+            payload(phones, options=self.OPTIONS, variants=[{"attributes": {"Couleur": "Noir"}}]),
+        )
+
+        assert response.json()["code"] == "variants_manage_stock"
+        assert not Product.objects.exists()
+
+    def test_a_bad_variant_creates_nothing(self, staff_api, phones):
+        response = self.create(staff_api, phones, [{"attributes": {"Couleur": "Vert"}}])
+
+        assert response.json()["code"] == "invalid_variant_attributes"
+        assert not Product.objects.exists()
+
+    def test_saves_the_whole_variant_list_in_one_call(self, staff_api, phones, published_events):
+        body = self.create(
+            staff_api,
+            phones,
+            [
+                {"attributes": {"Couleur": "Noir"}, "stock": 3},
+                {"attributes": {"Couleur": "Bleu"}, "stock": 2},
+            ],
+        ).json()
+        black, blue = body["variants"]
+        published_events.events.clear()
+
+        response = staff_api.patch(
+            f"{PRODUCTS}{body['id']}/",
+            {
+                "name": "Galaxy A55 5G",
+                "variants": [
+                    {"id": black["id"], "attributes": {"Couleur": "Noir"}, "stock": 1},
+                    {"attributes": {"Couleur": "Rouge"}, "stock": 4, "price": "330.00"},
+                ],
+            },
+        )
+
+        saved = response.json()
+        assert response.status_code == 200
+        assert saved["name"] == "Galaxy A55 5G"
+        assert [
+            (variant["label"], variant["stock"], variant["is_active"])
+            for variant in saved["variants"]
+        ] == [("Noir", 1, True), ("Bleu", 2, False), ("Rouge", 4, True)]
+        assert saved["stock"] == 5
+        assert ProductVariant.objects.filter(pk=blue["id"]).exists()
+        correction = StockMovement.objects.get(variant_id=black["id"], reason="correction")
+        assert correction.delta == -2
+        assert published_events.single(ProductChanged).product_id == body["id"]
+        assert published_events.of_type(StockLow)
+
+    def test_unlisted_rows_need_their_stock(self, staff_api, phones):
+        body = self.create(
+            staff_api, phones, [{"attributes": {"Couleur": "Noir"}, "stock": 3}]
+        ).json()
+
+        missing = staff_api.patch(
+            f"{PRODUCTS}{body['id']}/", {"variants": [{"id": body["variants"][0]["id"]}]}
+        )
+        foreign = staff_api.patch(
+            f"{PRODUCTS}{body['id']}/",
+            {"variants": [{"id": 999, "attributes": {"Couleur": "Noir"}, "stock": 1}]},
+        )
+
+        assert missing.status_code == 400
+        assert foreign.json()["code"] == "variant_not_found"
+        assert Product.objects.get(pk=body["id"]).stock == 3
+
+    def test_sets_the_stock_of_a_simple_product(self, staff_api, phones):
+        body = staff_api.post(PRODUCTS, payload(phones)).json()
+
+        same = staff_api.patch(f"{PRODUCTS}{body['id']}/", {"stock": 4})
+        changed = staff_api.patch(f"{PRODUCTS}{body['id']}/", {"stock": 9})
+
+        assert same.json()["stock"] == 4
+        assert changed.json()["stock"] == 9
+        movement = StockMovement.objects.latest("pk")
+        assert (movement.delta, movement.reason) == (5, "correction")
+        assert StockMovement.objects.count() == 2
 
 
 class TestVariants:

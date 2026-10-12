@@ -7,7 +7,12 @@ from django.forms import ModelForm
 from django.http import HttpRequest
 from import_export.admin import ExportMixin
 
-from apps.catalog.domain.events import CategoryChanged, ProductChanged, ProductRemoved
+from apps.catalog.domain.events import (
+    CategoryChanged,
+    ProductChanged,
+    ProductRemoved,
+    ProductsRemoved,
+)
 from apps.catalog.models import (
     Category,
     Product,
@@ -92,8 +97,8 @@ class ProductAdmin(ExportMixin, admin.ModelAdmin[Product]):
         with transaction.atomic():
             product_ids = list(queryset.values_list("pk", flat=True))
             super().delete_queryset(request, queryset)
-            for product_id in product_ids:
-                _publish(ProductRemoved(product_id=product_id, actor_id=request.user.pk))
+            if product_ids:
+                _publish(ProductsRemoved(product_ids=tuple(product_ids), actor_id=request.user.pk))
 
 
 @admin.register(Review)

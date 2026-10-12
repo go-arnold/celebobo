@@ -13,6 +13,7 @@ pytestmark = pytest.mark.django_db
 SECRET = "test-cloudinary-secret"
 SIGN = "/api/v1/uploads/sign/"
 COMPLETE = "/api/v1/uploads/complete/"
+COMPLETE_BATCH = "/api/v1/uploads/complete/batch/"
 
 
 def authenticated(user) -> APIClient:
@@ -137,3 +138,42 @@ class TestCompletion:
         assert response.status_code == 400
         assert response.json()["code"] == code
         assert not UploadedMedia.objects.exists()
+
+
+class TestBatchCompletion:
+    def test_stores_every_upload_of_a_product_form_at_once(self):
+        api = authenticated(ManagerFactory.create())
+        uploads = [
+            cloudinary_response(f"celebobo-test/products/{name}", purpose="product_image")
+            for name in ("front", "back")
+        ]
+
+        response = api.post(COMPLETE_BATCH, {"uploads": uploads}, format="json")
+
+        assert response.status_code == 201
+        assert [media["public_id"] for media in response.json()] == [
+            "celebobo-test/products/front",
+            "celebobo-test/products/back",
+        ]
+        assert UploadedMedia.objects.count() == 2
+
+    def test_one_bad_upload_stores_none(self):
+        api = authenticated(ManagerFactory.create())
+        uploads = [
+            cloudinary_response("celebobo-test/products/front", purpose="product_image"),
+            {**cloudinary_response("celebobo-test/products/back"), "signature": "0" * 40},
+        ]
+
+        response = api.post(COMPLETE_BATCH, {"uploads": uploads}, format="json")
+
+        assert response.json()["code"] == "invalid_upload"
+        assert not UploadedMedia.objects.exists()
+
+    def test_the_batch_is_bounded(self):
+        uploads = [cloudinary_response(f"celebobo-test/avatars/{index}") for index in range(9)]
+
+        response = authenticated(UserFactory.create()).post(
+            COMPLETE_BATCH, {"uploads": uploads}, format="json"
+        )
+
+        assert response.status_code == 400

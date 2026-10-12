@@ -58,6 +58,10 @@ class QuoteRequestInput(QuoteInput):
     coupon_code = serializers.CharField(max_length=40, required=False, allow_blank=True)
 
 
+class AssignableSearchInput(serializers.Serializer[Any]):
+    search = serializers.CharField(required=False, allow_blank=True, max_length=100)
+
+
 class CouponCodeInput(serializers.Serializer[Any]):
     code = serializers.CharField(max_length=40)
 

@@ -13,13 +13,20 @@ from apps.catalog.domain.backoffice import (
     StockMovementView,
 )
 from apps.catalog.domain.enums import ReviewStatus, StockReason
-from apps.catalog.domain.errors import CategoryNotFound, ReviewNotFound, VariantNotFound
+from apps.catalog.domain.errors import (
+    CategoryNotFound,
+    ReviewNotFound,
+    VariantNotFound,
+    VariantsManageStock,
+)
 from apps.catalog.domain.events import (
     CategoryChanged,
     FavoriteAdded,
     FavoriteRemoved,
     ProductChanged,
     ProductRemoved,
+    ProductsChanged,
+    ProductsRemoved,
     ReviewPosted,
     StockLow,
 )
@@ -49,7 +56,7 @@ from apps.catalog.domain.read_models import (
     ReviewView,
     Suggestion,
 )
-from apps.catalog.models import Category, Product, ProductVariant
+from apps.catalog.models import Category, Product, ProductVariant, StockMovement
 from apps.catalog.repositories import (
     CategoryAdminRepository,
     ProductAdminRepository,
@@ -85,6 +92,7 @@ from apps.catalog.services.search import CatalogSearchService
 from core.cache import VersionedCache, cache_key
 from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
+from core.domain.values import UNSET
 from core.events.contracts import EventPublisher
 from core.observability.decorators import logged_facade
 
@@ -189,8 +197,8 @@ class CatalogFacade:
     def sitemap(self) -> CatalogSitemap:
         return self._sitemap.catalog()
 
-    def product_location(self, product_id: int) -> tuple[str, str] | None:
-        return self._sitemap.product_location(product_id)
+    def product_locations(self, product_ids: Sequence[int]) -> list[tuple[str, str]]:
+        return self._sitemap.product_locations(product_ids)
 
     def category_slug(self, category_id: int) -> str | None:
         return self._sitemap.category_slug(category_id)
@@ -386,24 +394,38 @@ class ProductAdminFacade:
         return self._selector.detail(product_id)
 
     def create(self, actor: Actor, draft: ProductDraft) -> AdminProductDetail:
+        if draft.stock and draft.variants:
+            raise VariantsManageStock
         with transaction.atomic():
             product = self._products.create(draft)
+            source = _admin_source(actor, product.pk)
             if draft.stock:
                 self._stock_repository.move(
                     product,
                     None,
                     delta=draft.stock,
                     reason=StockReason.INVENTORY,
-                    source=_admin_source(actor, product.pk),
+                    source=source,
                     note="Stock initial",
                 )
+            for variant in draft.variants:
+                self._variants.add(product, variant, source)
             self._changed(actor, product.pk)
         return self._selector.detail(product.pk)
 
     def update(self, actor: Actor, product_id: int, changes: ProductChanges) -> AdminProductDetail:
         with transaction.atomic():
-            self._products.update(self._locked(product_id), changes)
+            product = self._locked(product_id)
+            self._products.update(product, changes)
+            source = _admin_source(actor, product_id)
+            movements: list[StockMovement | None] = []
+            if changes.variants is not UNSET:
+                movements += self._variants.sync(product, changes.variants, source)
+            if changes.stock is not UNSET:
+                movements.append(self._stock.set_level(product, changes.stock, source))
             self._changed(actor, product_id)
+            if any(movement and movement.delta < 0 for movement in movements):
+                _announce_low(self._publisher, self._stock_repository, [product_id])
         return self._selector.detail(product_id)
 
     def trash(self, actor: Actor, product_id: int) -> None:
@@ -426,13 +448,9 @@ class ProductAdminFacade:
     def bulk(self, actor: Actor, command: BulkProductAction) -> list[int]:
         with transaction.atomic():
             touched = self._products.bulk(command)
-            for product_id in touched:
-                if command.action is BulkAction.TRASH:
-                    self._publisher.publish(
-                        ProductRemoved(product_id=product_id, actor_id=actor.user_id)
-                    )
-                else:
-                    self._changed(actor, product_id)
+            if touched:
+                event = ProductsRemoved if command.action is BulkAction.TRASH else ProductsChanged
+                self._publisher.publish(event(product_ids=tuple(touched), actor_id=actor.user_id))
         return touched
 
     def add_variant(self, actor: Actor, product_id: int, draft: VariantDraft) -> AdminProductDetail:
@@ -530,9 +548,9 @@ class CategoryAdminFacade:
             self._changed(actor, category_id)
             if move_to is not None:
                 self._changed(actor, move_to)
-            for product_id in moved:
+            if moved:
                 self._publisher.publish(
-                    ProductChanged(product_id=product_id, actor_id=actor.user_id)
+                    ProductsChanged(product_ids=tuple(moved), actor_id=actor.user_id)
                 )
 
     def reorder(self, actor: Actor, ids: Sequence[int]) -> list[AdminCategory]:

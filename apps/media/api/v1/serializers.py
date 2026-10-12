@@ -6,6 +6,7 @@ from apps.media.domain.policies import UploadPurpose
 from core.api.fields import MAX_INTEGER
 
 PURPOSES = [item.value for item in UploadPurpose]
+MAX_BATCH = 8
 
 
 class SignInput(serializers.Serializer[Any]):
@@ -28,6 +29,12 @@ class CompleteInput(serializers.Serializer[Any]):
 
     def validate_purpose(self, value: str) -> UploadPurpose:
         return UploadPurpose(value)
+
+
+class CompleteManyInput(serializers.Serializer[Any]):
+    uploads: serializers.ListSerializer[Any] = serializers.ListSerializer(
+        child=CompleteInput(), allow_empty=False, max_length=MAX_BATCH
+    )
 
 
 class SignatureOutput(serializers.Serializer[Any]):

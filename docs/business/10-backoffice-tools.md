@@ -62,6 +62,9 @@ Files go **directly from the browser to Cloudinary**, signed by the API:
 3. `POST /uploads/complete/` → the API verifies the upload and returns a media **id**, then used in
    forms (`image_ids`, `image_id`, `avatar_upload_id`).
 
+A form with several images signs once, uploads them in parallel and records them together with
+`POST /uploads/complete/batch/` (up to 8, all or none).
+
 | Purpose | Who | Max size | Stored as |
 |---|---|---|---|
 | Product image | `products.manage` | 8 MB | ≤ 1600 px |

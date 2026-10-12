@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from django.db import transaction
 
 from apps.media.domain.errors import UploadNotAllowed
@@ -27,6 +29,10 @@ class MediaFacade:
         policy = self._allowed_policy(actor, upload.purpose)
         with transaction.atomic():
             return to_stored(self._uploads.complete(actor.user_id, policy, upload))
+
+    def complete_many(self, actor: Actor, uploads: Sequence[CompletedUpload]) -> list[StoredMedia]:
+        with transaction.atomic():
+            return [self.complete(actor, upload) for upload in uploads]
 
     def _allowed_policy(self, actor: Actor, purpose: UploadPurpose) -> UploadPolicy:
         policy = policy_for(purpose)
