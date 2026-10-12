@@ -82,7 +82,7 @@ BANNERS = (
     (
         "La rentrée en toute sérénité",
         "Portables et tablettes pour étudiants",
-        "/categories/ordinateurs",
+        "/categorie/ordinateurs-portables",
         "Découvrir",
     ),
     (
