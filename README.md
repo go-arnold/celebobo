@@ -149,6 +149,7 @@ Cloudinary signed direct uploads, no SDK. The browser uploads straight to Cloudi
 | `product_image` | `products.manage` | 8 MB | `c_limit,w_1600,h_1600/q_auto:good` |
 | `category_image` | `categories.manage` | 4 MB | `c_limit,w_1200,h_1200/q_auto:good` |
 | `brand_logo` | `categories.manage` | 2 MB, PNG, SVG or WebP | `c_limit,w_600,h_600` |
+| `banner` | `content.manage` | 8 MB | `c_limit,w_1800,h_1800/q_auto:good` |
 | `avatar` | `media.upload` | 2 MB | `c_fill,g_face,w_400,h_400/q_auto` |
 | `message_attachment` | `media.upload` | 5 MB | `c_limit,w_1600,h_1600/q_auto` |
 
@@ -498,7 +499,7 @@ The first migration creates the `vector` extension (`pgvector.django.VectorExten
 The public site content and its back-office editors.
 
 **Home and site content**
-- `GET /home/` assembles the live banners (active and within `starts_at`/`ends_at`), the deal of the day (`deal`, the live deal ending first, or `null`), the featured brands that have visible products (`brands`), deals, new arrivals, best sellers, and the best sellers of the first four categories. Products come from the catalogue through the `Showcase` port, so favourites and caching still apply.
+- `GET /home/` assembles the live banners (active and within `starts_at`/`ends_at`), grouped by placement (`{"hero": [...], "hero_mini": [...], "showcase:smartphones": [...]}`; a banner tied to a product carries its card), the deal of the day (`deal`, the live deal ending first, or `null`), the featured brands that have visible products (`brands`), deals, new arrivals, best sellers, and the best sellers of the first four categories. Products come from the catalogue through the `Showcase` port, so favourites and caching still apply.
 - `SiteSettings` is a single row:
   - exchange rate (`usd_to_cdf`), hotline, WhatsApp, e-mail, address;
   - opening hours, enabled payment methods (checked against `PaymentMethod`), social links;
@@ -525,7 +526,7 @@ The public site content and its back-office editors.
 | `GET · PATCH /api/v1/bo/settings/` | Site settings (admins) |
 | `GET /api/v1/bo/contact-messages/` · `GET · PATCH <id>/` | Inbox with `meta.counts`; set `status` (new, handled, spam) and an internal `note` |
 | `GET /api/v1/bo/newsletter/subscribers/` · `export/` | Subscribers (`active`, `search`) and a CSV export |
-| `/api/v1/bo/pages/` · `bo/faq/` · `bo/banners/` (+ `<id>/`) | Content editors (managers) |
+| `/api/v1/bo/pages/` · `bo/faq/` · `bo/banners/` (+ `<id>/`) | Content editors (managers); banners also take `?placement=` and `POST reorder/ {placement, ids}` |
 
 Permissions:
 - managers: `contact.inbox`, `newsletter.view`, `content.manage`;

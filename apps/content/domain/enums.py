@@ -23,3 +23,9 @@ class ContactStatus(StrEnum):
     NEW = "new"
     HANDLED = "handled"
     SPAM = "spam"
+
+
+# tone of the image: a light image takes dark text, a dark image takes light text
+class BannerTone(StrEnum):
+    LIGHT = "light"
+    DARK = "dark"

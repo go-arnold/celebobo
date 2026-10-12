@@ -49,3 +49,19 @@ class UnknownPaymentMethod(ValidationFailed):
 
 class RevalidationFailed(Exception):
     pass
+
+
+class BannerProductUnavailable(ValidationFailed):
+    default_code = "banner_product_unavailable"
+    default_detail = "Ce produit n'est pas visible dans la boutique."
+
+    def __init__(self) -> None:
+        super().__init__(errors={"product_id": [self.default_detail]})
+
+
+class BannersOutsidePlacement(ValidationFailed):
+    default_code = "banners_outside_placement"
+    default_detail = "Certaines bannières n'appartiennent pas à cet emplacement."
+
+    def __init__(self) -> None:
+        super().__init__(errors={"ids": [self.default_detail]})

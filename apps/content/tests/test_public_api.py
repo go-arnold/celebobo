@@ -29,7 +29,7 @@ def test_home_assembles_banners_and_product_sections(api):
 
     body = api.get("/api/v1/home/").json()
 
-    assert [banner["title"] for banner in body["banners"]] == ["Soldes"]
+    assert [banner["title"] for banner in body["banners"]["hero"]] == ["Soldes"]
     assert [card["id"] for card in body["deals"]] == [deal.pk]
     assert {card["name"] for card in body["new_arrivals"]} == {"Galaxy A55", "Redmi 13"}
     block = next(item for item in body["categories"] if item["category"]["slug"] == "smartphones")

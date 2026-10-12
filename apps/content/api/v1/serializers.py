@@ -9,7 +9,9 @@ from apps.catalog.api.v1.serializers import (
     DealOutput,
     ProductCardOutput,
 )
-from apps.content.domain.enums import ContactStatus, ContactSubject
+from apps.content.domain.enums import BannerTone, ContactStatus, ContactSubject
+from apps.content.domain.placements import HERO, MAX_PLACEMENT_LENGTH, valid_placement
+from core.api.fields import MAX_INTEGER
 
 PHONE_PATTERN = r"^\+?[\d\s().-]{7,20}$"
 
@@ -142,6 +144,24 @@ class FaqGroupOutput(serializers.Serializer[Any]):
     entries = FaqOutput(many=True)
 
 
+PLACEMENT_HELP = "hero, hero_mini, hero_side, deal_side, showcase:<catégorie> ou column:<catégorie>"
+
+
+class PlacementField(serializers.CharField):
+    def __init__(self, **options: Any) -> None:
+        super().__init__(
+            max_length=MAX_PLACEMENT_LENGTH,
+            help_text=PLACEMENT_HELP,
+            **options,
+        )
+
+    def to_internal_value(self, data: Any) -> str:
+        value = super().to_internal_value(data)
+        if not valid_placement(value):
+            raise serializers.ValidationError("Emplacement inconnu.")
+        return value
+
+
 class BannerFieldsInput(serializers.Serializer[Any]):
     title = serializers.CharField(max_length=120)
     subtitle = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
@@ -152,6 +172,30 @@ class BannerFieldsInput(serializers.Serializer[Any]):
     is_active = serializers.BooleanField(default=True)
     starts_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
     ends_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
+    placement = PlacementField(default=HERO)
+    product_id = serializers.IntegerField(
+        min_value=1, max_value=MAX_INTEGER, required=False, allow_null=True, default=None
+    )
+    eyebrow = serializers.CharField(max_length=40, required=False, allow_blank=True, default="")
+    tone = serializers.ChoiceField(
+        choices=[item.value for item in BannerTone], default=BannerTone.DARK.value
+    )
+
+    def validate_tone(self, value: str) -> BannerTone:
+        return BannerTone(value)
+
+
+class BannerPlacementInput(serializers.Serializer[Any]):
+    placement = PlacementField(required=False)
+
+
+class BannerOrderInput(serializers.Serializer[Any]):
+    placement = PlacementField()
+    ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1, max_value=MAX_INTEGER),
+        allow_empty=False,
+        max_length=100,
+    )
 
 
 class BannerOutput(serializers.Serializer[Any]):
@@ -165,6 +209,11 @@ class BannerOutput(serializers.Serializer[Any]):
     is_active = serializers.BooleanField()
     starts_at = serializers.DateTimeField(allow_null=True)
     ends_at = serializers.DateTimeField(allow_null=True)
+    placement = serializers.CharField()
+    product_id = serializers.IntegerField(allow_null=True)
+    product = ProductCardOutput(allow_null=True)
+    eyebrow = serializers.CharField()
+    tone = serializers.ChoiceField(choices=[item.value for item in BannerTone])
 
 
 class OpeningHoursInput(serializers.Serializer[Any]):
@@ -218,7 +267,9 @@ class CategoryBlockOutput(serializers.Serializer[Any]):
 
 
 class HomeOutput(serializers.Serializer[Any]):
-    banners = BannerOutput(many=True)
+    banners = serializers.DictField(
+        child=BannerOutput(many=True), help_text="Bannières en cours, par emplacement."
+    )
     deal = DealOutput(allow_null=True)
     deals = ProductCardOutput(many=True)
     new_arrivals = ProductCardOutput(many=True)

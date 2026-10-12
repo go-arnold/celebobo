@@ -69,5 +69,10 @@ urlpatterns = [
     path("bo/faq/", FaqAdminViewSet.as_view(COLLECTION), name="bo-faq"),
     path("bo/faq/<id:item_id>/", FaqAdminViewSet.as_view(ITEM), name="bo-faq-entry"),
     path("bo/banners/", BannerAdminViewSet.as_view(COLLECTION), name="bo-banners"),
+    path(
+        "bo/banners/reorder/",
+        BannerAdminViewSet.as_view({"post": "reorder"}),
+        name="bo-banners-reorder",
+    ),
     path("bo/banners/<id:item_id>/", BannerAdminViewSet.as_view(ITEM), name="bo-banner"),
 ]
