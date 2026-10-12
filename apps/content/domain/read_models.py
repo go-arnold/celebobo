@@ -107,6 +107,8 @@ class SiteSettingsView:
     payment_methods: list[str]
     social_links: dict[str, str]
     newsletter_discount: int
+    return_days: int
+    support_always_open: bool
     shipping: ShippingInfo
     newsletter_code: str = ""
 

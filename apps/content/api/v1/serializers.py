@@ -232,6 +232,8 @@ class SettingsInput(serializers.Serializer[Any]):
     social_links = serializers.DictField(child=serializers.URLField(max_length=300))
     newsletter_code = serializers.CharField(max_length=30, allow_blank=True)
     newsletter_discount = serializers.IntegerField(min_value=0, max_value=90)
+    return_days = serializers.IntegerField(min_value=0, max_value=365)
+    support_always_open = serializers.BooleanField()
 
     def validate_opening_hours(self, value: list[dict[str, str]]) -> list[dict[str, str]]:
         return [dict(item) for item in value]
@@ -254,6 +256,8 @@ class PublicSettingsOutput(serializers.Serializer[Any]):
     payment_methods = serializers.ListField(child=serializers.CharField())
     social_links = serializers.DictField(child=serializers.CharField())
     newsletter_discount = serializers.IntegerField()
+    return_days = serializers.IntegerField()
+    support_always_open = serializers.BooleanField()
     shipping = ShippingOutput()
 
 

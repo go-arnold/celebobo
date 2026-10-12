@@ -88,5 +88,19 @@ def test_settings_are_admin_only_and_validated(api, as_user, admin, manager, sit
     assert as_user(manager).get(SETTINGS).status_code == 403
 
 
+def test_admin_sets_the_return_period_and_support_hours(api, as_user, admin, site):
+    defaults = api.get("/api/v1/settings/public/").json()
+    api.force_authenticate(None)
+
+    updated = as_user(admin).patch(
+        SETTINGS, {"return_days": 14, "support_always_open": False}, format="json"
+    )
+    too_long = as_user(admin).patch(SETTINGS, {"return_days": 400}, format="json")
+
+    assert (defaults["return_days"], defaults["support_always_open"]) == (7, True)
+    assert (updated.json()["return_days"], updated.json()["support_always_open"]) == (14, False)
+    assert too_long.status_code == 400
+
+
 def test_resellers_cannot_edit_content(as_user, reseller):
     assert as_user(reseller).post(PAGES, {}, format="json").status_code == 403

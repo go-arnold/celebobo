@@ -169,6 +169,8 @@ def to_settings_view(
         payment_methods=list(settings.payment_methods),
         social_links=dict(settings.social_links),
         newsletter_discount=settings.newsletter_discount,
+        return_days=settings.return_days,
+        support_always_open=settings.support_always_open,
         shipping=shipping,
         newsletter_code=settings.newsletter_code if include_private else "",
     )

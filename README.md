@@ -503,7 +503,8 @@ The public site content and its back-office editors.
 - `SiteSettings` is a single row:
   - exchange rate (`usd_to_cdf`), hotline, WhatsApp, e-mail, address;
   - opening hours, enabled payment methods (checked against `PaymentMethod`), social links;
-  - the newsletter welcome code.
+  - the newsletter welcome code;
+  - the return period (`return_days`, 7 by default) and whether support answers around the clock (`support_always_open`).
 - Public settings add the shipping rules from `ORDERS` (read-only) and never expose the newsletter code.
 - Pages, the FAQ and public settings are cached in `ContentCache`. Any `SiteContentChanged` or `CategoryChanged` bumps its version.
 - Pages, the FAQ and banners share one generic `Editor` service, with validators for unique slugs and banner schedules. The back-office endpoints come from a single `editor_viewset` factory.
