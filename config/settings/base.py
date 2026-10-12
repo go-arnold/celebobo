@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "apps.assistant",
     "apps.content",
     "apps.push",
+    "apps.loyalty",
     "apps.demo",
     "allauth",
     "allauth.account",

@@ -13,13 +13,21 @@ from apps.content.domain.events import (
 )
 from apps.content.facades import ContactFacade, NewsletterFacade, StorefrontFacade
 from apps.content.services.cache import ContentCache
+from apps.loyalty.domain.events import LoyaltySettingsChanged
 from core.container import container
 from core.events.bus import event_bus
 
 
-@event_bus.on(SiteContentChanged, CategoryChanged)
-def invalidate_content_cache(_event: SiteContentChanged | CategoryChanged) -> None:
+@event_bus.on(SiteContentChanged, CategoryChanged, LoyaltySettingsChanged)
+def invalidate_content_cache(
+    _event: SiteContentChanged | CategoryChanged | LoyaltySettingsChanged,
+) -> None:
     container.resolve(ContentCache).bump()
+
+
+@event_bus.on(LoyaltySettingsChanged)
+def revalidate_programme_pages(_event: LoyaltySettingsChanged) -> None:
+    container.resolve(StorefrontFacade).section_changed("settings")
 
 
 @event_bus.on(ProductChanged, ProductsChanged, ProductRemoved, ProductsRemoved)

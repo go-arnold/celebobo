@@ -9,6 +9,7 @@ from schemathesis.checks import not_a_server_error
 from schemathesis.specs.openapi.checks import response_schema_conformance
 
 from apps.accounts.tests.factories import AdminFactory
+from apps.catalog.services.management import RESERVED_PRODUCT_SLUGS
 from apps.catalog.tests.factories import CategoryFactory, ProductFactory
 
 SCHEMA_URL = "/api/v1/schema/"
@@ -41,6 +42,9 @@ schema = schemathesis.pytest.from_fixture("api_schema")
 @schema.include(method="GET").exclude(path_regex=SKIPPED_PATHS).parametrize()
 @FUZZ
 def test_anonymous_reads_never_fail(case):
+    # /products/facets/ is its own route, not a product
+    if (case.path_parameters or {}).get("slug") in RESERVED_PRODUCT_SLUGS:
+        return
     with transaction.atomic():
         case.call_and_validate(checks=CHECKS)
 

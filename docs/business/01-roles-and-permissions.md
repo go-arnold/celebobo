@@ -72,7 +72,8 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `reviews.moderate` | Hide / publish reviews | | | | ✓ | ✓ |
 | `contact.inbox` | Contact form messages | | | | ✓ | ✓ |
 | `newsletter.view` | Newsletter subscribers (+ CSV export) | | | | ✓ | ✓ |
-| `content.manage` | Pages, FAQ, banners | | | | ✓ | ✓ |
+| `content.manage` | Pages, FAQ, banners, home sections | | | | ✓ | ✓ |
+| `loyalty.manage` | Loyalty programme settings | | | | | ✓ |
 | `exports.products` / `imports.products` | Catalogue export / CSV import | | | | ✓ | ✓ |
 | `conversations.assign` | Assign a support thread to a reseller | | | | ✓ | ✓ |
 | `orders.view.all` | Every order | | | | ✓ | ✓ |

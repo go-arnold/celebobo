@@ -66,6 +66,10 @@ FORM_NOTE = "Modification depuis la fiche produit"
 INVENTORY_FIELDS = ("stock", "variants")
 
 
+# sub-routes of /products/ that a product slug would shadow
+RESERVED_PRODUCT_SLUGS = frozenset({"facets"})
+
+
 class SlugService:
     def __init__(self, taken: Callable[[str], bool], *, max_length: int) -> None:
         self._taken = taken
@@ -97,7 +101,9 @@ class ProductAdminService:
         self._brands = brands
         self._media = media
         self._today = today
-        self._slugs = SlugService(products.slug_taken, max_length=280)
+        self._slugs = SlugService(
+            lambda slug: slug in RESERVED_PRODUCT_SLUGS or products.slug_taken(slug), max_length=280
+        )
 
     def create(self, draft: ProductDraft) -> Product:
         validate_pricing(draft.price, draft.sale_price, draft.cost_price)

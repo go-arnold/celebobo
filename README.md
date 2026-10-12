@@ -533,6 +533,14 @@ Permissions:
 - managers: `contact.inbox`, `newsletter.view`, `content.manage`;
 - admins: `settings.manage`.
 
+### `apps.loyalty`
+
+Membership, cashback and mobile app links ([rules](docs/business/12-loyalty.md)).
+
+- `LoyaltySettings` is a single row holding every rule (prices, trial, rate, cap, expiry, store links), each programme off by default.
+- `GET · PATCH /api/v1/bo/loyalty/settings/` (`loyalty.manage`, admins) edits them; `GET /settings/public/` returns them under `programmes`.
+- A change publishes `LoyaltySettingsChanged`, which refreshes the cached public settings and revalidates the shop pages.
+
 ### `apps.push`
 
 Browser push notifications (Web Push with VAPID), the third notification channel next to `in_app` and `email`.

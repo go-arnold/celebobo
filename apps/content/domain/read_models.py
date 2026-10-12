@@ -5,6 +5,7 @@ from decimal import Decimal
 from apps.catalog.domain.deals import DealOfTheDay
 from apps.catalog.domain.read_models import BrandView, CategoryView, ProductCard, SitemapEntry
 from apps.content.domain.enums import ContactStatus, ContactSubject
+from apps.loyalty.domain.settings import Programmes
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -110,6 +111,7 @@ class SiteSettingsView:
     return_days: int
     support_always_open: bool
     shipping: ShippingInfo
+    programmes: Programmes | None = None
     newsletter_code: str = ""
 
 

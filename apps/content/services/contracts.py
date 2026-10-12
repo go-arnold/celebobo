@@ -4,6 +4,7 @@ from typing import Protocol
 from apps.catalog.domain.deals import DealOfTheDay
 from apps.catalog.domain.read_models import BrandView, CatalogSitemap, CategoryView, ProductCard
 from apps.content.domain.read_models import ShippingInfo
+from apps.loyalty.domain.settings import Programmes
 from core.domain.actor import Actor
 
 
@@ -33,6 +34,10 @@ class Showcase(Protocol):
 
 class PageRevalidator(Protocol):
     def revalidate(self, tags: Sequence[str]) -> None: ...
+
+
+class ProgrammesSource(Protocol):
+    def programmes(self) -> Programmes: ...
 
 
 class ShippingSource(Protocol):

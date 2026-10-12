@@ -11,6 +11,7 @@ from apps.catalog.api.v1.serializers import (
 )
 from apps.content.domain.enums import BannerTone, ContactStatus, ContactSubject, SectionKind
 from apps.content.domain.placements import HERO, MAX_PLACEMENT_LENGTH, valid_placement
+from apps.loyalty.api.v1.serializers import ProgrammesOutput
 from core.api.fields import MAX_INTEGER
 
 PHONE_PATTERN = r"^\+?[\d\s().-]{7,20}$"
@@ -259,6 +260,7 @@ class PublicSettingsOutput(serializers.Serializer[Any]):
     return_days = serializers.IntegerField()
     support_always_open = serializers.BooleanField()
     shipping = ShippingOutput()
+    programmes = ProgrammesOutput()
 
 
 class AdminSettingsOutput(PublicSettingsOutput):

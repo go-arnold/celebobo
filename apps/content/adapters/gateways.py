@@ -6,6 +6,8 @@ from apps.catalog.domain.queries import ProductQuery
 from apps.catalog.domain.read_models import BrandView, CatalogSitemap, CategoryView, ProductCard
 from apps.catalog.facades import CatalogFacade
 from apps.content.domain.read_models import ShippingInfo
+from apps.loyalty.domain.settings import Programmes
+from apps.loyalty.facades import LoyaltyFacade
 from apps.orders.conf import order_settings
 from core.container import container
 from core.domain.actor import Actor
@@ -56,6 +58,11 @@ class CatalogShowcase:
     @staticmethod
     def _browse(actor: Actor, query: ProductQuery) -> list[ProductCard]:
         return list(container.resolve(CatalogFacade).browse(actor, query).cards)
+
+
+class LoyaltyProgrammes:
+    def programmes(self) -> Programmes:
+        return container.resolve(LoyaltyFacade).programmes()
 
 
 class OrdersShipping:

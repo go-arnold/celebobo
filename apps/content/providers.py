@@ -2,7 +2,7 @@ from time import time
 
 from django.utils import timezone
 
-from apps.content.adapters.gateways import CatalogShowcase, OrdersShipping
+from apps.content.adapters.gateways import CatalogShowcase, LoyaltyProgrammes, OrdersShipping
 from apps.content.adapters.media_references import ContentMediaReferences
 from apps.content.adapters.storefront import HttpRevalidator
 from apps.content.conf import storefront_settings
@@ -36,7 +36,12 @@ from apps.content.selectors import (
 )
 from apps.content.services.cache import ContentCache
 from apps.content.services.contact import ContactService
-from apps.content.services.contracts import PageRevalidator, ShippingSource, Showcase
+from apps.content.services.contracts import (
+    PageRevalidator,
+    ProgrammesSource,
+    ShippingSource,
+    Showcase,
+)
 from apps.content.services.editors import Editor
 from apps.content.services.home import HomeService, flatten
 from apps.content.services.mailer import ContentMailer
@@ -59,6 +64,7 @@ def register(container: Container) -> None:
     container.register(ContentCache, lambda _: ContentCache())
     container.register(Showcase, lambda _: CatalogShowcase())
     container.register(ShippingSource, lambda _: OrdersShipping())
+    container.register(ProgrammesSource, lambda _: LoyaltyProgrammes())
     container.register(ContactFacade, _contact_facade, lifetime=Lifetime.TRANSIENT)
     container.register(NewsletterFacade, _newsletter_facade, lifetime=Lifetime.TRANSIENT)
     container.register(SiteContentFacade, _content_facade, lifetime=Lifetime.TRANSIENT)
@@ -116,6 +122,7 @@ def _content_facade(container: Container) -> SiteContentFacade:
         banner_selector=banners,
         site=SiteSettingsService(SettingsRepository()),
         shipping=container.resolve(ShippingSource),
+        programmes=container.resolve(ProgrammesSource),
         home=HomeService(
             container.resolve(Showcase),
             banners,
