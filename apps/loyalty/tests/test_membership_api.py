@@ -5,11 +5,17 @@ import pytest
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.accounts.tests.factories import ManagerFactory, ResellerFactory, UserFactory
+from apps.accounts.tests.factories import (
+    AddressFactory,
+    ManagerFactory,
+    ResellerFactory,
+    UserFactory,
+)
 from apps.catalog.tests.factories import ProductFactory
 from apps.loyalty.domain.events import MembershipEnding, MembershipRequested, MembershipStarted
 from apps.loyalty.facades import MembershipFacade
 from apps.loyalty.models import LoyaltySettings, Membership
+from apps.messaging.models import Notification
 from core.container import container
 
 pytestmark = pytest.mark.django_db
@@ -112,6 +118,20 @@ class TestPaidPlans:
         assert mine["pending_request"] is None
         assert staff.post(f"{REQUESTS}{pending['id']}/confirm/").status_code == 409
 
+    def test_notifications_agree_with_the_plan(
+        self, enabled, client_user, django_capture_on_commit_callbacks
+    ):
+        manager = ManagerFactory.create()
+        with django_capture_on_commit_callbacks(execute=True):
+            request_id = subscribe(client_user, "monthly").json()["pending_request"]["id"]
+        with django_capture_on_commit_callbacks(execute=True):
+            as_api(manager).post(f"{REQUESTS}{request_id}/confirm/")
+
+        staff_alert = Notification.objects.get(recipient=manager, kind="membership_requested")
+        welcome = Notification.objects.get(recipient=client_user, kind="membership_started")
+        assert "la formule mensuelle" in staff_alert.body
+        assert welcome.body.startswith("Votre abonnement mensuel est actif")
+
     def test_a_paid_period_starts_after_the_trial(self, enabled, client_user, staff):
         as_api(client_user).post(f"{MINE}trial/")
         trial_end = Membership.objects.get().ends_at
@@ -174,6 +194,24 @@ class TestFreeDelivery:
         assert (bukavu["shipping_fee"], bukavu["member_free_shipping"]) == ("0.00", True)
         assert elsewhere["member_free_shipping"] is False
         assert elsewhere["shipping_fee"] != "0.00"
+
+    def test_without_a_city_the_default_address_decides(self, enabled, client_user):
+        AddressFactory.create(user=client_user, city="Bukavu", is_default=True)
+        as_api(client_user).post(f"{MINE}trial/")
+        product = ProductFactory.create(price=Decimal("20.00"))
+
+        quote = (
+            as_api(client_user)
+            .post(
+                "/api/v1/checkout/quote/",
+                {"lines": [{"product_id": product.pk, "quantity": 1}]},
+                format="json",
+            )
+            .json()
+        )
+
+        assert (quote["shipping_zone"], quote["shipping_fee"]) == ("Bukavu", "0.00")
+        assert quote["member_free_shipping"] is True
 
     def test_others_pay_the_zone_fee(self, client_user):
         quote = self.quote(client_user, "Bukavu")

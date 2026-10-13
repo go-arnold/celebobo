@@ -9,7 +9,7 @@ from apps.orders.domain.errors import CouponRejected, EmptyOrder, TooManyLines
 from apps.orders.domain.pricing import ZERO, CouponTerms, QuoteLine, quote
 from apps.orders.domain.read_models import QuoteLineView, QuoteView
 from apps.orders.models import Coupon
-from apps.orders.services.contracts import Inventory, Members, Wallet
+from apps.orders.services.contracts import AddressBook, Inventory, Members, Wallet
 from apps.orders.services.coupons import CouponService
 from apps.orders.services.shipping import ShippingResolver
 
@@ -43,6 +43,7 @@ class PricingService:
         members: Members,
         wallet: Wallet,
         *,
+        addresses: AddressBook,
         max_lines: int,
     ) -> None:
         self._inventory = inventory
@@ -50,6 +51,7 @@ class PricingService:
         self._coupons = coupons
         self._members = members
         self._wallet = wallet
+        self._addresses = addresses
         self._max_lines = max_lines
 
     def price(
@@ -77,7 +79,7 @@ class PricingService:
         ]
         subtotal = sum((line.total for line in quote_lines), ZERO)
         coupon, terms, error = self._coupon(context, subtotal)
-        rules = self._shipping.rules_for(context.city)
+        rules = self._shipping.rules_for(self._city(context))
         member = (
             rules.member_free
             and context.user_id is not None
@@ -110,6 +112,12 @@ class PricingService:
             ),
             coupon,
         )
+
+    # a signed-in client without a city yet is priced for their default address
+    def _city(self, context: PricingContext) -> str | None:
+        if context.city or context.user_id is None:
+            return context.city
+        return self._addresses.default_city(context.user_id)
 
     def _coupon(
         self, context: PricingContext, subtotal: Decimal
