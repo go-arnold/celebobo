@@ -157,7 +157,7 @@ Moving from Supabase, once (the site is stopped for a few minutes):
 1. In `.env.prod`: `COMPOSE_PROFILES=data`, `POSTGRES_PASSWORD` and `REDIS_PASSWORD` (hex, see the
    example), `SOURCE_DATABASE_URL` = the Supabase URL on its **session** pooler (port `5432`), then the
    local URLs: `DATABASE_URL=postgres://celebobo:<POSTGRES_PASSWORD>@postgres:5432/celebobo`,
-   `DATABASE_POOLER=false`, `DATABASE_CONN_MAX_AGE=300`, `REDIS_*_URL=redis://:<REDIS_PASSWORD>@redis:6379/0|1|2`.
+   `DATABASE_POOLER=false`, `REDIS_*_URL=redis://:<REDIS_PASSWORD>@redis:6379/0|1|2`.
 2. `./deploy/prod.sh import-db`: stops the application, starts Postgres and Redis, builds the schema with
    the migrations, then copies every row from Supabase (data only, sequences included).
 3. `./deploy/prod.sh compare-db`: the row count of every table, Supabase against local, must be identical.
