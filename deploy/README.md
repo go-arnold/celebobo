@@ -5,8 +5,8 @@ One Docker image for Django, one for the Next.js frontend, nginx in front. The s
 | | `./deploy/local.sh` (your machine) | `./deploy/prod.sh` (VPS) |
 |---|---|---|
 | Address | `http://localhost:8080` | `https://DOMAIN` |
-| Postgres | container (pgvector, port 55432 on the host) | Supabase (unchanged) |
-| Redis | container | Aiven (unchanged) |
+| Postgres | container (pgvector, port 55432 on the host) | container on the server (profile `data`), or Supabase |
+| Redis | container | container on the server (profile `data`), or Aiven |
 | Email | Mailpit, inbox at `http://localhost:8025` | your SMTP relay |
 | TLS | none | Let's Encrypt, renewed automatically |
 | Frontend | `npm run dev` on the host (hot reload), or the container | container (or Vercel) |
@@ -145,6 +145,38 @@ git -C ../shopproject_v2_frontend pull && git pull
 
 Roll back by checking out the previous commit and running `./deploy/prod.sh up` again.
 
+### 6. Postgres and Redis on the server
+
+Every request talks to the database and Redis several times: hosted in another data centre, each trip
+costs 30 ms or more, and opening a connection several seconds at worst. On the server, a query costs
+about 0.2 ms. The profile `data` adds `postgres` (pgvector 17, ~1 GB of shared buffers), `redis`
+(password, 512 MB, only cache keys may be evicted) and `backup`; none of them is published on the host.
+
+Moving from Supabase, once (the site is stopped for a few minutes):
+
+1. In `.env.prod`: `COMPOSE_PROFILES=data`, `POSTGRES_PASSWORD` and `REDIS_PASSWORD` (hex, see the
+   example), `SOURCE_DATABASE_URL` = the Supabase URL on its **session** pooler (port `5432`), then the
+   local URLs: `DATABASE_URL=postgres://celebobo:<POSTGRES_PASSWORD>@postgres:5432/celebobo`,
+   `DATABASE_POOLER=false`, `DATABASE_CONN_MAX_AGE=300`, `REDIS_*_URL=redis://:<REDIS_PASSWORD>@redis:6379/0|1|2`.
+2. `./deploy/prod.sh import-db`: stops the application, starts Postgres and Redis, builds the schema with
+   the migrations, then copies every row from Supabase (data only, sequences included).
+3. `./deploy/prod.sh compare-db`: the row count of every table, Supabase against local, must be identical.
+4. `./deploy/prod.sh up`, then empty `SOURCE_DATABASE_URL`.
+
+Supabase is never written to: to go back, restore the previous URLs and run `./deploy/prod.sh up`
+(what was written meanwhile stays on the server only). Redis keeps nothing to copy.
+
+**Backups**: `backup` dumps the database every night at 03:00 (Bukavu time) into `deploy/backups/`
+and keeps `BACKUP_DAYS` days. `./deploy/prod.sh backup` makes one now. Copy them off the server too
+(another machine, a storage bucket): a dump on the same disk does not survive the loss of the server.
+Restore one with:
+
+```bash
+./deploy/prod.sh stop api worker beat
+./deploy/prod.sh exec -T postgres pg_restore --clean --if-exists -U celebobo -d celebobo < deploy/backups/<file>.dump
+./deploy/prod.sh up
+```
+
 ### Operations
 
 | Task | Command |
@@ -154,7 +186,7 @@ Roll back by checking out the previous commit and running `./deploy/prod.sh up` 
 | Restart one service | `./deploy/prod.sh restart worker` |
 | Health | `/health/live/` (process up), `/health/ready/` (database, cache, broker) |
 | Certificates | renewed automatically; check with `./deploy/prod.sh logs certbot` |
-| Backups | the data lives in Supabase (daily backups on its side) and Cloudinary; the server only keeps generated documents for 7 days |
+| Backups | with the profile `data`, nightly dumps in `deploy/backups/` (see 6); hosted, Supabase keeps its own; images live in Cloudinary |
 
 Every response carries `Server-Timing: app;dur=…`: the time spent in Django, to compare with the total time
 in the browser's Network tab.
