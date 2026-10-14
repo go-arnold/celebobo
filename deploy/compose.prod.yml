@@ -1,5 +1,15 @@
-# Production on a VPS: nginx terminates TLS (Let's Encrypt); Postgres (Supabase) and Redis (Aiven) stay hosted.
+# Production on a VPS: nginx terminates TLS (Let's Encrypt). Postgres and Redis run either here
+# (COMPOSE_PROFILES=data, next to the application) or hosted (Supabase and Aiven, profile off).
 services:
+  migrate:
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+      redis:
+        condition: service_healthy
+        required: false
+
   api:
     logging: &logs
       driver: json-file
@@ -38,6 +48,86 @@ services:
       - certbot-www:/var/www/certbot
     entrypoint: ["/bin/sh", "-c", "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"]
 
+  # Never published on the host: only the containers of this stack reach them.
+  postgres:
+    profiles: ["data"]
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    logging: *logs
+    shm_size: 256mb
+    environment:
+      POSTGRES_DB: celebobo
+      POSTGRES_USER: celebobo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    # sized for an 8 GB server shared with the application
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=4GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - statement_timeout=15s
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U celebobo -d celebobo"]
+      interval: 5s
+      retries: 20
+
+  # Cache, Celery queues and WebSocket groups: only cache keys expire, so eviction never drops a task.
+  redis:
+    profiles: ["data"]
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *logs
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:-}
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:-}
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - volatile-lru
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+  # A compressed dump every night, the last BACKUP_DAYS kept in deploy/backups on the host.
+  backup:
+    profiles: ["data"]
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    logging: *logs
+    environment:
+      PGHOST: postgres
+      PGUSER: celebobo
+      PGDATABASE: celebobo
+      PGPASSWORD: ${POSTGRES_PASSWORD:-}
+      BACKUP_DAYS: ${BACKUP_DAYS:-7}
+    volumes:
+      - ./postgres/backup.sh:/usr/local/bin/backup.sh:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    entrypoint: ["/bin/sh", "/usr/local/bin/backup.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   letsencrypt:
   certbot-www:
+  postgres:
+  redis:
