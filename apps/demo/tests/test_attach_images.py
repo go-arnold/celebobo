@@ -6,7 +6,7 @@ import pytest
 from django.core.management import CommandError, call_command
 
 from apps.accounts.tests.factories import AdminFactory
-from apps.catalog.tests.factories import ProductFactory
+from apps.catalog.tests.factories import CategoryFactory, ProductFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -73,5 +73,29 @@ def test_rejects_unknown_products_and_too_many_images(tmp_path, cloudinary, prod
 
     with pytest.raises(CommandError):
         call_command("attach_product_images", folder(tmp_path, **products), stdout=StringIO())
+
+    assert cloudinary == []
+
+
+def test_replaces_category_images_by_file_name(tmp_path, cloudinary):
+    AdminFactory.create()
+    category = CategoryFactory.create(slug="gaming")
+    (tmp_path / "gaming.jpg").write_bytes(b"jpeg")
+
+    call_command("attach_category_images", tmp_path, stdout=StringIO())
+
+    category.refresh_from_db()
+    assert category.image.endswith("/celebobo-test/categories/gaming.jpg")
+    assert cloudinary == ["celebobo-test/categories/gaming"]
+
+
+def test_category_dry_run_and_unknown_slugs(tmp_path, cloudinary):
+    CategoryFactory.create(slug="gaming")
+    (tmp_path / "gaming.jpg").write_bytes(b"jpeg")
+
+    call_command("attach_category_images", tmp_path, "--dry-run", stdout=StringIO())
+    (tmp_path / "unknown.jpg").write_bytes(b"jpeg")
+    with pytest.raises(CommandError):
+        call_command("attach_category_images", tmp_path, stdout=StringIO())
 
     assert cloudinary == []
