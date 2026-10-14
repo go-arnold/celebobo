@@ -2,17 +2,13 @@ from pathlib import Path
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
-from django.db.models import Q
 
-from apps.accounts.models import User
 from apps.catalog.domain.management import ProductChanges
 from apps.catalog.facades import ProductAdminFacade
 from apps.catalog.models import Product
-from apps.demo.uploads import ImageStore
+from apps.demo.uploads import admin_store, upload
 from apps.media.domain.policies import UploadPurpose
-from core.api.actor import actor_from_user
 from core.container import container
-from core.domain.actor import Role
 
 MAX_IMAGES = 4
 EXTENSIONS = {".jpg", ".jpeg"}
@@ -40,20 +36,14 @@ class Command(BaseCommand):
         if options["dry_run"]:
             self.stdout.write(self.style.WARNING("Simulation : rien n'a été modifié."))
             return
-        admin = (
-            User.objects.filter(Q(is_superuser=True) | Q(role=Role.ADMIN.value))
-            .order_by("pk")
-            .first()
-        )
-        if admin is None:
-            raise CommandError("Aucun administrateur pour signer les envois.")
-        store = ImageStore(owner_id=admin.pk, folder="products")
-        if not store.enabled:
-            raise CommandError("Cloudinary n'est pas configuré.")
+        actor, store = admin_store("products")
         facade = container.resolve(ProductAdminFacade)
-        actor = actor_from_user(admin)
+        purpose = UploadPurpose.PRODUCT_IMAGE.value
         for slug, files in plan.items():
-            media_ids = [self._upload(store, slug, position, path) for position, path in files]
+            media_ids = [
+                upload(store, f"{slug}-{position}", path.read_bytes(), purpose=purpose)
+                for position, path in files
+            ]
             facade.update(actor, products[slug].pk, ProductChanges(image_ids=tuple(media_ids)))
             self.stdout.write(self.style.SUCCESS(f"{slug} : {len(media_ids)} images"))
 
@@ -71,11 +61,3 @@ class Command(BaseCommand):
         if not plan:
             raise CommandError("Aucun sous-dossier de produit.")
         return plan
-
-    def _upload(self, store: ImageStore, slug: str, position: int, path: Path) -> int:
-        media_id = store.upload(
-            f"{slug}-{position}", path.read_bytes(), purpose=UploadPurpose.PRODUCT_IMAGE.value
-        )
-        if media_id is None:
-            raise CommandError("Cloudinary n'est pas configuré.")
-        return media_id
