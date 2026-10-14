@@ -610,7 +610,7 @@ Everything lives in `deploy/` (details in `deploy/README.md`):
 - One image, one role per container (`api`, `worker`, `beat`, `migrate`); `WEB_CONCURRENCY` web workers
   (~140 MB each, one request at a time each) with a 30 s timeout (`WEB_TIMEOUT`).
 - Every network call is bounded: Redis (`REDIS_TIMEOUT`, default 5 s, with keep-alive and health checks), Postgres connect (`DATABASE_CONNECT_TIMEOUT`, default 5 s), SMTP (`EMAIL_TIMEOUT`, default 10 s), Gemini (30 s), Celery tasks (`CELERY_TASK_SOFT_TIME_LIMIT` / `CELERY_TASK_TIME_LIMIT`).
-- Production reuses database connections for 60 s (`DATABASE_CONN_MAX_AGE`); this also works through the Supabase pooler.
+- Database connections are not kept between requests: under ASGI a persistent connection is never reused and only piles up until Postgres refuses new clients.
 - For a per-query limit, set it on the database role (startup options are not passed through the pooler):
   `alter role postgres set statement_timeout = '15s';`
 - Every response carries `Server-Timing: app;dur=…` (server time in ms) to separate server time from network time in the browser's Network tab.

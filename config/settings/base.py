@@ -105,7 +105,8 @@ DATABASES = {
         "DATABASE_URL", default="postgres://celebobo:celebobo@localhost:5432/celebobo"
     ),
 }
-DATABASES["default"]["CONN_MAX_AGE"] = env.int("DATABASE_CONN_MAX_AGE", default=0)
+# under ASGI each request has its own connection: a persistent one is never reused, only left open
+DATABASES["default"]["CONN_MAX_AGE"] = 0
 DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 DATABASE_POOLER = env.bool("DATABASE_POOLER", default=False)
 DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = DATABASE_POOLER
