@@ -48,8 +48,11 @@ case "${1:-up}" in
         local_psql -c "refresh materialized view analytics_sales_fact"
         echo "Imported. Check with ./deploy/prod.sh compare-db, then start with ./deploy/prod.sh up" ;;
     compare-db)
-        diff <(source_psql -At < postgres/row-counts.sql) <(local_psql -At < postgres/row-counts.sql) \
-            && echo "Same row count in every table." ;;
+        # counted first: a failed count must fail here, not compare as empty
+        source_counts="$(source_psql -At < postgres/row-counts.sql)"
+        local_counts="$(local_psql -At < postgres/row-counts.sql)"
+        [ -n "$source_counts" ] || { echo "No table counted in the source database." >&2; exit 1; }
+        diff <(echo "$source_counts") <(echo "$local_counts") && echo "Same row count in every table." ;;
     backup) compose exec backup sh /usr/local/bin/backup.sh once ;;
     *) compose "$@" ;;
 esac
