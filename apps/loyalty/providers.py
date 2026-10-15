@@ -3,36 +3,36 @@ from django.utils import timezone
 from apps.loyalty.adapters.gateways import (
     AccountsPeople,
     ContentReturnPolicy,
-    LoyaltyMembers,
-    LoyaltyWallet,
     OrdersLedger,
 )
-from apps.loyalty.facades import CashbackFacade, LoyaltyFacade, MembershipFacade
+from apps.loyalty.facades import CashbackFacade, LoyaltyFacade, LoyaltyRuleFacade, PointsFacade
 from apps.loyalty.repositories import (
     CashbackRepository,
+    LoyaltyRuleRepository,
     LoyaltySettingsRepository,
-    MembershipRepository,
-    MembershipRequestRepository,
+    PointTransactionRepository,
 )
-from apps.loyalty.selectors import MembershipSelector
 from apps.loyalty.services.cashback import CashbackService
 from apps.loyalty.services.contracts import OrderLedger, People, ReturnPolicy
-from apps.loyalty.services.membership import MembershipService
+from apps.loyalty.services.points import PointService
+from apps.loyalty.services.rules import LoyaltyRuleService
 from apps.loyalty.services.settings import LoyaltySettingsService
-from apps.orders.services.contracts import Members, Wallet
 from core.container import Container, Lifetime
 from core.events.contracts import EventPublisher
 
 
 def register(container: Container) -> None:
     container.register(People, lambda _: AccountsPeople())
-    container.register(Members, lambda _: LoyaltyMembers(), replace=True)
-    container.register(Wallet, lambda _: LoyaltyWallet(), replace=True)
     container.register(OrderLedger, lambda _: OrdersLedger())
     container.register(ReturnPolicy, lambda _: ContentReturnPolicy())
     container.register(CashbackFacade, _cashback_facade, lifetime=Lifetime.TRANSIENT)
-    container.register(LoyaltyFacade, _loyalty_facade, lifetime=Lifetime.TRANSIENT)
-    container.register(MembershipFacade, _membership_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(
+        LoyaltyFacade,
+        _loyalty_facade,
+        lifetime=Lifetime.TRANSIENT,
+    )
+    container.register(PointsFacade, lambda _: _points_facade(), lifetime=Lifetime.TRANSIENT)
+    container.register(LoyaltyRuleFacade, lambda _: _loyalty_rule_facade(), lifetime=Lifetime.TRANSIENT)
 
 
 def _loyalty_facade(container: Container) -> LoyaltyFacade:
@@ -42,20 +42,20 @@ def _loyalty_facade(container: Container) -> LoyaltyFacade:
     )
 
 
-def _membership_facade(container: Container) -> MembershipFacade:
-    people = container.resolve(People)
-    return MembershipFacade(
-        memberships=MembershipService(
-            MembershipRepository(),
-            MembershipRequestRepository(),
-            LoyaltySettingsRepository(),
-            people,
-            clock=timezone.now,
+def _points_facade() -> PointsFacade:
+    return PointsFacade(
+        points=PointService(
+            transactions=PointTransactionRepository(),
         ),
-        selector=MembershipSelector(),
-        people=people,
-        publisher=container.resolve(EventPublisher),
-        clock=timezone.now,
+    )
+
+
+def _loyalty_rule_facade() -> LoyaltyRuleFacade:
+    return LoyaltyRuleFacade(
+        rules=LoyaltyRuleService(
+            rules=LoyaltyRuleRepository(),
+            transactions=PointTransactionRepository(),
+        ),
     )
 
 
@@ -64,9 +64,8 @@ def _cashback_facade(container: Container) -> CashbackFacade:
         cashback=CashbackService(
             CashbackRepository(),
             LoyaltySettingsRepository(),
-            MembershipRepository(),
             container.resolve(OrderLedger),
             container.resolve(ReturnPolicy),
             clock=timezone.now,
-        )
+        ),
     )

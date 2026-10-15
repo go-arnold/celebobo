@@ -1,11 +1,11 @@
 from django.urls import path
 
 from apps.loyalty.api.v1.views import (
+    LoyaltyRuleViewSet,
     LoyaltySettingsViewSet,
-    MemberAdminViewSet,
-    MembershipRequestAdminViewSet,
     MyCashbackViewSet,
-    MyMembershipViewSet,
+    MyPointsViewSet,
+    MyPointTransactionsViewSet,
 )
 
 urlpatterns = [
@@ -14,37 +14,21 @@ urlpatterns = [
         LoyaltySettingsViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
         name="bo-loyalty-settings",
     ),
+    path(
+        "bo/loyalty/rules/",
+        LoyaltyRuleViewSet.as_view({"get": "list", "post": "create"}),
+        name="bo-loyalty-rules",
+    ),
+    path(
+        "bo/loyalty/rules/<int:rule_id>/",
+        LoyaltyRuleViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
+        name="bo-loyalty-rule-detail",
+    ),
     path("me/cashback/", MyCashbackViewSet.as_view({"get": "retrieve"}), name="my-cashback"),
-    path("me/membership/", MyMembershipViewSet.as_view({"get": "retrieve"}), name="my-membership"),
+    path("me/points/", MyPointsViewSet.as_view({"get": "retrieve"}), name="my-points"),
     path(
-        "me/membership/trial/",
-        MyMembershipViewSet.as_view({"post": "trial"}),
-        name="my-membership-trial",
+        "me/points/transactions/",
+        MyPointTransactionsViewSet.as_view({"get": "list"}),
+        name="my-point-transactions",
     ),
-    path(
-        "me/membership/requests/",
-        MyMembershipViewSet.as_view({"post": "subscribe"}),
-        name="my-membership-requests",
-    ),
-    path(
-        "me/membership/requests/<id:request_id>/cancel/",
-        MyMembershipViewSet.as_view({"post": "cancel"}),
-        name="my-membership-request-cancel",
-    ),
-    path(
-        "bo/membership/requests/",
-        MembershipRequestAdminViewSet.as_view({"get": "list"}),
-        name="bo-membership-requests",
-    ),
-    path(
-        "bo/membership/requests/<id:request_id>/confirm/",
-        MembershipRequestAdminViewSet.as_view({"post": "confirm"}),
-        name="bo-membership-request-confirm",
-    ),
-    path(
-        "bo/membership/requests/<id:request_id>/reject/",
-        MembershipRequestAdminViewSet.as_view({"post": "reject"}),
-        name="bo-membership-request-reject",
-    ),
-    path("bo/memberships/", MemberAdminViewSet.as_view({"get": "list"}), name="bo-memberships"),
 ]

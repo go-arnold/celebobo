@@ -2,14 +2,12 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from apps.loyalty.domain.cashback import ZERO, Balance, EntryKind, share
+from apps.loyalty.domain.cashback import ZERO, Balance, EntryKind, add_months, share
 from apps.loyalty.domain.errors import CashbackUnavailable
-from apps.loyalty.domain.membership import add_months
 from apps.loyalty.models import LoyaltySettings
 from apps.loyalty.repositories import (
     CashbackRepository,
     LoyaltySettingsRepository,
-    MembershipRepository,
 )
 from apps.loyalty.services.contracts import OrderLedger, ReturnPolicy
 
@@ -19,7 +17,6 @@ class CashbackService:
         self,
         entries: CashbackRepository,
         settings: LoyaltySettingsRepository,
-        memberships: MembershipRepository,
         orders: OrderLedger,
         returns: ReturnPolicy,
         *,
@@ -27,7 +24,6 @@ class CashbackService:
     ) -> None:
         self._entries = entries
         self._settings = settings
-        self._memberships = memberships
         self._orders = orders
         self._returns = returns
         self._clock = clock
@@ -47,7 +43,7 @@ class CashbackService:
     # how much of the balance an order of `base` (products after discounts) may use
     def usable(self, user_id: int, base: Decimal, *, lock: bool = False) -> Decimal:
         settings = self._settings.current()
-        if not self._eligible(settings, user_id) or base <= 0:
+        if not self._eligible(settings) or base <= 0:
             return ZERO
         credits = self._entries.credits(user_id, self._clock(), lock=lock)
         available = sum((entry.remaining for entry in credits), ZERO)
@@ -146,9 +142,5 @@ class CashbackService:
             return None
         return entry.amount
 
-    def _eligible(self, settings: LoyaltySettings, user_id: int) -> bool:
-        if not settings.cashback_enabled:
-            return False
-        return not settings.cashback_members_only or self._memberships.active(
-            user_id, self._clock()
-        )
+    def _eligible(self, settings: LoyaltySettings) -> bool:
+        return settings.cashback_enabled

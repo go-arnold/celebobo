@@ -1,31 +1,17 @@
-from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
 
 from django.db import transaction
 
 from apps.loyalty.domain.cashback import Balance
-from apps.loyalty.domain.events import (
-    LoyaltySettingsChanged,
-    MembershipEnding,
-    MembershipRequested,
-    MembershipRequestRejected,
-    MembershipStarted,
-)
-from apps.loyalty.domain.membership import (
-    AdminMemberRow,
-    AdminRequestRow,
-    MembershipStatus,
-    MemberView,
-    RequestMembership,
-    RequestStatus,
-)
+from apps.loyalty.domain.events import LoyaltyRuleChanged, LoyaltySettingsChanged
+from apps.loyalty.domain.points import PointBalance, PointTransactionView
+from apps.loyalty.domain.rules import LoyaltyRuleDTO
 from apps.loyalty.domain.settings import LoyaltySettingsChanges, Programmes
-from apps.loyalty.models import Membership
-from apps.loyalty.selectors import MembershipSelector, to_programmes
+from apps.loyalty.selectors import to_programmes
 from apps.loyalty.services.cashback import CashbackService
-from apps.loyalty.services.contracts import People
-from apps.loyalty.services.membership import MembershipService
+from apps.loyalty.services.points import PointService
+from apps.loyalty.services.rules import LoyaltyRuleService
 from apps.loyalty.services.settings import LoyaltySettingsService
 from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
@@ -50,97 +36,65 @@ class LoyaltyFacade:
 
 
 @logged_facade
-class MembershipFacade:
-    def __init__(
+class PointsFacade:
+    def __init__(self, *, points: PointService) -> None:
+        self._points = points
+
+    def mine(self, actor: Actor) -> PointBalance:
+        return self._points.balance(_user_id(actor))
+
+    def transactions(
+        self, actor: Actor, *, offset: int, limit: int
+    ) -> tuple[list[PointTransactionView], int]:
+        return self._points.transactions(_user_id(actor), offset=offset, limit=limit)
+
+
+@logged_facade
+class LoyaltyRuleFacade:
+    def __init__(self, *, rules: LoyaltyRuleService) -> None:
+        self._rules = rules
+
+    def list(self) -> list[LoyaltyRuleDTO]:
+        return self._rules.list()
+
+    def create(
         self,
+        actor: Actor,
         *,
-        memberships: MembershipService,
-        selector: MembershipSelector,
-        people: People,
-        publisher: EventPublisher,
-        clock: Callable[[], datetime],
-    ) -> None:
-        self._memberships = memberships
-        self._selector = selector
-        self._people = people
-        self._publisher = publisher
-        self._clock = clock
-
-    def mine(self, actor: Actor) -> MemberView:
-        return self._memberships.view(_user_id(actor))
-
-    def start_trial(self, actor: Actor) -> MemberView:
-        user_id = _user_id(actor)
+        name: str,
+        trigger: str,
+        condition: dict,
+        points_value: int,
+        is_active: bool = True,
+        max_per_user: int | None = None,
+        max_per_day: int | None = None,
+        cooldown_days: int | None = None,
+    ) -> LoyaltyRuleDTO:
         with transaction.atomic():
-            membership = self._memberships.start_trial(user_id)
-            self._started(membership, actor)
-        return self.mine(actor)
-
-    def request(self, actor: Actor, command: RequestMembership) -> MemberView:
-        user_id = _user_id(actor)
-        with transaction.atomic():
-            request = self._memberships.request(user_id, command)
+            rule = self._rules.create(
+                name=name, trigger=trigger, condition=condition, points_value=points_value,
+                is_active=is_active, max_per_user=max_per_user, max_per_day=max_per_day,
+                cooldown_days=cooldown_days,
+            )
             self._publisher.publish(
-                MembershipRequested(
-                    request_id=request.pk,
-                    user_id=user_id,
-                    client_name=self._people.requester(user_id).name,
-                    plan=request.plan,
-                    actor_id=user_id,
-                )
+                LoyaltyRuleChanged(rule_id=rule.id, action="created", actor_id=actor.user_id)
             )
-        return self.mine(actor)
+        return self._rules.to_dto(rule)
 
-    def cancel(self, actor: Actor, request_id: int) -> MemberView:
+    def update(self, actor: Actor, rule_id: int, **changes: object) -> LoyaltyRuleDTO:
         with transaction.atomic():
-            self._memberships.cancel(_user_id(actor), request_id)
-        return self.mine(actor)
-
-    def requests(
-        self, status: RequestStatus | None, *, offset: int, limit: int
-    ) -> tuple[list[AdminRequestRow], int]:
-        return self._selector.requests(status, offset=offset, limit=limit)
-
-    def members(
-        self, status: MembershipStatus | None, *, offset: int, limit: int
-    ) -> tuple[list[AdminMemberRow], int]:
-        return self._selector.members(status, now=self._clock(), offset=offset, limit=limit)
-
-    def confirm(self, actor: Actor, request_id: int) -> None:
-        with transaction.atomic():
-            membership = self._memberships.confirm(request_id, actor.user_id)
-            self._started(membership, actor)
-
-    def reject(self, actor: Actor, request_id: int, note: str) -> None:
-        with transaction.atomic():
-            request = self._memberships.reject(request_id, actor.user_id, note)
+            rule = self._rules.update(rule_id, **changes)
             self._publisher.publish(
-                MembershipRequestRejected(
-                    user_id=request.user_id,
-                    request_id=request.pk,
-                    note=request.note,
-                    actor_id=actor.user_id,
-                )
+                LoyaltyRuleChanged(rule_id=rule.id, action="updated", actor_id=actor.user_id)
             )
+        return self._rules.to_dto(rule)
 
-    def remind(self) -> int:
+    def delete(self, actor: Actor, rule_id: int) -> None:
         with transaction.atomic():
-            due = self._memberships.ending()
-            for membership in due:
-                self._publisher.publish(
-                    MembershipEnding(user_id=membership.user_id, ends_at=membership.ends_at)
-                )
-        return len(due)
-
-    def _started(self, membership: Membership, actor: Actor) -> None:
-        self._publisher.publish(
-            MembershipStarted(
-                user_id=membership.user_id,
-                plan=membership.plan,
-                ends_at=membership.ends_at,
-                actor_id=actor.user_id,
+            self._rules.delete(rule_id)
+            self._publisher.publish(
+                LoyaltyRuleChanged(rule_id=rule_id, action="deleted", actor_id=actor.user_id)
             )
-        )
 
 
 def _user_id(actor: Actor) -> int:
