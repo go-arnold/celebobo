@@ -75,9 +75,7 @@ class LoyaltyRule(models.Model):
     max_per_user = models.PositiveIntegerField(
         null=True, blank=True, verbose_name="max par utilisateur"
     )
-    max_per_day = models.PositiveIntegerField(
-        null=True, blank=True, verbose_name="max par jour"
-    )
+    max_per_day = models.PositiveIntegerField(null=True, blank=True, verbose_name="max par jour")
     cooldown_days = models.PositiveIntegerField(
         null=True, blank=True, verbose_name="délai entre déclenchements (jours)"
     )
@@ -115,9 +113,7 @@ class PointTransaction(models.Model):
         related_name="transactions",
         verbose_name="règle",
     )
-    reference_type = models.CharField(
-        max_length=30, blank=True, verbose_name="type de référence"
-    )
+    reference_type = models.CharField(max_length=30, blank=True, verbose_name="type de référence")
     reference_id = models.CharField(
         max_length=100, blank=True, verbose_name="identifiant de référence"
     )

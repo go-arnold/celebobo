@@ -306,9 +306,7 @@ class NotificationRouter:
         self._fanout.order_placed(event.order_id)
 
     def points_awarded(self, event: PointsAwarded) -> None:
-        self._fanout.points_awarded(
-            user_id=event.user_id, points=event.points, reason=event.reason
-        )
+        self._fanout.points_awarded(user_id=event.user_id, points=event.points, reason=event.reason)
 
     def order_assigned(self, event: OrderAssigned) -> None:
         self._fanout.order_assigned(event.order_id, event.reseller_id)

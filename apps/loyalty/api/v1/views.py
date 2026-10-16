@@ -97,9 +97,7 @@ class MyPointTransactionsViewSet(UseCaseViewSet):
     @extend_schema(responses=page_of(PointTransactionOutput))
     def list(self, request: Request) -> Response:
         page = page_request(request, default_size=20, max_size=100)
-        rows, total = self.points.transactions(
-            self.actor, offset=page.offset, limit=page.page_size
-        )
+        rows, total = self.points.transactions(self.actor, offset=page.offset, limit=page.page_size)
         return page_response(
             request,
             page,

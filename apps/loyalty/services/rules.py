@@ -53,6 +53,7 @@ class LoyaltyRuleService:
         rule = self._rules.get(rule_id)
         if rule is None:
             from apps.loyalty.domain.errors import RuleNotFound
+
             raise RuleNotFound
         for field, value in changes.items():
             setattr(rule, field, value)
@@ -63,6 +64,7 @@ class LoyaltyRuleService:
         rule = self._rules.get(rule_id)
         if rule is None:
             from apps.loyalty.domain.errors import RuleNotFound
+
             raise RuleNotFound
         self._rules.delete(rule)
 

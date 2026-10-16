@@ -32,7 +32,9 @@ def register(container: Container) -> None:
         lifetime=Lifetime.TRANSIENT,
     )
     container.register(PointsFacade, lambda _: _points_facade(), lifetime=Lifetime.TRANSIENT)
-    container.register(LoyaltyRuleFacade, lambda _: _loyalty_rule_facade(), lifetime=Lifetime.TRANSIENT)
+    container.register(
+        LoyaltyRuleFacade, lambda _: _loyalty_rule_facade(), lifetime=Lifetime.TRANSIENT
+    )
 
 
 def _loyalty_facade(container: Container) -> LoyaltyFacade:

@@ -153,11 +153,7 @@ class RuleEngine:
         if birthdate is None:
             return False
         try:
-            bd = (
-                datetime.fromisoformat(birthdate)
-                if isinstance(birthdate, str)
-                else birthdate
-            )
+            bd = datetime.fromisoformat(birthdate) if isinstance(birthdate, str) else birthdate
         except (ValueError, TypeError):
             return False
         return bd.month == self._now.month and bd.day == self._now.day

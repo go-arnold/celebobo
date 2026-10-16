@@ -27,9 +27,7 @@ ADDRESS = {
 
 @pytest.fixture
 def programme():
-    LoyaltySettings.objects.update_or_create(
-        pk=1, defaults={"cashback_enabled": True}
-    )
+    LoyaltySettings.objects.update_or_create(pk=1, defaults={"cashback_enabled": True})
 
 
 @pytest.fixture

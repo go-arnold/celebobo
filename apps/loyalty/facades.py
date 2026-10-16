@@ -72,8 +72,13 @@ class LoyaltyRuleFacade:
     ) -> LoyaltyRuleDTO:
         with transaction.atomic():
             rule = self._rules.create(
-                name=name, trigger=trigger, condition=condition, points_value=points_value,
-                is_active=is_active, max_per_user=max_per_user, max_per_day=max_per_day,
+                name=name,
+                trigger=trigger,
+                condition=condition,
+                points_value=points_value,
+                is_active=is_active,
+                max_per_user=max_per_user,
+                max_per_day=max_per_day,
                 cooldown_days=cooldown_days,
             )
             self._publisher.publish(

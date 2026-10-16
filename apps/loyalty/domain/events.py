@@ -1,4 +1,3 @@
-
 from core.events.base import DomainEvent, domain_event
 
 

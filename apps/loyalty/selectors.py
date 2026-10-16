@@ -1,4 +1,3 @@
-
 from apps.loyalty.domain.points import PointTransactionView
 from apps.loyalty.domain.settings import AppLinks, CashbackTerms, Programmes
 from apps.loyalty.models import LoyaltySettings, PointTransaction

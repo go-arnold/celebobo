@@ -1,4 +1,3 @@
-
 from apps.loyalty.domain.points import PointBalance, PointTransactionView
 from apps.loyalty.repositories import PointTransactionRepository
 from apps.loyalty.selectors import to_point_transaction_view
