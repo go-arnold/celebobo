@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 
 
 class Trigger(StrEnum):
@@ -85,11 +88,11 @@ class PointAward:
 class RuleEngine:
     """Évalue un déclencheur contre toutes les règles actives et retourne les points à attribuer."""
 
-    def __init__(self, *, rules: list["LoyaltyRuleDTO"], now: datetime) -> None:
+    def __init__(self, *, rules: list[LoyaltyRuleDTO], now: datetime) -> None:
         self._rules = rules
         self._now = now
 
-    def evaluate(self, trigger: Trigger, context: dict) -> list[PointAward]:
+    def evaluate(self, trigger: Trigger, context: dict[str, Any]) -> list[PointAward]:
         awards: list[PointAward] = []
         for rule in self._rules:
             if not rule.is_active or rule.trigger != trigger:
@@ -110,7 +113,7 @@ class RuleEngine:
             )
         return awards
 
-    def _conditions_met(self, rule: "LoyaltyRuleDTO", context: dict) -> bool:
+    def _conditions_met(self, rule: LoyaltyRuleDTO, context: dict[str, Any]) -> bool:
         condition = rule.condition or {}
         if not condition:
             return True
@@ -120,33 +123,34 @@ class RuleEngine:
                 self._product_ok(condition, context),
                 self._category_ok(condition, context),
                 self._photo_ok(condition, context),
-                self._birthday_ok(rule, condition, context),
+                self._birthday_ok(rule, context),
                 self._inactivity_ok(condition, context),
             ]
         )
 
-    def _min_amount_ok(self, condition: dict, context: dict) -> bool:
+    def _min_amount_ok(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         if "min_amount" not in condition:
             return True
         amount = context.get("order_amount")
-        return amount is not None and amount >= condition["min_amount"]
+        min_amount = condition["min_amount"]
+        return amount is not None and amount >= min_amount
 
-    def _product_ok(self, condition: dict, context: dict) -> bool:
+    def _product_ok(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         if "product_id" not in condition:
             return True
-        return context.get("product_id") == condition["product_id"]
+        return bool(context.get("product_id") == condition["product_id"])
 
-    def _category_ok(self, condition: dict, context: dict) -> bool:
+    def _category_ok(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         if "category_id" not in condition:
             return True
-        return context.get("category_id") == condition["category_id"]
+        return bool(context.get("category_id") == condition["category_id"])
 
-    def _photo_ok(self, condition: dict, context: dict) -> bool:
+    def _photo_ok(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         if not condition.get("photo_required"):
             return True
         return bool(context.get("has_photo"))
 
-    def _birthday_ok(self, rule: "LoyaltyRuleDTO", context: dict) -> bool:
+    def _birthday_ok(self, rule: LoyaltyRuleDTO, context: dict[str, Any]) -> bool:
         if rule.trigger != Trigger.BIRTHDAY_REACHED:
             return True
         birthdate = context.get("birthdate")
@@ -158,7 +162,7 @@ class RuleEngine:
             return False
         return bd.month == self._now.month and bd.day == self._now.day
 
-    def _inactivity_ok(self, condition: dict, context: dict) -> bool:
+    def _inactivity_ok(self, condition: dict[str, Any], context: dict[str, Any]) -> bool:
         if "days_inactive" not in condition:
             return True
         last_activity = context.get("last_activity")
@@ -172,7 +176,8 @@ class RuleEngine:
             )
         except (ValueError, TypeError):
             return False
-        return (self._now - la).days >= condition["days_inactive"]
+        days_inactive = condition["days_inactive"]
+        return (self._now - la).days >= int(days_inactive)
 
     def _limits_ok(self) -> bool:
         return True
@@ -183,7 +188,7 @@ class LoyaltyRuleDTO:
     id: int
     name: str
     trigger: Trigger
-    condition: dict
+    condition: dict[str, Any]
     action_type: str
     points_value: int
     is_active: bool

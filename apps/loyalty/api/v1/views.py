@@ -42,7 +42,7 @@ class LoyaltyRuleViewSet(UseCaseViewSet):
     @extend_schema(responses=page_of(LoyaltyRuleOutput))
     def list(self, request: Request) -> Response:
         page = page_request(request, default_size=20, max_size=100)
-        rules = self.rules.list()
+        rules = self.rules.all()
         start = page.offset
         end = start + page.page_size
         return page_response(

@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from django.db import transaction
 
@@ -51,11 +52,12 @@ class PointsFacade:
 
 @logged_facade
 class LoyaltyRuleFacade:
-    def __init__(self, *, rules: LoyaltyRuleService) -> None:
+    def __init__(self, *, rules: LoyaltyRuleService, publisher: EventPublisher) -> None:
         self._rules = rules
+        self._publisher = publisher
 
-    def list(self) -> list[LoyaltyRuleDTO]:
-        return self._rules.list()
+    def all(self) -> list[LoyaltyRuleDTO]:
+        return self._rules.all()
 
     def create(
         self,
@@ -63,7 +65,7 @@ class LoyaltyRuleFacade:
         *,
         name: str,
         trigger: str,
-        condition: dict,
+        condition: dict[str, Any],
         points_value: int,
         is_active: bool = True,
         max_per_user: int | None = None,

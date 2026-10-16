@@ -32,7 +32,7 @@ class CashbackService:
         now = self._clock()
         credits = self._entries.credits(user_id, now)
         return Balance(
-            eligible=self._eligible(self._settings.current(), user_id),
+            eligible=self._eligible(self._settings.current()),
             available=sum((entry.remaining for entry in credits), ZERO),
             pending=self._entries.pending(user_id, now),
             next_expiry=min(
@@ -76,7 +76,7 @@ class CashbackService:
         purchase = self._orders.purchase(order_id)
         if purchase is None or self._entries.for_order(order_id, EntryKind.EARN):
             return ZERO
-        if not self._eligible(settings, purchase.client_id):
+        if not self._eligible(settings):
             return ZERO
         amount = share(purchase.base, settings.cashback_percent)
         if amount <= 0:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from apps.loyalty.domain.points import PointTransactionView
@@ -19,8 +20,8 @@ class LoyaltyRuleService:
         self._rules = rules
         self._transactions = transactions
 
-    def list(self, *, is_active: bool | None = None) -> list[LoyaltyRuleDTO]:
-        return [self._to_dto(rule) for rule in self._rules.list(is_active=is_active)]
+    def all(self, *, is_active: bool | None = None) -> list[LoyaltyRuleDTO]:
+        return [self.to_dto(rule) for rule in self._rules.all(is_active=is_active)]
 
     def get(self, rule_id: int) -> LoyaltyRule | None:
         return self._rules.get(rule_id)
@@ -30,7 +31,7 @@ class LoyaltyRuleService:
         *,
         name: str,
         trigger: str,
-        condition: dict,
+        condition: dict[str, Any],
         points_value: int,
         is_active: bool = True,
         max_per_user: int | None = None,
@@ -83,10 +84,14 @@ class LoyaltyRuleService:
         )
 
     def evaluate_trigger(
-        self, *, trigger: Trigger, user_id: int, now, context: dict
+        self,
+        *,
+        trigger: Trigger,
+        user_id: int,
+        now: datetime,
+        context: dict[str, Any],
     ) -> list[PointTransactionView]:
-        rules = self._rules.list(is_active=True)
-        dtos = [self._to_dto(rule) for rule in rules]
+        dtos = [self.to_dto(rule) for rule in self._rules.all(is_active=True)]
         engine = RuleEngine(rules=dtos, now=now)
         awards = engine.evaluate(trigger, {**context, "user_id": user_id})
         created: list[PointTransactionView] = []

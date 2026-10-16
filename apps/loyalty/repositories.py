@@ -28,7 +28,7 @@ class LoyaltySettingsRepository:
 
 
 class LoyaltyRuleRepository:
-    def list(self, *, is_active: bool | None = None) -> list[LoyaltyRule]:
+    def all(self, *, is_active: bool | None = None) -> list[LoyaltyRule]:
         rows = LoyaltyRule.objects.all()
         if is_active is not None:
             rows = rows.filter(is_active=is_active)
