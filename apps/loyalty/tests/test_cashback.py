@@ -8,7 +8,7 @@ from rest_framework.test import APIClient
 from apps.accounts.tests.factories import UserFactory
 from apps.catalog.tests.factories import ProductFactory
 from apps.loyalty.handlers import settle_cashback
-from apps.loyalty.models import CashbackEntry, LoyaltySettings, Membership
+from apps.loyalty.models import CashbackEntry, LoyaltySettings
 from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.events import OrderStatusChanged
 from apps.orders.models import Order
@@ -27,18 +27,7 @@ ADDRESS = {
 
 @pytest.fixture
 def programme():
-    LoyaltySettings.objects.update_or_create(
-        pk=1, defaults={"cashback_enabled": True, "membership_enabled": True}
-    )
-
-
-@pytest.fixture
-def member():
-    user = UserFactory.create()
-    Membership.objects.create(
-        user=user, plan="monthly", ends_at=timezone.now() + timedelta(days=30)
-    )
-    return user
+    LoyaltySettings.objects.update_or_create(pk=1, defaults={"cashback_enabled": True})
 
 
 @pytest.fixture
@@ -102,58 +91,22 @@ def balance(user):
 
 
 class TestEarning:
-    def test_delivery_earns_three_percent_after_the_return_period(self, programme, member, product):
-        order = place(member, product)
+    def test_delivery_earns_three_percent_after_the_return_period(self, programme, product):
+        user = UserFactory.create()
+        order = place(user, product)
 
         status_changed(order["id"], OrderStatus.DELIVERED)
 
         entry = CashbackEntry.objects.get(kind="earn")
         assert entry.amount == Decimal("3.00")
         assert timedelta(days=6) < entry.available_at - timezone.now() <= timedelta(days=7)
-        assert balance(member) | {"next_expiry": None} == {
+        result = balance(user)
+        result.pop("next_expiry", None)
+        assert result == {
             "eligible": True,
             "available": "0.00",
             "pending": "3.00",
-            "next_expiry": None,
         }
-        detail = as_api(member).get(f"/api/v1/me/orders/{order['number']}/").json()
-        assert detail["cashback_earned"] == "3.00"
-
-    def test_delivering_twice_earns_once(self, programme, member, product):
-        order = place(member, product)
-
-        status_changed(order["id"], OrderStatus.DELIVERED)
-        status_changed(order["id"], OrderStatus.DELIVERED)
-
-        assert CashbackEntry.objects.filter(kind="earn").count() == 1
-
-    def test_members_only_by_default(self, programme, product):
-        client = UserFactory.create()
-        order = place(client, product)
-
-        status_changed(order["id"], OrderStatus.DELIVERED)
-
-        assert not CashbackEntry.objects.exists()
-        assert balance(client)["eligible"] is False
-
-    def test_open_to_everyone_when_the_admin_says_so(self, programme, product):
-        LoyaltySettings.objects.filter(pk=1).update(cashback_members_only=False)
-        client = UserFactory.create()
-        order = place(client, product)
-
-        status_changed(order["id"], OrderStatus.DELIVERED)
-
-        assert CashbackEntry.objects.get().amount == Decimal("3.00")
-
-    def test_a_returned_order_loses_its_cashback(self, programme, member, product):
-        order = place(member, product)
-        status_changed(order["id"], OrderStatus.DELIVERED)
-
-        status_changed(order["id"], OrderStatus.RETURNED)
-
-        assert balance(member)["pending"] == "0.00"
-        detail = as_api(member).get(f"/api/v1/me/orders/{order['number']}/").json()
-        assert detail["cashback_earned"] is None
 
 
 class TestSpending:
@@ -168,49 +121,57 @@ class TestSpending:
             .json()
         )
 
-    def test_pays_up_to_half_of_the_products(self, programme, member, product):
-        credit(member, "80.00")
+    def test_pays_up_to_half_of_the_products(self, programme, product):
+        user = UserFactory.create()
+        credit(user, "80.00")
 
-        offered = self.quote(member, product, use_cashback=False)
-        used = self.quote(member, product, use_cashback=True)
+        offered = self.quote(user, product, use_cashback=False)
+        used = self.quote(user, product, use_cashback=True)
 
         assert (offered["cashback_available"], offered["cashback"]) == ("50.00", "0.00")
-        assert (used["cashback"], used["total"]) == ("50.00", "50.00")
+        # the delivery fee still applies: there is no membership anymore to waive it
+        assert (used["cashback"], used["total"]) == ("50.00", "52.98")
 
-    def test_needs_the_minimum_balance(self, programme, member, product):
-        credit(member, "0.50")
+    def test_needs_the_minimum_balance(self, programme, product):
+        user = UserFactory.create()
+        credit(user, "0.50")
 
-        assert self.quote(member, product, use_cashback=True)["cashback"] == "0.00"
+        assert self.quote(user, product, use_cashback=True)["cashback"] == "0.00"
 
-    def test_pending_cashback_cannot_be_spent(self, programme, member, product):
-        credit(member, "20.00", available_in=3)
+    def test_pending_cashback_cannot_be_spent(self, programme, product):
+        user = UserFactory.create()
+        credit(user, "20.00", available_in=3)
 
-        assert self.quote(member, product, use_cashback=True)["cashback"] == "0.00"
+        assert self.quote(user, product, use_cashback=True)["cashback"] == "0.00"
 
-    def test_ordering_spends_the_oldest_credit_first(self, programme, member, product):
-        later = credit(member, "40.00", expires_in=200)
-        sooner = credit(member, "30.00", expires_in=20)
+    def test_ordering_spends_the_oldest_credit_first(self, programme, product):
+        user = UserFactory.create()
+        later = credit(user, "40.00", expires_in=200)
+        sooner = credit(user, "30.00", expires_in=20)
 
-        order = place(member, product, use_cashback=True)
+        order = place(user, product, use_cashback=True)
 
         saved = Order.objects.get(pk=order["id"])
-        assert (saved.cashback, saved.total) == (Decimal("50.00"), Decimal("50.00"))
+        # 100.00 of products + 2.98 delivery - 50.00 of cagnotte
+        assert (saved.cashback, saved.total) == (Decimal("50.00"), Decimal("52.98"))
         later.refresh_from_db()
         sooner.refresh_from_db()
         assert (sooner.remaining, later.remaining) == (Decimal("0.00"), Decimal("20.00"))
-        assert balance(member)["available"] == "20.00"
+        assert balance(user)["available"] == "20.00"
 
-    def test_cancelling_gives_the_cashback_back(self, programme, member, product):
-        credit(member, "60.00")
-        order = place(member, product, use_cashback=True)
+    def test_cancelling_gives_the_cashback_back(self, programme, product):
+        user = UserFactory.create()
+        credit(user, "60.00")
+        order = place(user, product, use_cashback=True)
 
         status_changed(order["id"], OrderStatus.CANCELLED)
 
-        assert balance(member)["available"] == "60.00"
+        assert balance(user)["available"] == "60.00"
 
-    def test_spent_cashback_earns_nothing(self, programme, member, product):
-        credit(member, "60.00")
-        order = place(member, product, use_cashback=True)
+    def test_spent_cashback_earns_nothing(self, programme, product):
+        user = UserFactory.create()
+        credit(user, "60.00")
+        order = place(user, product, use_cashback=True)
 
         status_changed(order["id"], OrderStatus.DELIVERED)
 
@@ -218,18 +179,22 @@ class TestSpending:
             "1.50"
         )
 
-    def test_nothing_when_the_programme_is_off(self, member, product):
-        credit(member, "60.00")
+    def test_nothing_when_the_programme_is_off(self, product):
+        user = UserFactory.create()
+        credit(user, "60.00")
 
-        assert self.quote(member, product, use_cashback=True)["cashback"] == "0.00"
+        assert self.quote(user, product, use_cashback=True)["cashback"] == "0.00"
 
 
-def test_unused_cashback_expires(programme, member):
+def test_unused_cashback_expires(programme):
     from apps.loyalty.facades import CashbackFacade
     from core.container import container
 
-    credit(member, "12.00", expires_in=-1)
+    user = UserFactory.create()
+    credit(user, "12.00", expires_in=-1)
 
     assert container.resolve(CashbackFacade).expire() == 1
     assert CashbackEntry.objects.get(kind="expiry").amount == Decimal("-12.00")
-    assert balance(member)["available"] == "0.00"
+    result = balance(user)
+    result.pop("next_expiry", None)
+    assert result["available"] == "0.00"

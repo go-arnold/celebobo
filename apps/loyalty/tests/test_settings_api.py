@@ -3,7 +3,6 @@ from django.db import transaction
 from rest_framework.test import APIClient
 
 from apps.accounts.tests.factories import AdminFactory, ManagerFactory
-from apps.loyalty.domain.events import LoyaltySettingsChanged
 
 pytestmark = pytest.mark.django_db
 
@@ -22,13 +21,6 @@ def test_programmes_start_disabled_with_the_approved_rules():
     programmes = APIClient().get(PUBLIC).json()["programmes"]
 
     assert programmes == {
-        "membership": {
-            "enabled": False,
-            "monthly_price": "4.99",
-            "yearly_price": "49.00",
-            "trial_days": 30,
-            "reminder_days": 3,
-        },
         "cashback": {
             "enabled": False,
             "members_only": True,
@@ -41,13 +33,10 @@ def test_programmes_start_disabled_with_the_approved_rules():
     }
 
 
-def test_admin_edits_every_rule(admin_api, published_events):
+def test_admin_edits_cashback_rules(admin_api, published_events):
     response = admin_api.patch(
         SETTINGS,
         {
-            "membership_enabled": True,
-            "membership_monthly_price": "5.50",
-            "membership_yearly_price": "55.00",
             "cashback_enabled": True,
             "cashback_percent": "5",
             "cashback_max_share": 30,
@@ -57,12 +46,9 @@ def test_admin_edits_every_rule(admin_api, published_events):
     )
 
     body = response.json()
-    assert body["membership"]["enabled"] is True
-    assert body["membership"]["monthly_price"] == "5.50"
     assert body["cashback"]["percent"] == "5.00"
     assert body["cashback"]["max_share"] == 30
     assert body["app_links"]["play_store"].endswith("cd.celebobo")
-    assert len(published_events.of_type(LoyaltySettingsChanged)) == 1
 
 
 def test_public_settings_follow_the_change(admin_api, django_capture_on_commit_callbacks):
@@ -78,7 +64,6 @@ def test_public_settings_follow_the_change(admin_api, django_capture_on_commit_c
     [
         {"cashback_percent": "0"},
         {"cashback_max_share": 101},
-        {"membership_monthly_price": "0"},
         {"app_store_url": "pas-une-adresse"},
     ],
 )

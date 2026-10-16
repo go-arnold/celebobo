@@ -3,16 +3,15 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from django.db.models import F, Sum
+from django.db.models import Sum
 
 from apps.loyalty.domain.cashback import CREDITS, EntryKind
-from apps.loyalty.domain.membership import RequestStatus
 from apps.loyalty.models import (
     SETTINGS_ID,
     CashbackEntry,
+    LoyaltyRule,
     LoyaltySettings,
-    Membership,
-    MembershipRequest,
+    PointTransaction,
 )
 
 
@@ -28,52 +27,39 @@ class LoyaltySettingsRepository:
         settings.save(update_fields=[*fields, "updated_at"])
 
 
-class MembershipRepository:
-    def for_user(self, user_id: int, *, for_update: bool = False) -> Membership | None:
-        rows = Membership.objects.select_for_update() if for_update else Membership.objects
-        return rows.filter(user_id=user_id).first()
+class LoyaltyRuleRepository:
+    def all(self, *, is_active: bool | None = None) -> list[LoyaltyRule]:
+        rows = LoyaltyRule.objects.all()
+        if is_active is not None:
+            rows = rows.filter(is_active=is_active)
+        return list(rows.order_by("trigger", "name"))
 
-    def create(self, **fields: Any) -> Membership:
-        membership: Membership = Membership.objects.create(**fields)
-        return membership
+    def get(self, rule_id: int) -> LoyaltyRule | None:
+        return LoyaltyRule.objects.filter(pk=rule_id).first()
 
-    def save(self, membership: Membership, *, fields: Iterable[str]) -> None:
-        membership.save(update_fields=[*fields, "updated_at"])
+    def create(self, **fields: Any) -> LoyaltyRule:
+        rule: LoyaltyRule = LoyaltyRule.objects.create(**fields)
+        return rule
 
-    def trial_phone_used(self, phone: str, *, user_id: int) -> bool:
-        return Membership.objects.filter(trial_phone=phone).exclude(user_id=user_id).exists()
+    def update(self, rule: LoyaltyRule, *, fields: Iterable[str]) -> None:
+        rule.save(update_fields=[*fields, "updated_at"])
 
-    def active(self, user_id: int, now: datetime) -> bool:
-        return Membership.objects.filter(user_id=user_id, ends_at__gt=now).exists()
-
-    def ending(self, now: datetime, until: datetime) -> list[Membership]:
-        return list(
-            Membership.objects.select_for_update()
-            .filter(ends_at__gt=now, ends_at__lte=until)
-            .exclude(reminded_for=F("ends_at"))
-        )
+    def delete(self, rule: LoyaltyRule) -> None:
+        rule.delete()
 
 
-class MembershipRequestRepository:
-    def create(self, **fields: Any) -> MembershipRequest:
-        request: MembershipRequest = MembershipRequest.objects.create(**fields)
-        return request
+class PointTransactionRepository:
+    def for_user(
+        self, user_id: int, *, offset: int, limit: int
+    ) -> tuple[list[PointTransaction], int]:
+        rows = PointTransaction.objects.filter(user_id=user_id).order_by("-created_at", "-pk")
+        total = rows.count()
+        page = rows[offset : offset + limit]
+        return list(page), total
 
-    def get(self, request_id: int, *, for_update: bool = False) -> MembershipRequest | None:
-        rows = (
-            MembershipRequest.objects.select_for_update()
-            if for_update
-            else MembershipRequest.objects
-        )
-        return rows.filter(pk=request_id).first()
-
-    def pending_for(self, user_id: int) -> MembershipRequest | None:
-        return MembershipRequest.objects.filter(
-            user_id=user_id, status=RequestStatus.PENDING.value
-        ).first()
-
-    def save(self, request: MembershipRequest, *, fields: Iterable[str]) -> None:
-        request.save(update_fields=list(fields))
+    def add(self, **fields: Any) -> PointTransaction:
+        entry: PointTransaction = PointTransaction.objects.create(**fields)
+        return entry
 
 
 class CashbackRepository:
