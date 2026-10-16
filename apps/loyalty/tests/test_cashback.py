@@ -129,7 +129,8 @@ class TestSpending:
         used = self.quote(user, product, use_cashback=True)
 
         assert (offered["cashback_available"], offered["cashback"]) == ("50.00", "0.00")
-        assert (used["cashback"], used["total"]) == ("50.00", "50.00")
+        # the delivery fee still applies: there is no membership anymore to waive it
+        assert (used["cashback"], used["total"]) == ("50.00", "52.98")
 
     def test_needs_the_minimum_balance(self, programme, product):
         user = UserFactory.create()
@@ -151,7 +152,8 @@ class TestSpending:
         order = place(user, product, use_cashback=True)
 
         saved = Order.objects.get(pk=order["id"])
-        assert (saved.cashback, saved.total) == (Decimal("50.00"), Decimal("50.00"))
+        # 100.00 of products + 2.98 delivery - 50.00 of cagnotte
+        assert (saved.cashback, saved.total) == (Decimal("50.00"), Decimal("52.98"))
         later.refresh_from_db()
         sooner.refresh_from_db()
         assert (sooner.remaining, later.remaining) == (Decimal("0.00"), Decimal("20.00"))

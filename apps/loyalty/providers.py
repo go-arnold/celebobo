@@ -3,6 +3,7 @@ from django.utils import timezone
 from apps.loyalty.adapters.gateways import (
     AccountsPeople,
     ContentReturnPolicy,
+    LoyaltyWallet,
     OrdersLedger,
 )
 from apps.loyalty.facades import CashbackFacade, LoyaltyFacade, LoyaltyRuleFacade, PointsFacade
@@ -17,12 +18,14 @@ from apps.loyalty.services.contracts import OrderLedger, People, ReturnPolicy
 from apps.loyalty.services.points import PointService
 from apps.loyalty.services.rules import LoyaltyRuleService
 from apps.loyalty.services.settings import LoyaltySettingsService
+from apps.orders.services.contracts import Wallet
 from core.container import Container, Lifetime
 from core.events.contracts import EventPublisher
 
 
 def register(container: Container) -> None:
     container.register(People, lambda _: AccountsPeople())
+    container.register(Wallet, lambda _: LoyaltyWallet(), replace=True)
     container.register(OrderLedger, lambda _: OrdersLedger())
     container.register(ReturnPolicy, lambda _: ContentReturnPolicy())
     container.register(CashbackFacade, _cashback_facade, lifetime=Lifetime.TRANSIENT)
