@@ -86,7 +86,7 @@ class LoyaltyRule(models.Model):
         verbose_name = "règle de fidélité"
         verbose_name_plural = "règles de fidélité"
         ordering = ("trigger", "name")
-        indexes = [ # noqa: RUF012
+        indexes = [  # noqa: RUF012
             models.Index(fields=("trigger", "is_active"), name="loyalty_rule_trigger_active"),
         ]
 
@@ -123,7 +123,7 @@ class PointTransaction(models.Model):
         verbose_name = "transaction de points"
         verbose_name_plural = "transactions de points"
         ordering = ("-created_at", "-pk")
-        indexes = [ # noqa: RUF012
+        indexes = [  # noqa: RUF012
             models.Index(fields=("user", "-created_at"), name="loyalty_point_user_created"),
         ]
 
