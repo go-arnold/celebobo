@@ -215,40 +215,15 @@ class NotificationFanout:
             conversation_id=conversation_id,
         )
 
-    def membership_requested(self, *, client_name: str, plan: str) -> None:
-        self._notifications.notify(
-            self._directory.staff_ids(),
-            render(
-                NotificationKind.MEMBERSHIP_REQUESTED,
-                client=client_name,
-                plan=FORMULA_LABELS.get(plan, plan),
-            ),
-        )
-
-    def membership_started(self, *, user_id: int, plan: str, ends_at: datetime) -> None:
+    def points_awarded(self, *, user_id: int, points: int, reason: str) -> None:
         self._notifications.notify(
             [user_id],
             render(
-                NotificationKind.MEMBERSHIP_STARTED,
-                plan=MEMBERSHIP_LABELS.get(plan, plan),
-                ends_on=_day(ends_at),
+                NotificationKind.POINTS_AWARDED,
+                points=points,
+                reason=reason,
             ),
         )
-
-    def membership_rejected(self, *, user_id: int, note: str) -> None:
-        self._notifications.notify(
-            [user_id], render(NotificationKind.MEMBERSHIP_REJECTED, note=note)
-        )
-
-    def membership_ending(self, *, user_id: int, ends_at: datetime) -> None:
-        self._notifications.notify(
-            [user_id], render(NotificationKind.MEMBERSHIP_ENDING, ends_on=_day(ends_at))
-        )
-
-
-# "votre abonnement mensuel" for the client, "la formule mensuelle" for staff
-MEMBERSHIP_LABELS = {"trial": "d'essai", "monthly": "mensuel", "yearly": "annuel"}
-FORMULA_LABELS = {"trial": "d'essai", "monthly": "mensuelle", "yearly": "annuelle"}
 
 
 def _day(moment: datetime) -> str:

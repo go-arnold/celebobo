@@ -1,11 +1,10 @@
 from typing import Protocol
 
 from apps.loyalty.domain.cashback import Purchase
-from apps.loyalty.domain.membership import Requester
 
 
 class People(Protocol):
-    def requester(self, user_id: int) -> Requester: ...
+    def requester(self, user_id: int) -> Purchase: ...
 
 
 class OrderLedger(Protocol):

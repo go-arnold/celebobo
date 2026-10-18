@@ -4,12 +4,11 @@ from django.conf import settings
 from django.db import models
 
 from apps.loyalty.domain.cashback import EntryKind
-from apps.loyalty.domain.membership import Plan, RequestStatus
+from apps.loyalty.domain.rules import Trigger
 
 SETTINGS_ID = 1
-PLAN_CHOICES = [(item.value, item.value) for item in Plan]
-REQUEST_STATUS_CHOICES = [(item.value, item.value) for item in RequestStatus]
 ENTRY_KIND_CHOICES = [(item.value, item.value) for item in EntryKind]
+TRIGGER_CHOICES = [(item.value, item.value) for item in Trigger]
 MONEY_DIGITS = 10
 MONEY_PLACES = 2
 
@@ -45,61 +44,91 @@ class LoyaltySettings(models.Model):
         return "Paramètres de fidélité"
 
 
-class Membership(models.Model):
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="membership"
+# dynamic loyalty rules set by the admin through the back office
+class LoyaltyRule(models.Model):
+    class Trigger(models.TextChoices):
+        USER_REGISTERED = "user_registered", "Inscription"
+        USER_LOGIN_DAILY = "user_login_daily", "Connexion quotidienne"
+        NEWSLETTER_SUBSCRIBED = "newsletter_subscribed", "Abonnement newsletter"
+        PROFILE_COMPLETED = "profile_completed", "Profil complété"
+        FIRST_PURCHASE = "first_purchase", "Premier achat"
+        PURCHASE_MADE = "purchase_made", "Achat effectué"
+        ORDER_VALUE_MILESTONE = "order_value_milestone", "Seuil de montant de commande"
+        PRODUCT_PURCHASED = "product_purchased", "Produit acheté"
+        CATEGORY_PURCHASED = "category_purchased", "Catégorie achetée"
+        REVIEW_CREATED = "review_created", "Avis produit déposé"
+        FRIEND_REFERRED = "friend_referred", "Parrainage d'ami"
+        SOCIAL_SHARED = "social_shared", "Partage sur réseau social"
+        BIRTHDAY_REACHED = "birthday_reached", "Anniversaire"
+        WINBACK_INACTIVITY = "winback_inactivity", "Retour après inactivité"
+
+    name = models.CharField(max_length=150, verbose_name="nom de la règle")
+    trigger = models.CharField(
+        max_length=30, choices=Trigger.choices, db_index=True, verbose_name="déclencheur"
     )
-    plan = models.CharField(max_length=8, choices=PLAN_CHOICES)
-    ends_at = models.DateTimeField(db_index=True)
-    trial_started_at = models.DateTimeField(null=True, blank=True)
-    # digits of the phone used for the trial, so one number gets one trial
-    trial_phone = models.CharField(max_length=20, blank=True, db_index=True)
-    reminded_for = models.DateTimeField(null=True, blank=True)
+    condition = models.JSONField(default=dict, blank=True, verbose_name="condition")
+    action_type = models.CharField(
+        max_length=20, default="add_points", verbose_name="type d'action"
+    )
+    points_value = models.IntegerField(verbose_name="points attribués")
+    is_active = models.BooleanField(default=True, verbose_name="activée")
+    max_per_user = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name="max par utilisateur"
+    )
+    max_per_day = models.PositiveIntegerField(null=True, blank=True, verbose_name="max par jour")
+    cooldown_days = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name="délai entre déclenchements (jours)"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "abonnement"
-        verbose_name_plural = "abonnements"
+        verbose_name = "règle de fidélité"
+        verbose_name_plural = "règles de fidélité"
+        ordering = ("trigger", "name")
+        indexes = [  # noqa: RUF012
+            models.Index(fields=("trigger", "is_active"), name="loyalty_rule_trigger_active"),
+        ]
 
     def __str__(self) -> str:
-        return f"{self.user} jusqu'au {self.ends_at:%d/%m/%Y}"
+        return f"{self.name} ({self.trigger})"
 
 
-class MembershipRequest(models.Model):
+# append-only ledger of points earned/spent per user
+class PointTransaction(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="membership_requests"
-    )
-    plan = models.CharField(max_length=8, choices=PLAN_CHOICES)
-    price = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
-    payment_method = models.CharField(max_length=16)
-    status = models.CharField(
-        max_length=10,
-        choices=REQUEST_STATUS_CHOICES,
-        default=RequestStatus.PENDING.value,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="point_transactions",
         db_index=True,
+        verbose_name="utilisateur",
     )
-    note = models.CharField(max_length=255, blank=True)
-    handled_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    points = models.IntegerField(verbose_name="points")
+    reason = models.CharField(max_length=200, verbose_name="motif")
+    rule = models.ForeignKey(
+        LoyaltyRule,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="transactions",
+        verbose_name="règle",
     )
-    handled_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    reference_type = models.CharField(max_length=30, blank=True, verbose_name="type de référence")
+    reference_id = models.CharField(
+        max_length=100, blank=True, verbose_name="identifiant de référence"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="créé le")
 
     class Meta:
-        verbose_name = "demande d'abonnement"
-        verbose_name_plural = "demandes d'abonnement"
+        verbose_name = "transaction de points"
+        verbose_name_plural = "transactions de points"
         ordering = ("-created_at", "-pk")
-        constraints = (
-            models.UniqueConstraint(
-                fields=("user",),
-                condition=models.Q(status="pending"),
-                name="loyalty_one_pending_request",
-            ),
-        )
+        indexes = [  # noqa: RUF012
+            models.Index(fields=("user", "-created_at"), name="loyalty_point_user_created"),
+        ]
 
     def __str__(self) -> str:
-        return f"{self.user} — {self.plan}"
+        return f"{self.user} {self.points:+d}"
 
 
 # credits (earn, refund) keep what is left to spend; debits are negative lines
