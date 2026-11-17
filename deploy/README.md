@@ -28,7 +28,7 @@ The site and the API share one origin: cookies stay first-party, no CORS, and th
 | `api` | api `api` | `WEB_CONCURRENCY` workers (one request at a time each, ~140 MB each), 30 s timeout (`WEB_TIMEOUT`) |
 | `worker` | api `worker` | queues `default,ai,exports` (`CELERY_QUEUES`), `CELERY_CONCURRENCY` processes |
 | `beat` | api `beat` | periodic tasks; run exactly one |
-| `frontend` | frontend | profile `frontend`; built from `FRONTEND_DIR` (default `../../shopproject_v2_frontend`) |
+| `frontend` | frontend | profile `frontend`; built from `FRONTEND_DIR` (default `../../celebobo-frontend`) |
 | `nginx` | nginx 1.29 | routing in `nginx/snippets/celebobo-routes.conf`, servers in `nginx/templates-*` |
 | `certbot` | certbot (prod) | renews certificates every 12 h; nginx reloads every 6 h |
 
@@ -41,14 +41,14 @@ Requirements: Docker with Compose v2, both repositories side by side:
 
 ```
 Documents/
-  shopproject_v2/            # this repository
-  shopproject_v2_frontend/
+  celebobo/                  # this repository
+  celebobo-frontend/
 ```
 
 ```bash
 ./deploy/local.sh up          # builds the image, starts everything, runs migrations
 ./deploy/local.sh seed        # demo catalogue, orders, sales, accounts (password: Boutique-Kin#2026)
-cd ../shopproject_v2_frontend && npm run dev   # then open http://localhost:8080
+cd ../celebobo-frontend && npm run dev   # then open http://localhost:8080
 ```
 
 - `deploy/.env.local` is created from `.env.local.example` on the first run. It works as-is; add the
@@ -107,9 +107,9 @@ If you use Cloudflare, keep the records **DNS only** (grey cloud) for the first 
 ### 3. Code and configuration
 
 ```bash
-git clone <backend repo> shopproject_v2
-git clone <frontend repo> shopproject_v2_frontend
-cd shopproject_v2
+git clone <backend repo> celebobo
+git clone <frontend repo> celebobo-frontend
+cd celebobo
 cp deploy/.env.prod.example deploy/.env.prod   # fill every empty value
 ```
 
@@ -139,7 +139,7 @@ Then, once:
 ### 5. Update
 
 ```bash
-git -C ../shopproject_v2_frontend pull && git pull
+git -C ../celebobo-frontend pull && git pull
 ./deploy/prod.sh up        # rebuilds, runs new migrations, restarts changed containers
 ```
 

@@ -163,7 +163,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["core", "config"]
+source = ["apps", "core", "config"]
 branch = true
 omit = ["*/tests/*", "*/migrations/*", "config/asgi.py", "config/wsgi.py"]
 
