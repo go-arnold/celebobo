@@ -41,7 +41,7 @@ services:
     profiles: ["frontend"]
     image: celebobo-frontend:${CELEBOBO_TAG:-latest}
     build:
-      context: ${FRONTEND_DIR:-../../shopproject_v2_frontend}
+      context: ${FRONTEND_DIR:-../../celebobo-frontend}
       args:
         NEXT_PUBLIC_API_URL: /api/v1
         NEXT_PUBLIC_WS_URL: /ws/

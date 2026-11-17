@@ -17,7 +17,8 @@ uv run pre-commit install
 ```bash
 uv run python manage.py migrate
 uv run uvicorn config.asgi:application --reload          # HTTP and WebSocket
-uv run celery -A config worker -l info                   # background handlers and email
+uv run celery -A config worker -l info -Q default,ai,exports   # background handlers, email, assistant, PDF exports
+uv run celery -A config beat -l info                     # scheduled tasks (order expiry, cashback, purges)
 ```
 
 ## Quality gates
