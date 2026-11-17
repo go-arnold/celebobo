@@ -162,10 +162,51 @@ class TestEventBus:
         with pytest.raises(ImproperlyConfigured, match="module-level"):
             bus.subscribe(local_handler, OrderPlaced, background=True)
 
+    @pytest.mark.django_db
+    def test_transactional_handlers_run_at_publish_time(
+        self, bus, django_capture_on_commit_callbacks
+    ):
+        transactional, inline = Mock(), Mock()
+        bus.subscribe(transactional, OrderPlaced, transactional=True)
+        bus.subscribe(inline, OrderPlaced)
+
+        with django_capture_on_commit_callbacks() as callbacks:
+            bus.publish(make_order())
+            transactional.assert_called_once()
+            inline.assert_not_called()
+
+        callbacks[0]()
+        inline.assert_called_once()
+        transactional.assert_called_once()
+
+    @pytest.mark.django_db
+    def test_failing_transactional_handler_reaches_the_publisher(
+        self, bus, django_capture_on_commit_callbacks
+    ):
+        bus.subscribe(Mock(side_effect=RuntimeError("boom")), OrderPlaced, transactional=True)
+        inline = Mock()
+        bus.subscribe(inline, OrderPlaced)
+
+        with django_capture_on_commit_callbacks() as callbacks, pytest.raises(RuntimeError):
+            bus.publish(make_order())
+
+        assert callbacks == []
+        inline.assert_not_called()
+
+    def test_handler_cannot_be_background_and_transactional(self, bus):
+        with pytest.raises(ValueError, match="either"):
+            bus.subscribe(Mock(), OrderPlaced, background=True, transactional=True)
+
     def test_subscribers_lists_inline_and_background(self, bus):
         bus.subscribe(events.record_in_background, OrderPlaced, background=True)
 
         assert bus.subscribers(OrderPlaced) == ("core.tests.events.record_in_background",)
+
+        bus.subscribe(events.record_in_background, OrderPlaced, transactional=True)
+        assert bus.subscribers(OrderPlaced) == (
+            "core.tests.events.record_in_background",
+            "core.tests.events.record_in_background",
+        )
 
         bus.clear()
         assert bus.subscribers(OrderPlaced) == ()
