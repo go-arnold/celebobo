@@ -17,7 +17,7 @@ compose() { docker compose -p celebobo-local --env-file "$ENV_FILE" -f compose.y
 case "${1:-up}" in
     up) shift; compose up -d --build --remove-orphans "$@"
         echo "API and site: http://localhost:${NGINX_PORT:-8080}   mail: http://localhost:${MAILPIT_PORT:-8025}" ;;
-    seed) shift; compose run --rm api manage seed_demo --admin-email "${SEED_ADMIN_EMAIL:-admin@celebobo.test}" --no-images "$@" ;;
+    seed) shift; compose run --rm api manage seed_demo --admin-email "${SEED_ADMIN_EMAIL:-admin@celebobo.test}" "$@" ;;
     e2e) shift; compose run --rm api manage seed_demo --e2e "$@" ;;
     logs) shift; compose logs -f --tail=100 "$@" ;;
     ps) compose ps ;;

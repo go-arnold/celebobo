@@ -62,6 +62,26 @@ class ImageStore:
         )
         return media.pk
 
+    def link(self, name: str, url: str, *, purpose: str) -> int:
+        # an image kept where it already is (stock photo), recorded like an upload
+        media, _ = UploadedMedia.objects.update_or_create(
+            public_id=f"{self.folder}/{name}",
+            defaults={
+                "owner_id": self.owner_id,
+                "purpose": purpose,
+                "url": url,
+                "format": "jpg",
+                "bytes": 0,
+            },
+        )
+        return media.pk
+
+
+def download(url: str) -> bytes:
+    response = httpx.get(url, timeout=UPLOAD_TIMEOUT, follow_redirects=True)
+    response.raise_for_status()
+    return response.content
+
 
 # command-line uploads are signed by the first administrator, as if made from the back office
 def admin_store(folder: str) -> tuple[Actor, ImageStore]:

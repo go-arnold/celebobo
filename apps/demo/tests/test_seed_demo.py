@@ -6,8 +6,9 @@ from django.core.management import CommandError, call_command
 
 from apps.accounts.models import User
 from apps.accounts.tests.factories import AdminFactory
-from apps.catalog.models import Category, Deal, Product, ProductVariant
+from apps.catalog.models import Category, Deal, Product, ProductImage, ProductVariant
 from apps.content.models import Banner
+from apps.demo import catalogue, content, photos
 from apps.demo.people import DemoPerson, email_for
 from apps.demo.uploads import ImageStore
 from apps.media.models import UploadedMedia
@@ -122,3 +123,25 @@ def test_e2e_seed_refuses_stacks_that_did_not_allow_it(settings):
 
     with pytest.raises(CommandError):
         call_command("seed_demo", "--e2e", stdout=StringIO())
+
+
+def test_every_demo_product_and_category_has_a_photo():
+    assert set(photos.PRODUCTS) == {product.name for product in catalogue.PRODUCTS}
+    assert set(photos.CATEGORIES) == {category.key for category in catalogue.CATEGORIES}
+    assert len(photos.BANNERS) == len(content.BANNERS)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_without_cloudinary_the_seed_links_real_photos(monkeypatch):
+    monkeypatch.setattr(ImageStore, "enabled", property(lambda _store: False))
+
+    call_command("seed_demo", "--admin-email", "admin@celebobo.test", stdout=StringIO())
+
+    pexels = "https://images.pexels.com/photos/"
+    assert all(url.startswith(pexels) for url in ProductImage.objects.values_list("url", flat=True))
+    assert Product.objects.exclude(images__isnull=False).count() == 0
+    assert all(
+        url.startswith(pexels)
+        for url in Category.objects.filter(parent=None).values_list("image", flat=True)
+    )
+    assert all(banner.image.startswith(pexels) for banner in Banner.objects.all())
