@@ -86,6 +86,9 @@ are always kept.
 
 - Logged-in users connect to `/ws/` with a **one-time ticket** (`POST /auth/ws-ticket/`); the origin
   must be an allowed frontend origin.
+- When an account is **deactivated**, **deleted** or its **role changes**, all its open connections
+  are closed (code `4401`). The site then asks for a new ticket: it is refused for a deactivated or
+  deleted account, and a changed role reconnects with its new rights.
 - Each user automatically receives their own events; staff also receive staff-wide events; a client
   subscribes to the conversations they open.
 - Events pushed: new message, typing, read, conversation closed/reopened/assigned, notification

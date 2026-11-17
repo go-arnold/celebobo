@@ -6,6 +6,9 @@ from typing import Any
 from core.domain.errors import ValidationFailed
 
 MAX_REF_LENGTH = 64
+# no valid session: the site asks for a new ticket, which fails for a deactivated account and
+# carries the new role after a role change
+UNAUTHORIZED_CLOSE_CODE = 4401
 
 
 class ClientMessage(StrEnum):

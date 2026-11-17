@@ -16,9 +16,13 @@ pytestmark = pytest.mark.django_db(transaction=True)
 class RecordingBroadcaster:
     def __init__(self) -> None:
         self.sent: list[tuple[tuple[str, ...], ServerEvent, dict[str, Any]]] = []
+        self.closed: list[tuple[tuple[str, ...], int]] = []
 
     def send(self, groups: Iterable[str], event: ServerEvent, data: Mapping[str, Any]) -> None:
         self.sent.append((tuple(groups), event, dict(data)))
+
+    def close(self, groups: Iterable[str], *, code: int) -> None:
+        self.closed.append((tuple(groups), code))
 
 
 @pytest.fixture

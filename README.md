@@ -239,7 +239,7 @@ Order and support conversations, messages with read tracking, price proposals, a
 
 ### `apps.realtime`
 
-The WebSocket gateway is served by Channels at `wss://<api>/ws/?ticket=<ticket>`. Clients get the ticket from `POST /api/v1/auth/ws-ticket/`; it's single-use and expires after 30 s. The browser's `Origin` must be in `WEBSOCKET_ALLOWED_ORIGINS`. Each connection joins `user.<id>`; staff also join `staff`. Every message uses the envelope `{type, data, ref}`.
+The WebSocket gateway is served by Channels at `wss://<api>/ws/?ticket=<ticket>`. Clients get the ticket from `POST /api/v1/auth/ws-ticket/`; it's single-use and expires after 30 s. The browser's `Origin` must be in `WEBSOCKET_ALLOWED_ORIGINS`. Each connection joins `user.<id>`; staff also join `staff`. Every message uses the envelope `{type, data, ref}`. `RoleChanged`, `AccountDeleted` and a deactivating `UserActivationChanged` send `session.close` to `user.<id>`, which closes every socket of that user with code `4401`.
 
 The consumer only parses envelopes, checks access, and calls the same facades as the REST API: a message sent over the socket and one posted over REST go through the same code.
 
