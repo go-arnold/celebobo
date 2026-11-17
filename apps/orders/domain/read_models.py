@@ -77,7 +77,8 @@ class StatusEntry:
 class PersonBrief:
     id: int
     name: str
-    email: str
+    # None when the viewer may not see it (resellers never get the client's e-mail)
+    email: str | None
     phone: str | None = None
     availability: str | None = None
 
