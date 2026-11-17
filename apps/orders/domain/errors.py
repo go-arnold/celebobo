@@ -36,6 +36,17 @@ class AddressRequired(ValidationFailed):
         super().__init__(errors={"address": [self.default_detail]})
 
 
+class TooManyPendingOrders(BusinessRuleViolation):
+    default_code = "too_many_pending_orders"
+    default_detail = (
+        "Vous avez déjà trop de commandes en attente. "
+        "Attendez leur prise en charge ou annulez-en une."
+    )
+
+    def __init__(self, limit: int) -> None:
+        super().__init__(meta={"limit": limit})
+
+
 class ResellerNotFound(ValidationFailed):
     default_code = "reseller_not_found"
     default_detail = "Revendeur introuvable ou inactif."

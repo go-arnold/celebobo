@@ -100,7 +100,9 @@ class CartMergeInput(serializers.Serializer[Any]):
 
 
 class CancelInput(serializers.Serializer[Any]):
-    reason = serializers.ChoiceField(choices=[item.value for item in CancelReason])
+    reason = serializers.ChoiceField(
+        choices=[item.value for item in CancelReason if item is not CancelReason.EXPIRED]
+    )
     details = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
 
     def validate_reason(self, value: str) -> CancelReason:

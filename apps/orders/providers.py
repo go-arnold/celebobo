@@ -19,6 +19,7 @@ from apps.orders.facades import (
     ClientOrderFacade,
     DispatchFacade,
     OrderAdjustmentFacade,
+    OrderExpiryFacade,
     PromotionFacade,
 )
 from apps.orders.repositories import (
@@ -63,6 +64,7 @@ def register(container: Container) -> None:
     container.register(CheckoutFacade, _checkout_facade, lifetime=Lifetime.TRANSIENT)
     container.register(ClientOrderFacade, _client_facade, lifetime=Lifetime.TRANSIENT)
     container.register(DispatchFacade, _dispatch_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(OrderExpiryFacade, _expiry_facade, lifetime=Lifetime.TRANSIENT)
     container.register(OrderAdjustmentFacade, _adjustment_facade, lifetime=Lifetime.TRANSIENT)
     container.register(PromotionFacade, _promotion_facade, lifetime=Lifetime.TRANSIENT)
 
@@ -114,6 +116,7 @@ def _checkout_facade(container: Container) -> CheckoutFacade:
             container.resolve(AddressBook),
             _coupons(),
             wallet=container.resolve(Wallet),
+            max_pending=order_settings().max_pending_orders,
         ),
         pricing=pricing,
         carts=CartRepository(),
@@ -144,6 +147,15 @@ def _dispatch_facade(container: Container) -> DispatchFacade:
         threads=container.resolve(OrderThreads),
         wallet=container.resolve(Wallet),
         publisher=container.resolve(EventPublisher),
+    )
+
+
+def _expiry_facade(container: Container) -> OrderExpiryFacade:
+    return OrderExpiryFacade(
+        orders=OrderRepository(),
+        lifecycle=_lifecycle(container),
+        publisher=container.resolve(EventPublisher),
+        ttl_hours=order_settings().pending_ttl_hours,
     )
 
 

@@ -12,6 +12,10 @@ class OrderSettings:
     max_lines: int = 30
     max_quantity: int = 10
     cart_ttl_days: int = 30
+    # a pending order nobody assigned within this delay is cancelled and its stock released
+    pending_ttl_hours: int = 48
+    # pending orders a client can have open at once (stock is reserved at checkout)
+    max_pending_orders: int = 3
 
     @property
     def shipping_rules(self) -> ShippingRules:

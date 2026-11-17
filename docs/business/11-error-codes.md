@@ -144,6 +144,7 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 404 | `order_not_found` | Commande introuvable. |
 | 400 | `empty_order` | Votre commande ne contient aucun article. |
 | 400 | `too_many_lines` | Votre commande contient trop d'articles différents. |
+| 422 | `too_many_pending_orders` | Vous avez déjà trop de commandes en attente. Attendez leur prise en charge ou annulez-en une. |
 | 400 | `address_required` | Indiquez une adresse de livraison. |
 | 400 | `reseller_not_found` | Revendeur introuvable ou inactif. |
 | 422 | `assignment_closed` | Cette commande ne peut plus être réassignée. |

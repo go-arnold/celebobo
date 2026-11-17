@@ -67,3 +67,5 @@ class CancelReason(StrEnum):
     TOO_SLOW = "too_slow"
     CHEAPER_ELSEWHERE = "cheaper_elsewhere"
     OTHER = "other"
+    # set by the system, never chosen by the client
+    EXPIRED = "expired"
