@@ -82,6 +82,8 @@ Input: lines, payment method (`orange_money`, `airtel_money`, `mpesa`, `cash`), 
    Max **30 different lines** (`too_many_lines`), not empty (`empty_order`).
 2. The order gets a public **number** `CB-XXXX-XXXX` (unambiguous letters and digits) and status **pending**.
 3. The address, product names, images, SKUs and prices are **copied** into the order (snapshot).
+   Each line also records its share of the order's **coupon** (`discount`) and **cashback**, and the
+   **real money** paid for it (`amount_paid` = line total − both); see *Line amounts* below.
 4. The coupon is redeemed; the **stock is reserved** (reason `order`).
 5. An **order thread** (conversation) is opened with the client.
 6. Staff (managers and admins) are notified of the new order; it appears live in the back-office.
@@ -150,6 +152,27 @@ unit price** for a line in the order thread. The price must be > 0 and **not abo
 price** at the time of ordering (`invalid_proposed_price`). If the client **accepts**, the line,
 subtotal and total are recomputed (the coupon discount is capped to the new subtotal). See §7 for
 the proposal flow.
+
+### Line amounts
+
+Commissions, referral points and partial returns work per line, so every line knows what it really
+cost the client:
+
+| Field | Meaning |
+|---|---|
+| `discount` | The line's share of the order's coupon discount |
+| `cashback` | The line's share of the cashback used on the order |
+| `amount_paid` | Real money paid for the line: `unit_price × quantity − discount − cashback` |
+
+- The coupon is shared in proportion to the line totals; the cashback in proportion to what each
+  line still costs after the coupon (cashback pays the products after the discount).
+- Shares are rounded to the cent and always add up exactly to the order's amounts; any leftover
+  cent goes to the line with the largest rounding remainder.
+- Shipping belongs to the order, never to a line.
+- A price adjustment shares the coupon and cashback out again over all lines.
+- Orders placed before this existed were filled in once by the migration, with the same rule.
+- Coupon and cashback are the **non-real money** of an order (Cagnotte will join them); sale and deal
+  prices are real money. The order details show the three fields on each line.
 
 ## Customer views
 

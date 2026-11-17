@@ -152,6 +152,17 @@ class OrderItem(models.Model):
     quantity = models.PositiveSmallIntegerField()
     unit_price = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     list_unit_price = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
+    # the order's coupon and cashback spread over its lines (non-real money), and what is left:
+    # the real money paid for this line, shipping excluded
+    discount = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
+    )
+    cashback = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
+    )
+    amount_paid = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
+    )
 
     class Meta:
         ordering = ("pk",)
@@ -159,10 +170,31 @@ class OrderItem(models.Model):
             models.CheckConstraint(
                 condition=models.Q(quantity__gte=1), name="orders_item_quantity_positive"
             ),
+            models.CheckConstraint(
+                condition=models.Q(discount__gte=0, cashback__gte=0, amount_paid__gte=0),
+                name="orders_item_amounts_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    amount_paid=models.F("unit_price") * models.F("quantity")
+                    - models.F("discount")
+                    - models.F("cashback")
+                ),
+                name="orders_item_paid_consistent",
+            ),
         )
 
     def __str__(self) -> str:
         return f"{self.quantity} x {self.product_name}"
+
+    @property
+    def total(self) -> Decimal:
+        return self.unit_price * self.quantity
+
+    @property
+    def non_cash(self) -> Decimal:
+        # paid with something other than money (coupon, cashback); commissions skip such lines
+        return self.discount + self.cashback
 
 
 class OrderStatusEvent(models.Model):

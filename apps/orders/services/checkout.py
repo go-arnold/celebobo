@@ -2,6 +2,7 @@ from apps.catalog.domain.queries import StockSource
 from apps.orders.domain.commands import DeliveryAddress, PlaceOrder
 from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.errors import AddressRequired, TooManyPendingOrders
+from apps.orders.domain.pricing import line_amounts
 from apps.orders.models import Order
 from apps.orders.repositories import OrderRepository
 from apps.orders.services.contracts import AddressBook, Inventory, Wallet
@@ -74,6 +75,11 @@ class CheckoutService:
             self._coupons.redeem(
                 priced_quote.coupon, order, user_id=client_id, amount=quote.discount
             )
+        amounts = line_amounts(
+            [line.unit_price * line.quantity for line in priced],
+            discount=quote.discount,
+            cashback=quote.cashback,
+        )
         self._orders.add_items(
             order,
             (
@@ -88,8 +94,11 @@ class CheckoutService:
                     "unit_price": line.unit_price,
                     "list_unit_price": line.unit_price,
                     "deal_id": line.deal_id,
+                    "discount": share.discount,
+                    "cashback": share.cashback,
+                    "amount_paid": share.paid,
                 }
-                for line in priced
+                for line, share in zip(priced, amounts, strict=True)
             ),
         )
         self._inventory.reserve(

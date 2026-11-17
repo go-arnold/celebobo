@@ -9,6 +9,7 @@ from apps.orders.domain.errors import (
     OrderItemNotFound,
     OrderNotFound,
 )
+from apps.orders.domain.pricing import line_amounts
 from apps.orders.domain.read_models import AdjustableItem
 from apps.orders.models import Order, OrderItem
 from apps.orders.repositories import OrderRepository
@@ -49,15 +50,27 @@ class AdjustmentService:
         if price <= 0 or price > item.list_unit_price:
             raise InvalidProposedPrice
         previous = item.unit_price
-        item.unit_price = price
-        self._orders.save_item(item, fields=("unit_price",))
-        order.subtotal = sum(
-            (line.unit_price * line.quantity for line in self._orders.items(order)), Decimal(0)
-        )
+        items = self._orders.items(order)
+        for line in items:
+            if line.pk == item.pk:
+                line.unit_price = price
+        order.subtotal = sum((line.total for line in items), Decimal(0))
         order.discount = min(order.discount, order.subtotal)
         order.cashback = min(order.cashback, order.subtotal - order.discount)
         order.total = order.subtotal - order.discount - order.cashback + order.shipping_fee
+        # the new price changes every line's share of the coupon and cashback
+        shares = line_amounts(
+            [line.total for line in items], discount=order.discount, cashback=order.cashback
+        )
+        for line, share in zip(items, shares, strict=True):
+            line.discount, line.cashback, line.amount_paid = (
+                share.discount,
+                share.cashback,
+                share.paid,
+            )
+        self._orders.reprice(item_id=item.pk, price=price, items=items)
         self._orders.save(order, fields=("subtotal", "discount", "cashback", "total"))
+        item.unit_price = price
         return Repricing(order, item, previous)
 
     def _load(self, order_id: int, item_id: int, *, for_update: bool) -> tuple[Order, OrderItem]:

@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 from enum import StrEnum
 
 ZERO = Decimal("0.00")
@@ -93,3 +93,47 @@ def _shipping_fee(lines: Sequence[QuoteLine], subtotal: Decimal, rules: Shipping
     return max(
         line.shipping_fee if line.shipping_fee is not None else rules.flat_fee for line in payable
     )
+
+
+@dataclass(frozen=True, slots=True)
+class LineAmounts:
+    discount: Decimal
+    cashback: Decimal
+    paid: Decimal
+
+
+def spread(amount: Decimal, weights: Sequence[Decimal]) -> list[Decimal]:
+    """Splits ``amount`` in proportion to ``weights``, to the cent; the shares add up exactly.
+
+    Each share is rounded down, then the cents left go to the largest remainders (first line on a
+    tie). No share exceeds its weight while ``amount`` is at most their sum.
+    """
+    total = sum(weights, ZERO)
+    if amount <= 0 or total <= 0:
+        return [ZERO for _ in weights]
+    exact = [amount * weight / total for weight in weights]
+    shares = [value.quantize(CENT, rounding=ROUND_DOWN) for value in exact]
+    left = int((amount - sum(shares, ZERO)) / CENT)
+    by_remainder = sorted(
+        range(len(weights)), key=lambda index: (shares[index] - exact[index], index)
+    )
+    for index in by_remainder[:left]:
+        shares[index] += CENT
+    return shares
+
+
+def line_amounts(
+    totals: Sequence[Decimal], *, discount: Decimal, cashback: Decimal
+) -> list[LineAmounts]:
+    """What each order line really cost the client, once the order's coupon and cashback are spread.
+
+    The coupon is spread over the line totals; the cashback over what is left after the coupon,
+    since it pays the products after the discount. Shipping is not part of any line.
+    """
+    discounts = spread(discount, totals)
+    after_coupon = [line - share for line, share in zip(totals, discounts, strict=True)]
+    cashbacks = spread(cashback, after_coupon)
+    return [
+        LineAmounts(discount=coupon, cashback=credit, paid=rest - credit)
+        for coupon, credit, rest in zip(discounts, cashbacks, after_coupon, strict=True)
+    ]

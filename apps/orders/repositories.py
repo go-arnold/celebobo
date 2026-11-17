@@ -145,6 +145,18 @@ class OrderRepository:
     def save_item(self, item: OrderItem, *, fields: Iterable[str]) -> None:
         item.save(update_fields=[*fields])
 
+    # one statement per line, price and amounts together, so the line constraint holds at each step
+    def reprice(self, *, item_id: int, price: Decimal, items: list[OrderItem]) -> None:
+        for line in items:
+            fields = {
+                "discount": line.discount,
+                "cashback": line.cashback,
+                "amount_paid": line.amount_paid,
+            }
+            if line.pk == item_id:
+                fields["unit_price"] = price
+            OrderItem.objects.filter(pk=line.pk).update(**fields)
+
 
 class ShippingZoneRepository:
     def active(self) -> list[ShippingZone]:
