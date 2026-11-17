@@ -10,7 +10,12 @@ from rest_framework.test import APIClient
 
 from apps.accounts.facades import RealtimeAccessFacade
 from apps.accounts.models import User
-from apps.accounts.tests.factories import ManagerFactory, ResellerFactory, UserFactory
+from apps.accounts.tests.factories import (
+    AdminFactory,
+    ManagerFactory,
+    ResellerFactory,
+    UserFactory,
+)
 from apps.catalog.tests.factories import ProductFactory
 from apps.messaging.models import Conversation
 from apps.orders.models import Order
@@ -322,3 +327,57 @@ class TestProtocolGuards:
 
         assert [reply["type"] for reply in replies] == ["presence.pong", "presence.pong", "error"]
         assert replies[2]["data"]["code"] == "rate_limited"
+
+
+async def closed_with(socket: WebsocketCommunicator) -> int:
+    output = await socket.receive_output(timeout=2)
+    assert output["type"] == "websocket.close"
+    return int(output["code"])
+
+
+class TestRevocation:
+    async def test_deactivation_closes_the_sockets_of_that_user_only(
+        self, rest, client_user, reseller, sockets
+    ):
+        admin = await sync_to_async(AdminFactory.create)()
+        target, bystander = await open_socket(reseller), await open_socket(client_user)
+        sockets.append(bystander)
+
+        response = await sync_to_async(rest(admin).post)(
+            f"/api/v1/bo/users/{reseller.pk}/deactivate/"
+        )
+
+        assert response.status_code == 200
+        assert await closed_with(target) == 4401
+        await bystander.send_json_to({"type": "presence.ping", "ref": "p1"})
+        assert (await bystander.receive_json_from(timeout=2))["type"] == "presence.pong"
+
+    async def test_role_change_closes_the_old_session(self, rest, manager):
+        admin = await sync_to_async(AdminFactory.create)()
+        socket = await open_socket(manager)
+
+        response = await sync_to_async(rest(admin).post)(
+            f"/api/v1/bo/users/{manager.pk}/role/", {"role": "client"}
+        )
+
+        assert response.status_code == 200
+        assert await closed_with(socket) == 4401
+
+    async def test_deleting_the_account_closes_its_sockets(self, rest, client_user):
+        socket = await open_socket(client_user)
+
+        response = await sync_to_async(rest(client_user).delete)("/api/v1/me/")
+
+        assert response.status_code == 204
+        assert await closed_with(socket) == 4401
+
+    async def test_a_new_ticket_is_refused_after_deactivation(self, rest, reseller):
+        admin = await sync_to_async(AdminFactory.create)()
+        ticket = await sync_to_async(ticket_for)(reseller)
+        await sync_to_async(rest(admin).post)(f"/api/v1/bo/users/{reseller.pk}/deactivate/")
+        socket = WebsocketCommunicator(application, f"/ws/?ticket={ticket}", headers=[ORIGIN])
+
+        connected, code = await socket.connect()
+
+        assert connected is False
+        assert code == 4401

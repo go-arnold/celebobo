@@ -8,7 +8,7 @@ from apps.accounts.selectors import DirectorySelector
 from apps.messaging.selectors import ConversationSelector, NotificationSelector
 from apps.orders.selectors import order_ref
 from apps.realtime.domain.groups import STAFF, conversation_group, user_group
-from apps.realtime.domain.protocol import ServerEvent
+from apps.realtime.domain.protocol import UNAUTHORIZED_CLOSE_CODE, ServerEvent
 from apps.realtime.services.contracts import Broadcaster
 from core.domain.actor import Actor
 
@@ -31,6 +31,10 @@ class RealtimeRelay:
         self._conversations = conversations
         self._notifications = notifications
         self._directory = directory
+
+    # every socket of this user closes; open ones were authorised with the old role or account
+    def revoke_sessions(self, user_id: int) -> None:
+        self._broadcaster.close([user_group(user_id)], code=UNAUTHORIZED_CLOSE_CODE)
 
     def message_posted(self, conversation_id: int, message_id: int) -> None:
         message = self._conversations.message(message_id)

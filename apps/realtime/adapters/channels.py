@@ -8,6 +8,7 @@ from django.core.cache import caches
 from apps.realtime.domain.protocol import ServerEvent
 
 BROADCAST_HANDLER = "broadcast"
+CLOSE_HANDLER = "session.close"
 
 
 class ChannelLayerBroadcaster:
@@ -16,8 +17,18 @@ class ChannelLayerBroadcaster:
         if layer is None:
             return
         message = {"type": BROADCAST_HANDLER, "event": event.value, "data": dict(data)}
-        for group in dict.fromkeys(groups):
-            async_to_sync(layer.group_send)(group, message)
+        _send_to_groups(layer, groups, message)
+
+    def close(self, groups: Iterable[str], *, code: int) -> None:
+        layer = get_channel_layer()
+        if layer is None:
+            return
+        _send_to_groups(layer, groups, {"type": CLOSE_HANDLER, "code": code})
+
+
+def _send_to_groups(layer: Any, groups: Iterable[str], message: dict[str, Any]) -> None:
+    for group in dict.fromkeys(groups):
+        async_to_sync(layer.group_send)(group, message)
 
 
 class CachePresenceStore:

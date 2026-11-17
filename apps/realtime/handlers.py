@@ -1,4 +1,9 @@
-from apps.accounts.domain.events import AvailabilityChanged
+from apps.accounts.domain.events import (
+    AccountDeleted,
+    AvailabilityChanged,
+    RoleChanged,
+    UserActivationChanged,
+)
 from apps.analytics.domain.events import SalesFactsRefreshed
 from apps.catalog.domain.events import StockLow
 from apps.content.domain.events import ContactMessageReceived
@@ -95,6 +100,17 @@ def push_order_status(event: OrderStatusChanged) -> None:
 @event_bus.on(OrderRepriced)
 def push_order_repriced(event: OrderRepriced) -> None:
     _relay().order_event(ServerEvent.ORDER_UPDATED, event.order_id, item_id=event.item_id)
+
+
+@event_bus.on(RoleChanged, AccountDeleted)
+def close_sockets_of_changed_account(event: RoleChanged | AccountDeleted) -> None:
+    _relay().revoke_sessions(event.user_id)
+
+
+@event_bus.on(UserActivationChanged)
+def close_sockets_of_deactivated_account(event: UserActivationChanged) -> None:
+    if not event.active:
+        _relay().revoke_sessions(event.user_id)
 
 
 @event_bus.on(AvailabilityChanged)

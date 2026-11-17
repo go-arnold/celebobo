@@ -11,7 +11,13 @@ from apps.messaging.selectors import ConversationSelector
 from apps.realtime.adapters.db import db_call
 from apps.realtime.conf import realtime_settings
 from apps.realtime.domain.groups import STAFF, conversation_group, user_group
-from apps.realtime.domain.protocol import ClientMessage, Envelope, ServerEvent, outbound
+from apps.realtime.domain.protocol import (
+    UNAUTHORIZED_CLOSE_CODE,
+    ClientMessage,
+    Envelope,
+    ServerEvent,
+    outbound,
+)
 from apps.realtime.domain.rate_limit import TokenBucket
 from apps.realtime.services.presence import PresenceService
 from apps.realtime.services.relay import RealtimeRelay
@@ -20,7 +26,6 @@ from core.container import container
 from core.domain.actor import Actor, Role
 from core.domain.errors import BusinessRuleViolation, DomainError
 
-UNAUTHORIZED_CLOSE_CODE = 4401
 MAX_BODY = 4000
 MAX_ATTACHMENT = 500
 MAX_CLIENT_ID = 64
@@ -101,6 +106,10 @@ class GatewayConsumer(AsyncJsonWebsocketConsumer):
         if message.get("skip_channel") == self.channel_name:
             return
         await self.send_json({"type": message["event"], "data": message["data"]})
+
+    # channel layer message "session.close", sent when the user's access changed
+    async def session_close(self, message: dict[str, Any]) -> None:
+        await self.close(code=int(message.get("code", UNAUTHORIZED_CLOSE_CODE)))
 
     def _handlers(self) -> dict[ClientMessage, Handler]:
         return {
