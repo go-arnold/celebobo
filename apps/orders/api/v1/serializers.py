@@ -239,7 +239,7 @@ class StatusEntryOutput(serializers.Serializer[Any]):
 class PersonOutput(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     name = serializers.CharField()
-    email = serializers.EmailField()
+    email = serializers.EmailField(allow_null=True)
     phone = serializers.CharField(allow_null=True)
     availability = serializers.CharField(allow_null=True)
 

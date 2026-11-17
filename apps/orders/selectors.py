@@ -50,7 +50,8 @@ class OrderSelector:
     def backoffice_page(
         self, actor: Actor, filters: OrderFilters, *, offset: int, limit: int
     ) -> tuple[list[OrderSummary], int, dict[str, int]]:
-        scoped = _filtered(scoped_orders(actor), filters, include_status=False)
+        staff = actor.is_staff
+        scoped = _filtered(scoped_orders(actor), filters, include_status=False, staff=staff)
         counts = dict(
             scoped.values_list("status").annotate(total=Count("pk")).values_list("status", "total")
         )
@@ -59,15 +60,18 @@ class OrderSelector:
             assigned_reseller__isnull=True, status=OrderStatus.PENDING.value
         ).count()
         summaries, total = self._page(
-            _filtered(scoped, filters, include_status=True), offset, limit
+            _filtered(scoped, filters, include_status=True, staff=staff),
+            offset,
+            limit,
+            staff=staff,
         )
         return summaries, total, counts
 
     def client_detail(self, client_id: int, number: str) -> OrderDetail:
-        return self._detail(Order.objects.filter(client_id=client_id, number=number))
+        return self._detail(Order.objects.filter(client_id=client_id, number=number), staff=True)
 
     def backoffice_detail(self, actor: Actor, order_id: int) -> OrderDetail:
-        return self._detail(scoped_orders(actor).filter(pk=order_id))
+        return self._detail(scoped_orders(actor).filter(pk=order_id), staff=actor.is_staff)
 
     def tracking(self, number: str, contact: str) -> TrackingView:
         normalized = contact.strip().lower()
@@ -100,7 +104,7 @@ class OrderSelector:
         orders = scoped_orders(actor).exclude(
             status__in=[status.value for status in FINAL_STATUSES]
         )
-        return self._page(orders, 0, limit)
+        return self._page(orders, 0, limit, staff=actor.is_staff)
 
     def open_orders_by_reseller(self, reseller_ids: Iterable[int]) -> dict[int, int]:
         open_statuses = [status.value for status in OrderStatus if status.is_open]
@@ -113,8 +117,9 @@ class OrderSelector:
             .values_list("assigned_reseller_id", "total")
         )
 
+    # staff=False: the viewer is a reseller, who never gets the client's e-mail (privacy policy §4)
     def _page(
-        self, orders: QuerySet[Order], offset: int, limit: int
+        self, orders: QuerySet[Order], offset: int, limit: int, *, staff: bool = True
     ) -> tuple[list[OrderSummary], int]:
         page = (
             orders.select_related("client", "assigned_reseller")
@@ -122,9 +127,10 @@ class OrderSelector:
             .order_by("-created_at", "-pk")[offset : offset + limit]
         )
         previews = _previews(order.pk for order in page)
-        return [_summary(order, previews.get(order.pk)) for order in page], orders.count()
+        summaries = [_summary(order, previews.get(order.pk), staff=staff) for order in page]
+        return summaries, orders.count()
 
-    def _detail(self, orders: QuerySet[Order]) -> OrderDetail:
+    def _detail(self, orders: QuerySet[Order], *, staff: bool) -> OrderDetail:
         order = (
             orders.select_related("client", "assigned_reseller")
             .prefetch_related("items", "history__actor")
@@ -137,7 +143,7 @@ class OrderSelector:
         client = order.client
         reseller = order.assigned_reseller
         return OrderDetail(
-            summary=_summary(order, items[0] if items else None),
+            summary=_summary(order, items[0] if items else None, staff=staff),
             items=tuple(_line(item) for item in items),
             address=AddressSnapshot(
                 recipient=order.recipient,
@@ -169,8 +175,8 @@ class OrderSelector:
             allowed_transitions=(),
             client=PersonBrief(
                 id=client.pk,
-                name=_display_name(client),
-                email=client.email,
+                name=_client_name(order, staff=staff),
+                email=client.email if staff else None,
                 phone=getattr(client, "phone_number", None),
             ),
             reseller=(
@@ -188,7 +194,7 @@ class OrderSelector:
 
 
 def _filtered(
-    orders: QuerySet[Order], filters: OrderFilters, *, include_status: bool
+    orders: QuerySet[Order], filters: OrderFilters, *, include_status: bool, staff: bool
 ) -> QuerySet[Order]:
     if include_status and filters.unassigned:
         orders = orders.filter(assigned_reseller__isnull=True, status=OrderStatus.PENDING.value)
@@ -204,14 +210,17 @@ def _filtered(
         orders = orders.filter(created_at__lte=_end_of(filters.date_to))
     if filters.search:
         term = filters.search.strip()
-        orders = orders.filter(
+        matches = (
             Q(number__icontains=term)
-            | Q(client__email__icontains=term)
             | Q(client__first_name__icontains=term)
             | Q(client__last_name__icontains=term)
             | Q(recipient__icontains=term)
             | Q(phone__icontains=term)
         )
+        if staff:
+            # searching by e-mail would let a reseller confirm a client's address
+            matches |= Q(client__email__icontains=term)
+        orders = orders.filter(matches)
     return orders
 
 
@@ -222,7 +231,7 @@ def _previews(order_ids: Iterable[int]) -> dict[int, OrderItem]:
     return previews
 
 
-def _summary(order: Order, preview: OrderItem | None) -> OrderSummary:
+def _summary(order: Order, preview: OrderItem | None, *, staff: bool) -> OrderSummary:
     reseller = order.assigned_reseller
     return OrderSummary(
         id=order.pk,
@@ -233,7 +242,7 @@ def _summary(order: Order, preview: OrderItem | None) -> OrderSummary:
         items_count=getattr(order, "items_count", 0),
         preview_name=preview.product_name if preview else "",
         preview_image=preview.product_image if preview else "",
-        client_name=_display_name(order.client),
+        client_name=_client_name(order, staff=staff),
         reseller_name=_display_name(reseller) if reseller else None,
     )
 
@@ -251,6 +260,14 @@ def _line(item: OrderItem) -> OrderLineView:
         unit_price=item.unit_price,
         total=item.unit_price * item.quantity,
     )
+
+
+# without a name on the account, staff see the e-mail and resellers the delivery recipient
+def _client_name(order: Order, *, staff: bool) -> str:
+    name = _display_name(order.client)
+    if staff or name != order.client.email:
+        return name
+    return order.recipient
 
 
 def _display_name(user: object) -> str:
@@ -296,9 +313,11 @@ def convertible_orders(
         status__in=[status.value for status in CONVERTIBLE_STATUSES]
     )
     if search:
-        orders = _filtered(orders, OrderFilters(search=search), include_status=False)
+        orders = _filtered(
+            orders, OrderFilters(search=search), include_status=False, staff=actor.is_staff
+        )
     return [
-        _convertible(order)
+        _convertible(order, staff=actor.is_staff)
         for order in orders.select_related("client")
         .prefetch_related("items")
         .order_by("-created_at", "-pk")[:limit]
@@ -315,16 +334,16 @@ def convertible_order(actor: Actor, order_id: int) -> ConvertibleOrder:
     )
     if order is None:
         raise OrderNotFound
-    return _convertible(order)
+    return _convertible(order, staff=actor.is_staff)
 
 
-def _convertible(order: Order) -> ConvertibleOrder:
+def _convertible(order: Order, *, staff: bool) -> ConvertibleOrder:
     return ConvertibleOrder(
         id=order.pk,
         number=order.number,
         status=order.order_status,
         client_id=order.client_id,
-        client_name=_display_name(order.client),
+        client_name=_client_name(order, staff=staff),
         reseller_id=order.assigned_reseller_id,
         payment_method=PaymentMethod(order.payment_method),
         total=order.total,

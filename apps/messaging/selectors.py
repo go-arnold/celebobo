@@ -48,7 +48,8 @@ class ConversationSelector:
     def page(
         self, actor: Actor, filters: ConversationFilters, *, offset: int, limit: int
     ) -> tuple[list[ConversationView], int]:
-        conversations = self._annotated(actor, _filtered(visible_conversations(actor), filters))
+        visible = _filtered(visible_conversations(actor), filters, staff=actor.is_staff)
+        conversations = self._annotated(actor, visible)
         if filters.unread:
             conversations = conversations.filter(Q(unread_count__gt=0))
         page = list(
@@ -204,7 +205,7 @@ def to_message_view(message: Message) -> MessageView:
 
 
 def _filtered(
-    conversations: QuerySet[Conversation], filters: ConversationFilters
+    conversations: QuerySet[Conversation], filters: ConversationFilters, *, staff: bool
 ) -> QuerySet[Conversation]:
     if filters.kind is not None:
         conversations = conversations.filter(kind=filters.kind.value)
@@ -212,13 +213,16 @@ def _filtered(
         conversations = conversations.filter(status=filters.status.value)
     if filters.search:
         term = filters.search.strip()
-        conversations = conversations.filter(
+        matches = (
             Q(subject__icontains=term)
             | Q(order__number__icontains=term)
             | Q(client__first_name__icontains=term)
             | Q(client__last_name__icontains=term)
-            | Q(client__email__icontains=term)
         )
+        if staff:
+            # searching by e-mail would let a reseller confirm a client's address
+            matches |= Q(client__email__icontains=term)
+        conversations = conversations.filter(matches)
     return conversations
 
 

@@ -111,6 +111,11 @@ answer `404`, not `403`.
 | Dashboard and analytics figures | — | own sales only (seller filter forced to themselves) | all (optional seller filter) |
 | Notifications, favorites, addresses, assistant sessions | own | own | own |
 
+Within an order they can see, a reseller gets the client's **name, phone and delivery address**,
+but never the client's **e-mail** (`client.email` is `null`, privacy policy §4). Searching orders or
+conversations by client e-mail works for staff only, and a client without a name on the account is
+shown to resellers under the order's recipient name.
+
 ## Rules that hold regardless of permission
 
 - Nobody can change **their own role** or **deactivate their own account**.

@@ -157,4 +157,5 @@ the proposal flow.
 ## Back-office order list
 
 `/bo/orders/` with filters (status, `unassigned`, reseller, payment method, dates, search on number,
-client name or email) and **counts per status**. Resellers only see orders assigned to them.
+client name or email — e-mail for staff only) and **counts per status**. Resellers only see orders
+assigned to them, without the client's e-mail ([roles](01-roles-and-permissions.md#data-scoping-same-page-filtered-data)).
