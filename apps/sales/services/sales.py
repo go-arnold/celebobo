@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 
 from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
@@ -220,14 +221,51 @@ class SaleService:
                     reason="Commande retournée",
                     by_id=actor.user_id,
                 )
+            units = sale.quantity - sale.returned_quantity
             sale.refunded_amount = sale.total
+            sale.returned_quantity = sale.quantity
             sale.status = SaleStatus.RETURNED.value
-            self._sales.save(sale, fields=("refunded_amount", "status"))
-            self._inventory.count_sales(sale.product_id, -sale.quantity, actor_id=actor.user_id)
+            self._sales.save(sale, fields=("refunded_amount", "returned_quantity", "status"))
+            self._inventory.count_sales(sale.product_id, -units, actor_id=actor.user_id)
             if reversal := self._commissions.void(sale, note="Commande retournée"):
                 outcome.commissions.append(reversal)
             outcome.sales.append(sale)
         return outcome
+
+    # units of the order line behind this sale came back: refund them, and the commission follows;
+    # the last units refund whatever is left and close the sale as returned
+    def order_line_returned(
+        self, actor: Actor, order_item_id: int, quantity: int
+    ) -> tuple[SaleOutcome, Decimal]:
+        sale = self._sales.for_item(order_item_id)
+        if sale is None or sale.sale_status is SaleStatus.RETURNED:
+            return SaleOutcome([]), ZERO
+        left = sale.quantity - sale.returned_quantity
+        units = min(quantity, left)
+        if units <= 0:
+            return SaleOutcome([]), ZERO
+        last = units == left
+        remaining = refundable(sale.total, sale.refunded_amount)
+        amount = remaining if last else min(cents(sale.unit_price * units), remaining)
+        if amount > ZERO:
+            self._sales.add_refund(
+                sale,
+                kind=RefundKind.RETURN.value,
+                amount=amount,
+                reason="Retour d'articles de la commande",
+                by_id=actor.user_id,
+            )
+        sale.refunded_amount += amount
+        sale.returned_quantity += units
+        sale.status = SaleStatus.RETURNED.value if last else SaleStatus.REFUNDED.value
+        self._sales.save(sale, fields=("refunded_amount", "returned_quantity", "status"))
+        self._inventory.count_sales(sale.product_id, -units, actor_id=actor.user_id)
+        reversal = (
+            self._commissions.void(sale, note="Commande retournée")
+            if last
+            else self._commissions.reverse_refund(sale, amount, note="Retour partiel")
+        )
+        return SaleOutcome([sale], [reversal] if reversal else []), amount
 
     def _seller(self, actor: Actor, seller_id: int | None) -> int:
         if actor.role is Role.RESELLER or seller_id is None:

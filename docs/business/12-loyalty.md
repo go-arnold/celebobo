@@ -33,7 +33,7 @@ How it works:
 |---|---|
 | Who | Celebobo Plus members only (`cashback_members_only`, on by default); everyone when turned off |
 | Rate | 3 % of the amount paid for the products, after coupons, deals and the cashback used, delivery excluded |
-| Credit | Pending once the order is delivered, available once the return period is over; a return or cancellation takes it back |
+| Credit | Pending once the order is delivered, available once the return period is over; a return or cancellation takes it back. Returning some units of a line takes back the share of the credit matching the real money returned (rounded down) and gives back the cashback spent on those units; returning or cancelling the whole order then settles only what is left |
 | Use | A "Cagnotte" line at checkout, up to 50 % of the products, from a $1 balance; never paid out in cash |
 | Expiry | 12 months after the credit |
 | Scope | Online customer orders only, not resellers' in-store sales |

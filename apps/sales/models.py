@@ -43,6 +43,8 @@ class Sale(models.Model):
     refunded_amount = models.DecimalField(
         max_digits=DIGITS, decimal_places=PLACES, default=Decimal(0)
     )
+    # units of an order-linked sale given back through a line return of the order
+    returned_quantity = models.PositiveIntegerField(default=0)
     payment_method = models.CharField(max_length=16, choices=PAYMENT_CHOICES)
     status = models.CharField(
         max_length=10, choices=STATUS_CHOICES, default=SaleStatus.VALID.value, db_index=True

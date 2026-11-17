@@ -185,6 +185,7 @@ Cancellations and returns put the stock back. A client can hold at most `ORDERS.
 | `POST /api/v1/orders/track/` | Public tracking with the order number plus email or phone |
 | `GET /api/v1/bo/orders/` · `<id>/` | Back-office list (counts per status; resellers see only their assignments) and detail with allowed transitions |
 | `POST /api/v1/bo/orders/<id>/assign/` · `decline/` · `transition/` | Dispatch and status changes |
+| `POST /api/v1/bo/orders/<id>/items/<item_id>/return/` | Staff take back some units of a delivered line (`OrderLineReturned`: stock, sale, commission and cashback follow in the same transaction) |
 | `GET /api/v1/bo/resellers/assignable/` | Resellers with availability and current workload |
 
 **Shipping zones**

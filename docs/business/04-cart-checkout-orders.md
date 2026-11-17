@@ -174,6 +174,25 @@ cost the client:
 - Coupon and cashback are the **non-real money** of an order (Cagnotte will join them); sale and deal
   prices are real money. The order details show the three fields on each line.
 
+### Returning part of an order
+
+Staff (`orders.status.any`) can take back **some units of one line** of a **delivered** order:
+`POST /bo/orders/{id}/items/{item_id}/return/` with `quantity` and an optional `reason`, and an
+`Idempotency-Key` header. Refused when the order is not delivered (`line_not_returnable`) or the
+quantity is more than what is left on the line (`invalid_return_quantity`, with `remaining`).
+
+- The return keeps its share of the line amounts: real money owed back (`amount_paid`), coupon and
+  cashback. A partial return takes its proportion rounded down; the last units take what is left,
+  so the returns of a line add up exactly to it.
+- The units go back to stock (reason `return`).
+- The sale made from that line is refunded for those units and the reseller's commission shrinks in
+  proportion (§5); the client's cashback follows (§12). All of this is one transaction: if any part
+  fails, nothing is recorded.
+- When every unit of every line has come back, the order becomes **returned** by itself.
+- Returning the whole order afterwards (status `returned`) restocks only the units still out, and
+  marks every unit as returned.
+- Order details show `returned_quantity` and `returned_amount` (real money owed back) on each line.
+
 ## Customer views
 
 - `/me/orders/` (own orders), `/me/orders/{number}/` detail, cancel while pending.

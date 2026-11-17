@@ -33,6 +33,9 @@ class SaleRepository:
         sales = Sale.objects.select_for_update() if for_update else Sale.objects
         return list(sales.filter(order_id=order_id))
 
+    def for_item(self, order_item_id: int) -> Sale | None:
+        return Sale.objects.select_for_update().filter(order_item_id=order_item_id).first()
+
     def add_refund(self, sale: Sale, **fields: Any) -> Refund:
         return Refund.objects.create(sale=sale, **fields)
 

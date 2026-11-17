@@ -174,3 +174,61 @@ class TestOrderReturns:
 
         assert response.status_code == 422
         assert response.json()["code"] == "return_through_order"
+
+
+class TestLineReturns:
+    def give_back(self, api, order, quantity, key):
+        item = order.items.get()
+        return api.post(
+            f"{BO_ORDERS}{order.pk}/items/{item.pk}/return/",
+            {"quantity": quantity},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY=key,
+        )
+
+    def test_the_sale_and_commission_follow_each_returned_unit(
+        self, as_user, manager, phone, confirmed
+    ):
+        api = as_user(manager)
+        convert(api, confirmed)
+        sold = Product.objects.get(pk=phone.pk).sales_count
+
+        first = self.give_back(api, confirmed, 1, "line-return-000001")
+        sale = Sale.objects.get()
+        commission = sum(entry.amount for entry in CommissionEntry.objects.all())
+
+        assert first.status_code == 200
+        assert (sale.status, sale.refunded_amount, sale.returned_quantity) == (
+            "refunded",
+            Decimal("120.00"),
+            1,
+        )
+        assert commission == Decimal("12.00")
+        assert Product.objects.get(pk=phone.pk).sales_count == sold - 1
+
+        last = self.give_back(api, confirmed, 1, "line-return-000002")
+        sale.refresh_from_db()
+
+        assert last.json()["status"] == "returned"
+        assert (sale.status, sale.refunded_amount, sale.returned_quantity) == (
+            "returned",
+            Decimal("240.00"),
+            2,
+        )
+        assert sum(entry.amount for entry in CommissionEntry.objects.all()) == Decimal("0.00")
+        assert Product.objects.get(pk=phone.pk).sales_count == sold - 2
+
+    def test_returning_the_order_after_a_line_counts_each_unit_once(
+        self, as_user, manager, phone, confirmed
+    ):
+        api = as_user(manager)
+        convert(api, confirmed)
+        sold = Product.objects.get(pk=phone.pk).sales_count
+        self.give_back(api, confirmed, 1, "line-return-000003")
+
+        api.post(f"{BO_ORDERS}{confirmed.pk}/transition/", {"to": "returned"})
+
+        sale = Sale.objects.get()
+        assert (sale.status, sale.refunded_amount) == ("returned", Decimal("240.00"))
+        assert Product.objects.get(pk=phone.pk).sales_count == sold - 2
+        assert sum(entry.amount for entry in CommissionEntry.objects.all()) == Decimal("0.00")

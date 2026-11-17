@@ -123,6 +123,11 @@ class DeclineInput(serializers.Serializer[Any]):
     reason = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
 
 
+class ReturnLineInput(serializers.Serializer[Any]):
+    quantity = serializers.IntegerField(min_value=1)
+    reason = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
+
+
 class TransitionInput(serializers.Serializer[Any]):
     to = serializers.ChoiceField(choices=TRANSITION_TARGETS)
     note = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
@@ -230,6 +235,9 @@ class OrderLineOutput(serializers.Serializer[Any]):
     discount = serializers.DecimalField(max_digits=10, decimal_places=2)
     cashback = serializers.DecimalField(max_digits=10, decimal_places=2)
     amount_paid = serializers.DecimalField(max_digits=10, decimal_places=2)
+    # units given back after delivery and the real money owed back for them
+    returned_quantity = serializers.IntegerField()
+    returned_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 
 class StatusEntryOutput(serializers.Serializer[Any]):

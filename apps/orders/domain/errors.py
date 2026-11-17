@@ -124,3 +124,16 @@ class CouponNotFound(NotFound):
 class CouponCodeTaken(Conflict):
     default_code = "coupon_code_taken"
     default_detail = "Un code promo utilise déjà ce code."
+
+
+class LineNotReturnable(BusinessRuleViolation):
+    default_code = "line_not_returnable"
+    default_detail = "Seuls les articles d'une commande livrée peuvent être retournés."
+
+
+class InvalidReturnQuantity(ValidationFailed):
+    default_code = "invalid_return_quantity"
+    default_detail = "Quantité à retourner invalide."
+
+    def __init__(self, remaining: int) -> None:
+        super().__init__(errors={"quantity": [self.default_detail]}, meta={"remaining": remaining})

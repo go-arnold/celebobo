@@ -42,3 +42,14 @@ class OrderRepriced(DomainEvent):
     previous_price: Decimal
     price: Decimal
     total: Decimal
+
+
+@domain_event
+class OrderLineReturned(DomainEvent):
+    order_id: int
+    item_id: int
+    quantity: int
+    # the returned units' share of the line amounts: real money, coupon, cashback
+    amount_paid: Decimal
+    discount: Decimal
+    cashback: Decimal

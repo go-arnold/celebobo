@@ -65,6 +65,8 @@ class OrderLineView:
     discount: Decimal
     cashback: Decimal
     amount_paid: Decimal
+    returned_quantity: int = 0
+    returned_amount: Decimal = Decimal(0)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

@@ -137,3 +137,26 @@ def line_amounts(
         LineAmounts(discount=coupon, cashback=credit, paid=rest - credit)
         for coupon, credit, rest in zip(discounts, cashbacks, after_coupon, strict=True)
     ]
+
+
+def returned_amounts(
+    line: LineAmounts, *, quantity: int, returned: int, returning: int, already: LineAmounts
+) -> LineAmounts:
+    """The share of a line's amounts that goes with ``returning`` of its ``quantity`` units.
+
+    Each partial return takes its proportion rounded down; the return of the last units takes
+    whatever is left, so all the returns of a line add up exactly to its amounts.
+    """
+    if returned + returning >= quantity:
+        return LineAmounts(
+            discount=line.discount - already.discount,
+            cashback=line.cashback - already.cashback,
+            paid=line.paid - already.paid,
+        )
+
+    def part(amount: Decimal) -> Decimal:
+        return (amount * returning / quantity).quantize(CENT, rounding=ROUND_DOWN)
+
+    return LineAmounts(
+        discount=part(line.discount), cashback=part(line.cashback), paid=part(line.paid)
+    )

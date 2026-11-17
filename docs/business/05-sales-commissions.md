@@ -58,7 +58,10 @@ cannot change (delete and re-record instead). A price change recomputes the comm
 - Several partial refunds are possible until the total is reached (`refund_exceeds_total`).
 - A returned sale cannot be refunded again (`already_returned`).
 - A sale that came **from an order** cannot be returned here: return the **order** instead
-  (`return_through_order`), which returns all its sales at once.
+  (`return_through_order`), which returns all its sales at once, or return **some units of the
+  line** on the order (§4): the sale is refunded `unit price × units` (the last units refund
+  whatever is left and mark it `returned`; before that it shows `refunded`), its sales counter and
+  `returned_quantity` follow, and the commission is reversed in proportion.
 - The commission is reversed **in proportion** to the refunded amount.
 
 ## Deleting a sale

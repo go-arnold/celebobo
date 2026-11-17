@@ -99,6 +99,11 @@ urlpatterns = [
         name="bo-order-transition",
     ),
     path(
+        "bo/orders/<id:order_id>/items/<id:item_id>/return/",
+        DispatchViewSet.as_view({"post": "return_line"}),
+        name="bo-order-item-return",
+    ),
+    path(
         "bo/resellers/assignable/",
         DispatchViewSet.as_view({"get": "assignable"}),
         name="bo-resellers-assignable",

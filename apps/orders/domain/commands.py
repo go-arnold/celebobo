@@ -132,3 +132,9 @@ class CouponChanges:
     usage_limit: Maybe[int | None] = UNSET
     per_user_limit: Maybe[int | None] = UNSET
     is_active: Maybe[bool] = UNSET
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ReturnLine:
+    quantity: int
+    reason: str = ""

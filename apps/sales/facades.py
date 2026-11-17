@@ -188,6 +188,21 @@ class SalesFacade:
                 )
             self._commissions(actor, outcome.commissions)
 
+    def order_line_returned(self, order_item_id: int, quantity: int) -> None:
+        actor = Actor.system()
+        with transaction.atomic():
+            outcome, amount = self._sales.order_line_returned(actor, order_item_id, quantity)
+            for sale in outcome.sales:
+                self._publisher.publish(
+                    SaleRefunded(
+                        sale_id=sale.pk,
+                        seller_id=sale.seller_id,
+                        kind=RefundKind.RETURN,
+                        amount=amount,
+                    )
+                )
+            self._commissions(actor, outcome.commissions)
+
     def _locked(self, actor: Actor, sale_id: int) -> Sale:
         sale = scoped_sales(actor).select_for_update().filter(pk=sale_id).first()
         if sale is None:
