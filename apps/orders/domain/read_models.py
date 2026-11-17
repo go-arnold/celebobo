@@ -62,6 +62,9 @@ class OrderLineView:
     quantity: int
     unit_price: Decimal
     total: Decimal
+    discount: Decimal
+    cashback: Decimal
+    amount_paid: Decimal
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

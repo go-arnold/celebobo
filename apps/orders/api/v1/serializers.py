@@ -226,6 +226,10 @@ class OrderLineOutput(serializers.Serializer[Any]):
     quantity = serializers.IntegerField()
     unit_price = serializers.DecimalField(max_digits=10, decimal_places=2)
     total = serializers.DecimalField(max_digits=10, decimal_places=2)
+    # the line's share of the order's coupon and cashback, and the real money paid for it
+    discount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    cashback = serializers.DecimalField(max_digits=10, decimal_places=2)
+    amount_paid = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 
 class StatusEntryOutput(serializers.Serializer[Any]):

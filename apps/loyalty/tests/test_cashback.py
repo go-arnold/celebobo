@@ -197,6 +197,8 @@ class TestSpending:
 
         saved = Order.objects.get(pk=order["id"])
         assert (saved.cashback, saved.total) == (Decimal("50.00"), Decimal("50.00"))
+        line = saved.items.get()
+        assert (line.cashback, line.amount_paid) == (Decimal("50.00"), Decimal("50.00"))
         later.refresh_from_db()
         sooner.refresh_from_db()
         assert (sooner.remaining, later.remaining) == (Decimal("0.00"), Decimal("20.00"))

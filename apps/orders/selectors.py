@@ -258,7 +258,10 @@ def _line(item: OrderItem) -> OrderLineView:
         sku=item.sku,
         quantity=item.quantity,
         unit_price=item.unit_price,
-        total=item.unit_price * item.quantity,
+        total=item.total,
+        discount=item.discount,
+        cashback=item.cashback,
+        amount_paid=item.amount_paid,
     )
 
 
