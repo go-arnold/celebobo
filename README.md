@@ -37,7 +37,7 @@ uv run pytest --cov
 |---|---|
 | `core.registry.Registry[T]` | Named factories for interchangeable implementations, selected from settings |
 | `core.container` | `Container` (singleton/transient providers, `override()` for tests) and the `Inject` descriptor |
-| `core.events` | `DomainEvent`, `@domain_event`, `EventBus` (observer, published after commit, inline or Celery handlers, deduplicated) |
+| `core.events` | `DomainEvent`, `@domain_event`, `EventBus` (observer, deduplicated). Handlers run after commit, inline or on Celery. Handlers marked `transactional=True` run at publish time, inside the publisher's transaction, and a failure rolls the whole change back; money records (cashback, sales returns) use this mode |
 | `core.observability` | `@use_case` / `@logged_facade`, the structlog setup, request-id middleware, `Metrics` backends, Celery context propagation |
 | `core.authz` | `PermissionCatalog`: role grants inherited by higher roles, plus object rules (django-rules predicates) |
 | `core.api` | `UseCaseViewSet`, `SelectorViewSet`, `requires()`, `paginated()`, `@idempotent()`, problem+json errors, versioned routing |
@@ -293,7 +293,7 @@ Back-office sales, order-to-sale conversion, refunds and returns, reseller commi
 
 **Refunds and returns**
 - `refund` is a partial or full amount and leaves the stock alone. `return` refunds what's left and restocks.
-- Sales that came from an order are returned through the order (`returned` status). An inline handler then marks its sales returned, without restocking a second time.
+- Sales that came from an order are returned through the order (`returned` status). A transactional handler then marks its sales returned in the same transaction, without restocking a second time. If it fails, the order stays delivered.
 
 **Commissions**
 - A sale by a reseller earns `total × rate` at the reseller's current rate, and the rate is frozen in the ledger entry.
@@ -547,7 +547,7 @@ Membership, cashback and mobile app links ([rules](docs/business/12-loyalty.md))
   - An hourly task reminds members `membership_reminder_days` before the end; every step notifies through messaging.
 - **Cashback**: `CashbackEntry` is a ledger per client. Credits (`earn`, `refund`) keep their `remaining` amount and expiry; debits (`spend`, `reversal`, `expiry`) are negative lines, one of each kind per order at most.
   - Orders reach it through the `Wallet` port: the quote asks what is `usable` (eligibility, `$1` minimum, `50 %` cap), checkout `spend`s it inside the order transaction (oldest expiry first, rows locked), order details show `cashback_earned`.
-  - `OrderStatusChanged` to `delivered` earns `cashback_percent` of what the products cost after discounts and cashback, available after `return_days`; `cancelled` or `returned` refunds what was spent and reverses what was earned.
+  - `OrderStatusChanged` to `delivered` earns `cashback_percent` of what the products cost after discounts and cashback, available after `return_days`; `cancelled` or `returned` refunds what was spent and reverses what was earned. This happens in the order's transaction: if it fails, the status change is rolled back.
   - `GET /me/cashback/` returns the balance; a daily task expires old credits.
 
 ### `apps.push`

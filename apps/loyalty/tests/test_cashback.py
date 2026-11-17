@@ -1,12 +1,14 @@
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import Mock
 
 import pytest
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.accounts.tests.factories import UserFactory
+from apps.accounts.tests.factories import ManagerFactory, UserFactory
 from apps.catalog.tests.factories import ProductFactory
+from apps.loyalty.facades import CashbackFacade
 from apps.loyalty.handlers import settle_cashback
 from apps.loyalty.models import CashbackEntry, LoyaltySettings, Membership
 from apps.orders.domain.enums import OrderStatus
@@ -222,6 +224,21 @@ class TestSpending:
         credit(member, "60.00")
 
         assert self.quote(member, product, use_cashback=True)["cashback"] == "0.00"
+
+
+class TestConsistency:
+    def test_failing_cashback_keeps_the_order_unchanged(
+        self, programme, member, product, monkeypatch
+    ):
+        order = place(member, product)
+        monkeypatch.setattr(CashbackFacade, "undone", Mock(side_effect=RuntimeError("boom")))
+
+        with pytest.raises(RuntimeError):
+            as_api(ManagerFactory.create()).post(
+                f"/api/v1/bo/orders/{order['id']}/transition/", {"to": "cancelled"}
+            )
+
+        assert Order.objects.get(pk=order["id"]).status == "pending"
 
 
 def test_unused_cashback_expires(programme, member):

@@ -1,10 +1,12 @@
 from decimal import Decimal
+from unittest.mock import Mock
 
 import pytest
 
 from apps.catalog.models import Product
 from apps.orders.models import Order
 from apps.sales.domain.events import OrderConverted
+from apps.sales.facades import SalesFacade
 from apps.sales.models import CommissionEntry, Sale
 
 pytestmark = pytest.mark.django_db
@@ -145,6 +147,20 @@ class TestOrderReturns:
         assert sum(entry.amount for entry in CommissionEntry.objects.all()) == Decimal("0.00")
         stats = api.get(SALES).json()["meta"]["stats"]
         assert stats["revenue"] == "0.00"
+
+    def test_failing_sales_return_keeps_the_order_delivered(
+        self, as_user, manager, confirmed, monkeypatch
+    ):
+        api = as_user(manager)
+        convert(api, confirmed)
+        monkeypatch.setattr(SalesFacade, "order_returned", Mock(side_effect=RuntimeError("boom")))
+
+        with pytest.raises(RuntimeError):
+            api.post(f"{BO_ORDERS}{confirmed.pk}/transition/", {"to": "returned"})
+
+        confirmed.refresh_from_db()
+        assert confirmed.status == "delivered"
+        assert Sale.objects.get().status != "returned"
 
     def test_order_linked_sales_cannot_be_returned_directly(self, as_user, manager, confirmed):
         (sale,) = convert(as_user(manager), confirmed).json()
