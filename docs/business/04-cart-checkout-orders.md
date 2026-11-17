@@ -62,6 +62,11 @@ limit, free-shipping flag, active flag. A coupon is refused when:
 A percent discount is rounded to the cent and capped by the maximum discount. The coupon is
 **redeemed** (counted) when the order is placed.
 
+**Guessing codes is limited** to 20 attempts per hour per account (or per IP for visitors): every
+"apply coupon" on the cart counts, and so does every quote whose code is **refused**. A quote with
+a valid code is never counted, so checkout can re-quote freely. Past the limit, the cart and quotes
+carrying a code answer `429`; quotes without a code still work.
+
 ## Placing an order
 
 `POST /orders/` — **logged-in users only** (`orders.place`). Requires an `Idempotency-Key` header:
