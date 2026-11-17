@@ -587,7 +587,7 @@ Browser push notifications (Web Push with VAPID), the third notification channel
   - images also from Cloudinary.
   - The Swagger and ReDoc pages are excluded because they load assets from a CDN.
 - Production already sets HSTS, secure cookies, `nosniff`, `DENY` framing and a strict referrer policy.
-- Scoped throttles cover authentication (`auth`, `dj_rest_auth`), referral checks, tracking, uploads, the assistant, contact, the newsletter, reseller applications and coupon attempts (`coupons`, 20/hour).
+- Scoped throttles cover authentication (`auth`, `dj_rest_auth`), referral checks, tracking, uploads, the assistant, contact, the newsletter, reseller applications and coupon attempts (`coupons`, 20/hour). Checkout quotes count only refused codes against that same budget (`FailureRateThrottle`), so valid codes can be re-quoted freely.
 - The Next server renders public pages from one IP: requests carrying `X-SSR-Token` equal to `SSR_SHARED_SECRET` skip the anonymous and scoped limits. `PROXY_COUNT` (nginx = 1) makes the limits use the real client IP.
 
 **Media**

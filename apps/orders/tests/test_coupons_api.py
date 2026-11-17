@@ -5,8 +5,10 @@ import pytest
 from django.utils import timezone
 
 from apps.accounts.tests.factories import UserFactory
+from apps.orders.api.v1.views import CartViewSet
 from apps.orders.models import Coupon, CouponRedemption, Order
 from apps.orders.tests.conftest import ADDRESS
+from core.api.throttling import SsrAwareScopedRateThrottle
 
 pytestmark = pytest.mark.django_db
 
@@ -208,3 +210,41 @@ class TestBackoffice:
 
     def test_only_staff_manage_coupons(self, as_user, shopper):
         assert as_user(shopper).get(COUPONS).status_code == 403
+
+
+class TestQuoteCouponLimit:
+    QUOTE = "/api/v1/checkout/quote/"
+
+    def quote(self, api, product, code=None):
+        payload = {"lines": [{"product_id": product.pk, "quantity": 1}]}
+        if code:
+            payload["coupon_code"] = code
+        return api.post(self.QUOTE, payload, format="json")
+
+    def test_rejected_codes_are_limited_to_20_per_hour(self, api, phone):
+        statuses = [self.quote(api, phone, f"GUESS{n}").status_code for n in range(20)]
+
+        blocked = self.quote(api, phone, "GUESS20")
+
+        assert statuses == [200] * 20
+        assert blocked.status_code == 429
+        assert self.quote(api, phone).status_code == 200
+
+    def test_a_valid_code_can_be_quoted_again_and_again(self, api, phone):
+        coupon()
+
+        bodies = [self.quote(api, phone, "BIENVENUE10").json() for _ in range(25)]
+
+        assert {body["coupon_code"] for body in bodies} == {"BIENVENUE10"}
+
+    def test_quotes_and_the_cart_share_one_budget(self, as_user, shopper, phone, monkeypatch):
+        # the test settings turn DRF throttles off; the cart's scoped throttle is put back here
+        monkeypatch.setattr(CartViewSet, "throttle_classes", [SsrAwareScopedRateThrottle])
+        api = as_user(shopper)
+        fill_cart(api, phone)
+        api.post(CART_COUPON, {"code": "NOPE"}, format="json")
+        for n in range(19):
+            self.quote(api, phone, f"GUESS{n}")
+
+        assert self.quote(api, phone, "GUESS19").status_code == 429
+        assert api.post(CART_COUPON, {"code": "NOPE"}, format="json").status_code == 429

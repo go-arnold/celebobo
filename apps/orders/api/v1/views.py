@@ -52,11 +52,13 @@ from apps.orders.permissions import (
 )
 from core.api.idempotency import idempotent
 from core.api.pagination import page_of, page_request, page_response
+from core.api.throttling import FailureRateThrottle
 from core.api.views import UseCaseViewSet
 from core.container import Inject
 from core.domain.errors import ValidationFailed
 
 CART_HEADER = "X-Cart-Token"
+COUPON_SCOPE = "coupons"
 CART_PARAMETER = OpenApiParameter(CART_HEADER, str, OpenApiParameter.HEADER, required=False)
 
 
@@ -65,7 +67,8 @@ class CartViewSet(UseCaseViewSet):
     carts = Inject(CartFacade)
 
     def get_throttles(self) -> list[BaseThrottle]:
-        self.throttle_scope = "coupons" if getattr(self, "action", None) == "apply_coupon" else ""
+        applying = getattr(self, "action", None) == "apply_coupon"
+        self.throttle_scope = COUPON_SCOPE if applying else ""
         return list(super().get_throttles())
 
     @extend_schema(parameters=[CART_PARAMETER, CartContextInput], responses=CartOutput)
@@ -129,13 +132,20 @@ class QuoteViewSet(UseCaseViewSet):
     @extend_schema(request=QuoteRequestInput, responses=QuoteOutput)
     def create(self, request: Request) -> Response:
         data = self.validated(QuoteRequestInput)
+        coupon_code = data.get("coupon_code") or None
+        # rejected codes share the cart's "coupons" budget, so quotes cannot be used to guess codes
+        guesses = FailureRateThrottle(COUPON_SCOPE)
+        if coupon_code:
+            guesses.check(request)
         quote = self.checkout.quote(
             self.actor,
             data["lines"],
             city=data.get("city") or None,
-            coupon_code=data.get("coupon_code") or None,
+            coupon_code=coupon_code,
             use_cashback=data.get("use_cashback", False),
         )
+        if quote.coupon_error:
+            guesses.record(request)
         return self.respond(QuoteOutput, quote)
 
 
