@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
 from apps.orders.domain.commands import AssignOrder, CancelOrder, DeclineAssignment, TransitionOrder
-from apps.orders.domain.enums import OrderStatus
+from apps.orders.domain.enums import CancelReason, OrderStatus
 from apps.orders.domain.errors import AssignmentClosed, NotAssignedToYou, ResellerNotFound
 from apps.orders.domain.state_machine import OrderState, OrderStateMachine
 from apps.orders.models import Order
@@ -57,9 +57,19 @@ class OrderLifecycleService:
         return self._move(order, actor, command.to, note=command.note or command.reason)
 
     def cancel(self, order: Order, actor: Actor, command: CancelOrder) -> StatusChange:
+        return self._cancel(order, actor, command.reason, " ".join(command.details.split()))
+
+    # nobody took the order in charge in time: the system cancels it and releases its stock
+    def expire(self, order: Order, actor: Actor, *, hours: int) -> StatusChange:
+        details = f"Aucun revendeur assigné sous {hours} h"
+        return self._cancel(order, actor, CancelReason.EXPIRED, details)
+
+    def _cancel(
+        self, order: Order, actor: Actor, reason: CancelReason, details: str
+    ) -> StatusChange:
         self._machine.ensure(state_of(order), OrderStatus.CANCELLED, actor)
-        order.cancel_reason = command.reason.value
-        order.cancel_details = " ".join(command.details.split())[:500]
+        order.cancel_reason = reason.value
+        order.cancel_details = details[:500]
         self._orders.save(order, fields=("cancel_reason", "cancel_details"))
         return self._move(order, actor, OrderStatus.CANCELLED, note=order.cancel_details)
 

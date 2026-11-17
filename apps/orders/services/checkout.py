@@ -1,7 +1,7 @@
 from apps.catalog.domain.queries import StockSource
 from apps.orders.domain.commands import DeliveryAddress, PlaceOrder
 from apps.orders.domain.enums import OrderStatus
-from apps.orders.domain.errors import AddressRequired
+from apps.orders.domain.errors import AddressRequired, TooManyPendingOrders
 from apps.orders.models import Order
 from apps.orders.repositories import OrderRepository
 from apps.orders.services.contracts import AddressBook, Inventory, Wallet
@@ -22,7 +22,9 @@ class CheckoutService:
         coupons: CouponService,
         *,
         wallet: Wallet,
+        max_pending: int,
     ) -> None:
+        self._max_pending = max_pending
         self._orders = orders
         self._pricing = pricing
         self._inventory = inventory
@@ -31,6 +33,9 @@ class CheckoutService:
         self._wallet = wallet
 
     def place(self, client_id: int, command: PlaceOrder) -> Order:
+        self._orders.lock_client(client_id)
+        if self._orders.pending_count(client_id) >= self._max_pending:
+            raise TooManyPendingOrders(self._max_pending)
         address = self._address(client_id, command)
         priced_quote = self._pricing.price(
             command.lines,

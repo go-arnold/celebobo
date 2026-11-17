@@ -1,9 +1,12 @@
 from collections.abc import Iterable
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
+from django.db.models import F, OuterRef, QuerySet, Subquery
+from django.db.models.functions import Coalesce
 
 from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.numbers import new_order_number
@@ -18,6 +21,7 @@ from apps.orders.models import (
     ShippingZone,
 )
 
+CLIENT_LOCK = 7301  # advisory lock namespace for checkouts
 NUMBER_ATTEMPTS = 5
 
 
@@ -99,6 +103,20 @@ class OrderRepository:
     def items(self, order: Order) -> list[OrderItem]:
         return list(order.items.all())
 
+    # serialises a client's checkouts until the transaction ends, so the pending cap holds
+    def lock_client(self, client_id: int) -> None:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(%s, %s)", [CLIENT_LOCK, client_id])
+
+    def pending_count(self, client_id: int) -> int:
+        return Order.objects.filter(client_id=client_id, status=OrderStatus.PENDING.value).count()
+
+    def stale_pending(self, cutoff: datetime) -> list[int]:
+        return list(_pending_since(cutoff).order_by("pk").values_list("pk", flat=True))
+
+    def stale(self, order_id: int, cutoff: datetime) -> Order | None:
+        return _pending_since(cutoff).select_for_update(of=("self",)).filter(pk=order_id).first()
+
     def save(self, order: Order, *, fields: Iterable[str]) -> None:
         order.save(update_fields=[*fields, "updated_at"])
 
@@ -146,3 +164,17 @@ class CouponRepository:
 
     def redeem(self, coupon: Coupon, order: Order, *, user_id: int, amount: Decimal) -> None:
         CouponRedemption.objects.create(coupon=coupon, order=order, user_id=user_id, amount=amount)
+
+
+# a pending order counts from the last time it became pending (placed, or declined by a reseller)
+def _pending_since(cutoff: datetime) -> QuerySet[Order]:
+    entered = (
+        OrderStatusEvent.objects.filter(order=OuterRef("pk"), to_status=OrderStatus.PENDING.value)
+        .order_by("-created_at", "-pk")
+        .values("created_at")[:1]
+    )
+    return (
+        Order.objects.filter(status=OrderStatus.PENDING.value)
+        .annotate(pending_since=Coalesce(Subquery(entered), F("created_at")))
+        .filter(pending_since__lte=cutoff)
+    )

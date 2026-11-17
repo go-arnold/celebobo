@@ -1,9 +1,12 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
+from datetime import datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
+import structlog
 from django.db import transaction
+from django.utils import timezone
 
 from apps.orders.domain.commands import (
     AssignOrder,
@@ -54,6 +57,8 @@ from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
 from core.events.contracts import EventPublisher
 from core.observability.decorators import logged_facade
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -307,6 +312,43 @@ class DispatchFacade:
         if order is None:
             raise OrderNotFound
         return order
+
+
+@logged_facade
+class OrderExpiryFacade:
+    def __init__(
+        self,
+        *,
+        orders: OrderRepository,
+        lifecycle: OrderLifecycleService,
+        publisher: EventPublisher,
+        ttl_hours: int,
+        clock: Callable[[], datetime] = timezone.now,
+    ) -> None:
+        self._orders = orders
+        self._lifecycle = lifecycle
+        self._publisher = publisher
+        self._ttl_hours = ttl_hours
+        self._clock = clock
+
+    # one transaction per order: a failure is logged and the next run retries it
+    def expire_stale(self) -> int:
+        cutoff = self._clock() - timedelta(hours=self._ttl_hours)
+        actor = Actor.system()
+        expired = 0
+        for order_id in self._orders.stale_pending(cutoff):
+            try:
+                with transaction.atomic():
+                    order = self._orders.stale(order_id, cutoff)
+                    if order is None:
+                        continue
+                    change = self._lifecycle.expire(order, actor, hours=self._ttl_hours)
+                    _announce(self._publisher, change, actor)
+            except Exception:
+                logger.exception("orders.expiry_failed", order_id=order_id)
+                continue
+            expired += 1
+        return expired
 
 
 def _announce(publisher: EventPublisher, change: StatusChange, actor: Actor) -> None:

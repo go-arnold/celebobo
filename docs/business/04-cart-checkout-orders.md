@@ -70,6 +70,8 @@ retrying with the same key never creates a second order.
 Input: lines, payment method (`orange_money`, `airtel_money`, `mpesa`, `cash`), an address
 (an address-book id or a full address — `address_required`), optional coupon, optional note.
 
+0. A client can have at most **3 pending orders** at once (`ORDERS_MAX_PENDING_ORDERS`), because
+   each one reserves stock (`too_many_pending_orders`). Assigned or cancelled orders free a place.
 1. Lines are repriced from the catalogue with the stock **locked**; a missing product, variant or
    stock fails the whole order (`product_unavailable`, `variant_required`, `insufficient_stock`).
    Max **30 different lines** (`too_many_lines`), not empty (`empty_order`).
@@ -106,7 +108,7 @@ The order detail returns `allowed_transitions` for the current user — the fron
 
 | Actor | Allowed |
 |---|---|
-| Client (own order) | `pending → cancelled` only, with a reason: changed mind, ordered by mistake, too slow, cheaper elsewhere, other (+ optional details). |
+| Client (own order) | `pending → cancelled` only, with a reason: changed mind, ordered by mistake, too slow, cheaper elsewhere, other (+ optional details). `expired` is reserved for the system. |
 | Reseller (order assigned to them) | **One step forward** only: assigned → confirmed → paid → shipping → delivered. Cannot cancel. |
 | Manager / Admin | Any **forward** status (skipping steps allowed, except `assigned`, which only happens through assignment), **cancel** any non-final order, **return** a delivered order. |
 
@@ -122,6 +124,10 @@ Anything else is refused (`invalid_transition`). Every change is written to the 
 - On assignment the reseller **joins the order thread** and is notified.
 - A reseller can **decline** an order that is still `assigned` to them (with a reason): it goes back
   to **pending**, they leave the thread, and staff are notified.
+- A **pending** order that nobody assigns within **48 hours** (`ORDERS_PENDING_TTL_HOURS`) is
+  cancelled by the system with the reason `expired`; its stock is released and the client is
+  notified like for any cancellation. The delay counts from the last time the order became pending,
+  so a declined order gets a fresh 48 hours. The check runs every hour.
 
 ### What happens automatically on status changes
 

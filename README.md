@@ -172,7 +172,7 @@ Status flow: `pending → assigned → confirmed → paid → shipping → deliv
 - the assigned reseller moves one step forward at a time;
 - managers can make any forward move, cancel, or return a delivered order.
 
-Cancellations and returns put the stock back.
+Cancellations and returns put the stock back. A client can hold at most `ORDERS.max_pending_orders` (3) pending orders, and the hourly `orders.expire_stale` task cancels pending orders left unassigned for `ORDERS.pending_ttl_hours` (48), counted from the last time they became pending.
 
 | Endpoint | Purpose |
 |---|---|

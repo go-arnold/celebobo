@@ -370,6 +370,8 @@ MEDIA = {
 ORDERS = {
     "FREE_SHIPPING_THRESHOLD": env.str("ORDERS_FREE_SHIPPING_THRESHOLD", default="199.00"),
     "FLAT_SHIPPING_FEE": env.str("ORDERS_FLAT_SHIPPING_FEE", default="2.98"),
+    "PENDING_TTL_HOURS": env.int("ORDERS_PENDING_TTL_HOURS", default=48),
+    "MAX_PENDING_ORDERS": env.int("ORDERS_MAX_PENDING_ORDERS", default=3),
 }
 CELERY_BROKER_URL = env.str("REDIS_BROKER_URL", default="redis://localhost:6379/1")
 CELERY_BROKER_CONNECTION_TIMEOUT = REDIS_TIMEOUT
@@ -397,6 +399,10 @@ CELERY_BEAT_SCHEDULE = {
     "announce-deals": {
         "task": "catalog.announce_deals",
         "schedule": 60,
+    },
+    "expire-stale-orders": {
+        "task": "orders.expire_stale",
+        "schedule": 60 * 60,
     },
     "expire-cashback": {
         "task": "loyalty.expire_cashback",
