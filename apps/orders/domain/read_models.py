@@ -120,6 +120,14 @@ class OrderSummary:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class AttemptView:
+    at: datetime
+    reason: str
+    reason_label: str
+    note: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class RatingView:
     score: int
     comment: str
@@ -167,6 +175,7 @@ class OrderDetail:
     delivery_code_locked: bool = False
     rating: RatingView | None = None
     can_rate: bool = False
+    delivery_attempts: tuple[AttemptView, ...] = ()
     cashback: Decimal = Decimal("0.00")
     cashback_earned: Decimal | None = None
     history: tuple[StatusEntry, ...]

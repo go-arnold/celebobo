@@ -160,6 +160,7 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 400 | `delivery_code_required` | Saisissez le code de livraison que le client vous donne à la remise. |
 | 422 | `invalid_delivery_code` | Code de livraison incorrect. (`meta.attempts_left`) |
 | 422 | `delivery_code_locked` | Trop de codes incorrects : le code de livraison est bloqué. Un responsable doit confirmer la livraison. |
+| 422 | `attempt_not_allowed` | Une tentative de livraison ne s'enregistre que pour une commande en livraison. |
 | 422 | `order_not_ratable` | Vous pourrez noter le revendeur une fois votre commande livrée. |
 | 409 | `already_rated` | Vous avez déjà noté le revendeur pour cette commande. |
 | 400 | `delivery_reason_required` | Sans le code du client, indiquez pourquoi vous confirmez la livraison. |

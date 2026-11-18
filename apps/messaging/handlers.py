@@ -20,6 +20,7 @@ from apps.messaging.services.contracts import Directory
 from apps.messaging.services.conversations import ConversationService
 from apps.orders.domain.events import (
     AssignmentDeclined,
+    DeliveryAttemptFailed,
     DeliveryCodeIssued,
     DeliveryCodeLocked,
     OrderAssigned,
@@ -75,6 +76,11 @@ def notify_assignment_declined(event: AssignmentDeclined) -> None:
 @event_bus.on(DeliveryCodeIssued, background=True)
 def notify_delivery_code(event: DeliveryCodeIssued) -> None:
     container.resolve(NotificationRouter).delivery_code_issued(event)
+
+
+@event_bus.on(DeliveryAttemptFailed, background=True)
+def notify_delivery_attempt(event: DeliveryAttemptFailed) -> None:
+    container.resolve(NotificationRouter).delivery_attempt(event)
 
 
 @event_bus.on(ResellerRated, background=True)

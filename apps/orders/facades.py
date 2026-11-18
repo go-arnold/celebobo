@@ -18,6 +18,7 @@ from apps.orders.domain.commands import (
     OrderLineInput,
     PlaceOrder,
     RateReseller,
+    RecordAttempt,
     RecordRefund,
     ReturnLine,
     TrackOrder,
@@ -25,11 +26,12 @@ from apps.orders.domain.commands import (
     ZoneChanges,
     ZoneFields,
 )
-from apps.orders.domain.enums import OrderStatus
+from apps.orders.domain.enums import CancelReason, OrderStatus
 from apps.orders.domain.errors import OrderNotFound
 from apps.orders.domain.events import (
     AssignmentDeclined,
     DeliveredWithoutCode,
+    DeliveryAttemptFailed,
     DeliveryCodeIssued,
     DeliveryCodeLocked,
     OrderAssigned,
@@ -59,6 +61,7 @@ from apps.orders.models import Order
 from apps.orders.repositories import CartRepository, OrderRepository
 from apps.orders.selectors import OrderSelector, PromotionSelector, scoped_orders
 from apps.orders.services.adjustments import AdjustmentService
+from apps.orders.services.attempts import DeliveryAttemptService
 from apps.orders.services.cart import CartOwner, CartService
 from apps.orders.services.checkout import CheckoutService
 from apps.orders.services.contracts import OrderThreads, ResellerDirectory, Wallet
@@ -275,8 +278,10 @@ class DispatchFacade:
         wallet: Wallet,
         returns: LineReturnService,
         refunds: RefundService,
+        attempts: DeliveryAttemptService,
         publisher: EventPublisher,
     ) -> None:
+        self._attempts = attempts
         self._refunds = refunds
         self._orders = orders
         self._lifecycle = lifecycle
@@ -362,6 +367,23 @@ class DispatchFacade:
                     )
         if refused is not None:
             raise refused
+        return self.detail(actor, order_id)
+
+    # the reseller could not deliver: on the second working day of failures the order is cancelled
+    def record_attempt(self, actor: Actor, order_id: int, command: RecordAttempt) -> OrderDetail:
+        with transaction.atomic():
+            order = self._locked(actor, order_id)
+            outcome = self._attempts.record(order, actor, command)
+            self._publisher.publish(
+                DeliveryAttemptFailed(
+                    order_id=order.pk,
+                    reason=command.reason.value,
+                    days=outcome.days,
+                    actor_id=actor.user_id,
+                )
+            )
+            if outcome.cancellation is not None:
+                _announce(self._publisher, outcome.cancellation, Actor.system())
         return self.detail(actor, order_id)
 
     # a paid order was cancelled: staff record that the money went back to the client
@@ -474,7 +496,10 @@ def _announce(publisher: EventPublisher, change: StatusChange, actor: Actor) -> 
     if change.status is OrderStatus.CANCELLED and change.order.refund_due > 0:
         publisher.publish(
             RefundDue(
-                order_id=change.order.pk, amount=change.order.refund_due, actor_id=actor.user_id
+                order_id=change.order.pk,
+                amount=change.order.refund_due,
+                delivery_failed=change.order.cancel_reason == CancelReason.DELIVERY_FAILED,
+                actor_id=actor.user_id,
             )
         )
 

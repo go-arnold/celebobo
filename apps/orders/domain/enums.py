@@ -88,3 +88,30 @@ class CancelReason(StrEnum):
     OTHER = "other"
     # set by the system, never chosen by the client
     EXPIRED = "expired"
+    DELIVERY_FAILED = "delivery_failed"
+
+
+# reasons the client may give; the others are set by the system
+CLIENT_CANCEL_REASONS = tuple(
+    item
+    for item in CancelReason
+    if item not in (CancelReason.EXPIRED, CancelReason.DELIVERY_FAILED)
+)
+
+
+class AttemptReason(StrEnum):
+    CLIENT_ABSENT = "client_absent"
+    UNREACHABLE = "unreachable"
+    WRONG_ADDRESS = "wrong_address"
+    REFUSED = "refused"
+    OTHER = "other"
+
+    @property
+    def label(self) -> str:
+        return {
+            "client_absent": "Client absent",
+            "unreachable": "Client injoignable",
+            "wrong_address": "Adresse introuvable ou erronée",
+            "refused": "Colis refusé",
+            "other": "Autre",
+        }[self.value]

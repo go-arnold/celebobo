@@ -5,12 +5,19 @@ from django.conf import settings
 from django.db import models
 from django.db.models.functions import Lower
 
-from apps.orders.domain.enums import CancelReason, DeliveryMethod, OrderStatus, PaymentMethod
+from apps.orders.domain.enums import (
+    AttemptReason,
+    CancelReason,
+    DeliveryMethod,
+    OrderStatus,
+    PaymentMethod,
+)
 from apps.orders.domain.pricing import CouponKind, ZonePricing
 
 STATUS_CHOICES = [(item.value, item.label) for item in OrderStatus]
 DELIVERY_CHOICES = [(item.value, item.label) for item in DeliveryMethod]
 ZONE_PRICING_CHOICES = [(item.value, item.label) for item in ZonePricing]
+ATTEMPT_REASON_CHOICES = [(item.value, item.label) for item in AttemptReason]
 PAYMENT_CHOICES = [(item.value, item.label) for item in PaymentMethod]
 CANCEL_CHOICES = [(item.value, item.value) for item in CancelReason]
 MONEY_DIGITS = 10
@@ -400,3 +407,23 @@ class OrderRating(models.Model):
 
     def __str__(self) -> str:
         return f"{self.score}/5 — {self.order_id}"
+
+
+class DeliveryAttempt(models.Model):
+    """A delivery that did not happen: two working days of them cancel the order."""
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="delivery_attempts")
+    reason = models.CharField(max_length=16, choices=ATTEMPT_REASON_CHOICES)
+    note = models.CharField(max_length=300, blank=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField()
+
+    class Meta:
+        verbose_name = "tentative de livraison"
+        verbose_name_plural = "tentatives de livraison"
+        ordering = ("created_at", "pk")
+
+    def __str__(self) -> str:
+        return f"{self.order_id} — {self.reason}"

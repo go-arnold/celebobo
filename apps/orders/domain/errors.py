@@ -205,3 +205,10 @@ class OrderNotRatable(BusinessRuleViolation):
 class AlreadyRated(Conflict):
     default_code = "already_rated"
     default_detail = "Vous avez déjà noté le revendeur pour cette commande."
+
+
+class AttemptNotAllowed(BusinessRuleViolation):
+    default_code = "attempt_not_allowed"
+    default_detail = (
+        "Une tentative de livraison ne s'enregistre que pour une commande en livraison."
+    )

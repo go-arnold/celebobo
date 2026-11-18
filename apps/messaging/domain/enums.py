@@ -49,6 +49,7 @@ class NotificationKind(StrEnum):
     DELIVERY_CODE = "delivery_code"
     DELIVERY_CODE_LOCKED = "delivery_code_locked"
     RESELLER_RATED = "reseller_rated"
+    DELIVERY_ATTEMPT = "delivery_attempt"
     MEMBERSHIP_REQUESTED = "membership_requested"
     MEMBERSHIP_STARTED = "membership_started"
     MEMBERSHIP_REJECTED = "membership_rejected"

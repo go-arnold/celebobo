@@ -27,6 +27,7 @@ from apps.orders.api.v1.serializers import (
     QuoteOutput,
     QuoteRequestInput,
     RateResellerInput,
+    RecordAttemptInput,
     RecordRefundInput,
     ReturnLineInput,
     TrackingOutput,
@@ -40,6 +41,7 @@ from apps.orders.domain.commands import (
     OrderFilters,
     PlaceOrder,
     RateReseller,
+    RecordAttempt,
     RecordRefund,
     ReturnLine,
     TrackOrder,
@@ -235,6 +237,7 @@ class DispatchViewSet(UseCaseViewSet):
         "transition": (ORDERS_STATUS_ADVANCE,),
         "return_line": (ORDERS_STATUS_ANY,),
         "refund": (ORDERS_REFUND,),
+        "record_attempt": (ORDERS_STATUS_ADVANCE,),
         "assignable": (ORDERS_ASSIGN,),
     }
     dispatch_orders = Inject(DispatchFacade)
@@ -286,6 +289,13 @@ class DispatchViewSet(UseCaseViewSet):
         return self.respond(
             OrderDetailOutput,
             self.dispatch_orders.return_line(self.actor, order_id, item_id, command),
+        )
+
+    @extend_schema(request=RecordAttemptInput, responses=OrderDetailOutput)
+    def record_attempt(self, request: Request, order_id: int) -> Response:
+        command = self.parse(RecordAttemptInput, into=RecordAttempt)
+        return self.respond(
+            OrderDetailOutput, self.dispatch_orders.record_attempt(self.actor, order_id, command)
         )
 
     @extend_schema(request=RecordRefundInput, responses=OrderDetailOutput)

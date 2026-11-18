@@ -162,6 +162,23 @@ Anything else is refused (`invalid_transition`). Every change is written to the 
 | → `delivered` | The order thread closes 7 days later (§7). The client may now review the products and rate the reseller. |
 | Any change | Client notified (and the reseller, except for the assignment itself); real-time update for everyone watching. |
 
+### Failed deliveries
+
+The delivery policy: the reseller tries **twice, on two working days**; then the order is cancelled,
+and a paid order is refunded within 5 working days, **delivery fee deducted**.
+
+1. While the order is **out for delivery** (`attempt_not_allowed` otherwise), the reseller in charge
+   (or staff) records each failed attempt (`POST /bo/orders/{id}/delivery-attempts/`): a reason —
+   client absent, unreachable, wrong address, parcel refused, other — and an optional note. The
+   attempts appear on the order (`delivery_attempts`, for the client too) and the client is
+   notified that the reseller will come back another working day.
+2. Working days are **Monday to Saturday**: several attempts on the same day count as one day, and
+   a Sunday does not count.
+3. When failed attempts fall on **2 different working days**, the system cancels the order with the
+   reason `delivery_failed` (never chosen by a client). As for any cancellation the stock is
+   released and spent cashback comes back; a paid order owes `refund_due` = total **minus the
+   delivery fee**, and the staff alert says **5 working days**.
+
 ### Rating the reseller
 
 Once the order is **delivered** (or returned after delivery), its client can rate the reseller who
@@ -193,7 +210,8 @@ Delivery is confirmed by the client, through a code (owner's decision of 16 Nov 
 
 An order cancelled once paid (`paid` or `shipping`, by the client or by staff) owes the client what
 they really paid: `refund_due` = the order total (coupon and cashback were not money; the cashback
-comes back to their balance). The delivery policy gives **72 hours** to refund (art. 63).
+comes back to their balance). The delivery policy gives **72 hours** to refund (art. 63). After
+failed deliveries (above) the delivery fee is deducted and the delay is **5 working days**.
 
 1. Staff and the reseller in charge are notified ("Remboursement à effectuer").
 2. The back-office order list has a **refund pending** filter (`status=refund_pending`, with its

@@ -5,7 +5,13 @@ from rest_framework import serializers
 
 from apps.orders.conf import order_settings
 from apps.orders.domain.commands import DeliveryAddress, OrderLineInput
-from apps.orders.domain.enums import CancelReason, OrderStatus, PaymentMethod
+from apps.orders.domain.enums import (
+    CLIENT_CANCEL_REASONS,
+    AttemptReason,
+    CancelReason,
+    OrderStatus,
+    PaymentMethod,
+)
 from core.api.fields import MAX_INTEGER
 
 PHONE_PATTERN = r"^\+?[\d\s().-]{7,20}$"
@@ -103,13 +109,26 @@ class CartMergeInput(serializers.Serializer[Any]):
 
 
 class CancelInput(serializers.Serializer[Any]):
-    reason = serializers.ChoiceField(
-        choices=[item.value for item in CancelReason if item is not CancelReason.EXPIRED]
-    )
+    reason = serializers.ChoiceField(choices=[item.value for item in CLIENT_CANCEL_REASONS])
     details = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
 
     def validate_reason(self, value: str) -> CancelReason:
         return CancelReason(value)
+
+
+class RecordAttemptInput(serializers.Serializer[Any]):
+    reason = serializers.ChoiceField(choices=[item.value for item in AttemptReason])
+    note = serializers.CharField(max_length=300, required=False, allow_blank=True, default="")
+
+    def validate_reason(self, value: str) -> AttemptReason:
+        return AttemptReason(value)
+
+
+class AttemptOutput(serializers.Serializer[Any]):
+    at = serializers.DateTimeField()
+    reason = serializers.CharField()
+    reason_label = serializers.CharField()
+    note = serializers.CharField()
 
 
 class RateResellerInput(serializers.Serializer[Any]):
@@ -323,6 +342,7 @@ class OrderDetailOutput(serializers.Serializer[Any]):
     delivery_code_locked = serializers.BooleanField()
     rating = RatingOutput(allow_null=True)
     can_rate = serializers.BooleanField()
+    delivery_attempts = AttemptOutput(many=True)
     history = StatusEntryOutput(many=True)
     allowed_transitions = serializers.ListField(child=serializers.CharField())
     client = PersonOutput()
