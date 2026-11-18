@@ -49,10 +49,10 @@ def remove_reseller_from_order_thread(event: AssignmentDeclined) -> None:
 
 
 @event_bus.on(OrderStatusChanged)
-def close_thread_of_finished_order(event: OrderStatusChanged) -> None:
+def wind_down_thread_of_finished_order(event: OrderStatusChanged) -> None:
     if event.status.is_final:
         with transaction.atomic():
-            container.resolve(ConversationService).close_for_order(
+            container.resolve(ConversationService).wind_down_for_order(
                 event.order_id, event.status.label
             )
 

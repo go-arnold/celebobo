@@ -45,6 +45,8 @@ class ConversationView:
     unread_count: int
     created_at: datetime
     last_message_at: datetime | None
+    # the order ended: open until then, closed automatically afterwards
+    closes_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

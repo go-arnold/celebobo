@@ -157,9 +157,9 @@ Anything else is refused (`invalid_transition`). Every change is written to the 
 
 | Change | Effect |
 |---|---|
-| → `cancelled` | Reserved stock is **released** (reason `order`). Cashback spent on it comes back. The order thread is closed. Cancelled after payment (`paid` or `shipping`): a refund is owed (below). |
-| → `returned` | Stock comes back (reason `return`). Sales created from this order are marked **returned** and their commissions reversed (§5). The thread is closed. |
-| → `delivered` | The order thread is closed. The client may now review the products. |
+| → `cancelled` | Reserved stock is **released** (reason `order`). Cashback spent on it comes back. The order thread closes 7 days later (§7). Cancelled after payment (`paid` or `shipping`): a refund is owed (below). |
+| → `returned` | Stock comes back (reason `return`). Sales created from this order are marked **returned** and their commissions reversed (§5). The thread closes 7 days later (§7). |
+| → `delivered` | The order thread closes 7 days later (§7). The client may now review the products and rate the reseller. |
 | Any change | Client notified (and the reseller, except for the assignment itself); real-time update for everyone watching. |
 
 ### Rating the reseller

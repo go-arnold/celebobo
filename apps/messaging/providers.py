@@ -55,6 +55,7 @@ def _conversations(_: Container) -> ConversationService:
         ParticipantRepository(),
         NotificationRepository(),
         clock=timezone.now,
+        grace_days=messaging_settings().order_thread_grace_days,
     )
 
 

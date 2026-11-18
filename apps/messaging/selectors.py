@@ -256,6 +256,7 @@ def _conversation_view(conversation: Conversation, last: Message | None) -> Conv
         unread_count=getattr(conversation, "unread_count", 0),
         created_at=conversation.created_at,
         last_message_at=conversation.last_message_at,
+        closes_at=conversation.closes_at,
     )
 
 
