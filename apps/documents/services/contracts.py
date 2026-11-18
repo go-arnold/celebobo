@@ -77,3 +77,7 @@ class OrderSource(Protocol):
 
 class ReceiptMailer(Protocol):
     def send(self, order: OrderDetail, receipt: DeliveryReceipt, pdf: RenderedFile) -> None: ...
+
+
+class QrCode(Protocol):
+    def data_uri(self, content: str) -> str: ...
