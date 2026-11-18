@@ -19,8 +19,15 @@ def assign(api, order, reseller):
     return api.post(f"{BO}{order.pk}/assign/", {"reseller_id": reseller.pk})
 
 
-def move(api, order, status):
-    return api.post(f"{BO}{order.pk}/transition/", {"to": status})
+def move(api, order, status, **extra):
+    return api.post(f"{BO}{order.pk}/transition/", {"to": status, **extra})
+
+
+def code_of(order):
+    return Order.objects.values_list("delivery_code", flat=True).get(pk=order.pk)
+
+
+HANDED_OVER = {"reason": "Remise vérifiée par téléphone"}
 
 
 class TestBackofficeList:
@@ -129,8 +136,11 @@ class TestTransitions:
         skipped = move(api, order, "delivered")
         statuses = [
             move(api, order, status).json()["status"]
-            for status in ("confirmed", "paid", "shipping", "delivered")
+            for status in ("confirmed", "paid", "shipping")
         ]
+        statuses.append(
+            move(api, order, "delivered", delivery_code=code_of(order)).json()["status"]
+        )
 
         assert skipped.status_code == 422
         assert statuses == ["confirmed", "paid", "shipping", "delivered"]
@@ -149,7 +159,7 @@ class TestTransitions:
     def test_manager_jumps_and_returns_restock(self, as_user, manager, order, phone):
         api = as_user(manager)
 
-        delivered = move(api, order, "delivered").json()
+        delivered = move(api, order, "delivered", **HANDED_OVER).json()
         returned = move(api, order, "returned").json()
 
         assert delivered["allowed_transitions"] == ["returned"]
@@ -158,7 +168,7 @@ class TestTransitions:
         assert phone.stock == 5
 
     def test_delivery_unlocks_reviews(self, as_user, manager, shopper, order, phone):
-        move(as_user(manager), order, "delivered")
+        move(as_user(manager), order, "delivered", **HANDED_OVER)
 
         response = as_user(shopper).post(
             f"/api/v1/products/{phone.slug}/reviews/",

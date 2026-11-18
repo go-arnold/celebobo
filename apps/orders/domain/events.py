@@ -72,3 +72,19 @@ class RefundDue(DomainEvent):
 class OrderRefunded(DomainEvent):
     order_id: int
     amount: Decimal
+
+
+@domain_event
+class DeliveryCodeIssued(DomainEvent):
+    order_id: int
+
+
+@domain_event
+class DeliveryCodeLocked(DomainEvent):
+    order_id: int
+
+
+@domain_event
+class DeliveredWithoutCode(DomainEvent):
+    order_id: int
+    reason: str

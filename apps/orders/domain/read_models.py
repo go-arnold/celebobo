@@ -139,6 +139,10 @@ class OrderDetail:
     refund_due: Decimal = Decimal("0.00")
     refunded_at: datetime | None = None
     refund_note: str = ""
+    # shown to the client only (the back-office output leaves it out)
+    delivery_code: str = ""
+    delivery_code_attempts: int = 0
+    delivery_code_locked: bool = False
     cashback: Decimal = Decimal("0.00")
     cashback_earned: Decimal | None = None
     history: tuple[StatusEntry, ...]

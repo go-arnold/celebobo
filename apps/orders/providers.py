@@ -97,6 +97,7 @@ def _lifecycle(container: Container) -> OrderLifecycleService:
         container.resolve(OrderStateMachine),
         container.resolve(Inventory),
         container.resolve(ResellerDirectory),
+        clock=timezone.now,
     )
 
 

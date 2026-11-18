@@ -156,6 +156,10 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 422 | `shipping_not_quotable` | Les frais de livraison de cette commande ne sont pas à proposer. |
 | 400 | `invalid_shipping_quote` | Indiquez des frais de livraison valides. |
 | 422 | `no_refund_due` | Aucun remboursement n'est attendu pour cette commande. |
+| 400 | `delivery_code_required` | Saisissez le code de livraison que le client vous donne à la remise. |
+| 422 | `invalid_delivery_code` | Code de livraison incorrect. (`meta.attempts_left`) |
+| 422 | `delivery_code_locked` | Trop de codes incorrects : le code de livraison est bloqué. Un responsable doit confirmer la livraison. |
+| 400 | `delivery_reason_required` | Sans le code du client, indiquez pourquoi vous confirmez la livraison. |
 | 422 | `line_not_returnable` | Seuls les articles d'une commande livrée peuvent être retournés. |
 | 400 | `invalid_return_quantity` | Quantité à retourner invalide. |
 | 404 | `order_item_not_found` | Article introuvable dans cette commande. |

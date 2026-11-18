@@ -102,6 +102,9 @@ class SaleService:
         order = books.order(actor, order_id)
         if order.status.value in BLOCKED_STATUSES:
             raise OrderNotConvertible(BLOCKED_STATUSES[order.status.value])
+        # delivery is confirmed with the client's code first: converting never marks it delivered
+        if order.status.value != "delivered":
+            raise OrderNotConvertible("not_delivered")
         items = {item.id: item for item in order.items}
         if self._sales.converted_item_ids(items):
             raise OrderNotConvertible("already_converted")
@@ -141,8 +144,6 @@ class SaleService:
                 outcome.commissions.append(earned)
         if not outcome.sales:
             raise OrderNotConvertible("no_products")
-        if order.status.value != "delivered":
-            books.mark_delivered(order.id, note="Commande convertie en ventes")
         return outcome
 
     def edit(self, sale: Sale, command: EditSale) -> SaleOutcome:

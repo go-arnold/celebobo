@@ -74,7 +74,8 @@ class TestOrderThread:
 
     def test_finished_orders_close_their_thread(self, as_user, manager, assigned_order):
         as_user(manager).post(
-            f"/api/v1/bo/orders/{assigned_order.pk}/transition/", {"to": "delivered"}
+            f"/api/v1/bo/orders/{assigned_order.pk}/transition/",
+            {"to": "delivered", "reason": "Remise vérifiée par téléphone"},
         )
 
         conversation = thread_of(assigned_order)

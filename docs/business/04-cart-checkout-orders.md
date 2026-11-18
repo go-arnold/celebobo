@@ -133,7 +133,7 @@ The order detail returns `allowed_transitions` for the current user — the fron
 | Actor | Allowed |
 |---|---|
 | Client (own order) | **Cancel** until the order is out for delivery (`pending`, `assigned`, `confirmed` or `paid` → `cancelled`), free of charge, with a reason: changed mind, ordered by mistake, too slow, cheaper elsewhere, other (+ optional details). `expired` is reserved for the system. A paid order is refunded (see *Refunds*). |
-| Reseller (order assigned to them) | **One step forward** only: assigned → confirmed → paid → shipping → delivered. Cannot cancel. |
+| Reseller (order assigned to them) | **One step forward** only: assigned → confirmed → paid → shipping → delivered. Cannot cancel. Marking it delivered needs the client's **delivery code** (below). |
 | Manager / Admin | Any **forward** status (skipping steps allowed, except `assigned`, which only happens through assignment), **cancel** any non-final order, **return** a delivered order. |
 
 Anything else is refused (`invalid_transition`). Every change is written to the order **history**
@@ -161,6 +161,25 @@ Anything else is refused (`invalid_transition`). Every change is written to the 
 | → `returned` | Stock comes back (reason `return`). Sales created from this order are marked **returned** and their commissions reversed (§5). The thread is closed. |
 | → `delivered` | The order thread is closed. The client may now review the products. |
 | Any change | Client notified (and the reseller, except for the assignment itself); real-time update for everyone watching. |
+
+### Delivery code
+
+Delivery is confirmed by the client, through a code (owner's decision of 16 Nov 2026):
+
+1. When the order becomes **confirmed** (or later, if staff skip that step), it gets a random
+   **6-digit code**. The client receives it by **e-mail** (always, whatever their notification
+   preferences) and in their notifications, and sees it on the order page until the order is
+   delivered (`delivery_code`, client view only). Nobody in the back-office ever sees it.
+2. At handover, once the client has the order in hand and in good condition, they give the code to
+   the reseller, who enters it to mark the order **delivered** (`delivery_code` on the transition).
+   Without it: `delivery_code_required`; a wrong code: `invalid_delivery_code`, with the attempts
+   left (`meta.attempts_left`). Each wrong code is counted even though the delivery is refused.
+3. After **5 wrong codes** the code is **locked** (`delivery_code_locked`): staff are alerted and
+   the order detail says `delivery_code_locked`.
+4. A **manager** (or admin) can confirm a delivery **without the code**, giving a **reason**
+   (`delivery_reason_required` otherwise); this is recorded in the audit log
+   (`DeliveredWithoutCode`, with the reason). Staff may also enter the code like a reseller.
+5. The code itself never appears in events, the audit log or the back-office output.
 
 ### Refunds
 

@@ -170,6 +170,9 @@ class OrderSelector:
             refund_due=order.refund_due,
             refunded_at=order.refunded_at,
             refund_note=order.refund_note,
+            delivery_code=order.delivery_code,
+            delivery_code_attempts=order.delivery_code_attempts,
+            delivery_code_locked=order.delivery_code_locked_at is not None,
             cancel_reason=order.cancel_reason,
             history=tuple(
                 StatusEntry(
@@ -324,12 +327,15 @@ def order_ref(order_id: int) -> OrderRef:
     )
 
 
-CONVERTIBLE_STATUSES = (
-    OrderStatus.CONFIRMED,
-    OrderStatus.PAID,
-    OrderStatus.SHIPPING,
-    OrderStatus.DELIVERED,
-)
+# for the client's notification only: never exposed to the back-office
+def delivery_code(order_id: int) -> str:
+    code = Order.objects.filter(pk=order_id).values_list("delivery_code", flat=True).first()
+    if code is None:
+        raise OrderNotFound
+    return code
+
+
+CONVERTIBLE_STATUSES = (OrderStatus.DELIVERED,)
 
 
 def convertible_orders(

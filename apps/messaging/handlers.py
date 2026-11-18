@@ -20,6 +20,8 @@ from apps.messaging.services.contracts import Directory
 from apps.messaging.services.conversations import ConversationService
 from apps.orders.domain.events import (
     AssignmentDeclined,
+    DeliveryCodeIssued,
+    DeliveryCodeLocked,
     OrderAssigned,
     OrderPlaced,
     OrderRefunded,
@@ -67,6 +69,16 @@ def notify_order_assigned(event: OrderAssigned) -> None:
 @event_bus.on(AssignmentDeclined, background=True)
 def notify_assignment_declined(event: AssignmentDeclined) -> None:
     container.resolve(NotificationRouter).assignment_declined(event)
+
+
+@event_bus.on(DeliveryCodeIssued, background=True)
+def notify_delivery_code(event: DeliveryCodeIssued) -> None:
+    container.resolve(NotificationRouter).delivery_code_issued(event)
+
+
+@event_bus.on(DeliveryCodeLocked, background=True)
+def notify_delivery_code_locked(event: DeliveryCodeLocked) -> None:
+    container.resolve(NotificationRouter).delivery_code_locked(event)
 
 
 @event_bus.on(RefundDue, background=True)

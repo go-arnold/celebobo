@@ -163,3 +163,35 @@ class InvalidShippingQuote(ValidationFailed):
 class NoRefundDue(BusinessRuleViolation):
     default_code = "no_refund_due"
     default_detail = "Aucun remboursement n'est attendu pour cette commande."
+
+
+class DeliveryCodeRequired(ValidationFailed):
+    default_code = "delivery_code_required"
+    default_detail = "Saisissez le code de livraison que le client vous donne à la remise."
+
+    def __init__(self) -> None:
+        super().__init__(errors={"delivery_code": [self.default_detail]})
+
+
+class InvalidDeliveryCode(BusinessRuleViolation):
+    default_code = "invalid_delivery_code"
+    default_detail = "Code de livraison incorrect."
+
+    def __init__(self, attempts_left: int) -> None:
+        super().__init__(meta={"attempts_left": attempts_left})
+
+
+class DeliveryCodeLocked(BusinessRuleViolation):
+    default_code = "delivery_code_locked"
+    default_detail = (
+        "Trop de codes incorrects : le code de livraison est bloqué. "
+        "Un responsable doit confirmer la livraison."
+    )
+
+
+class DeliveryReasonRequired(ValidationFailed):
+    default_code = "delivery_reason_required"
+    default_detail = "Sans le code du client, indiquez pourquoi vous confirmez la livraison."
+
+    def __init__(self) -> None:
+        super().__init__(errors={"reason": [self.default_detail]})

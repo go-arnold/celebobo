@@ -592,7 +592,7 @@ class DemoSeeder:
                 if order.conversation_id and index % 3 == 0:
                     self._chat(order.conversation_id, client, reseller)
                 for status in FLOW[: self._steps(target)]:
-                    dispatch.transition(staff, order_id, TransitionOrder(to=status))
+                    dispatch.transition(staff, order_id, self._step(order_id, status))
                 if target is OrderStatus.RETURNED:
                     dispatch.transition(
                         staff,
@@ -617,6 +617,14 @@ class DemoSeeder:
         if target is OrderStatus.ASSIGNED:
             return 0
         return FLOW.index(target) + 1
+
+    # delivery is confirmed with the client's code, as the reseller does at handover
+    @staticmethod
+    def _step(order_id: int, status: OrderStatus) -> TransitionOrder:
+        if status is not OrderStatus.DELIVERED:
+            return TransitionOrder(to=status)
+        code = Order.objects.values_list("delivery_code", flat=True).get(pk=order_id)
+        return TransitionOrder(to=status, delivery_code=code)
 
     # an order outside the named zones: the reseller quotes the delivery, the client accepts
     def _quote_shipping(self, conversation_id: int, client: User, reseller: User) -> None:

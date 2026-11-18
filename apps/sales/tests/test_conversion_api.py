@@ -26,7 +26,12 @@ def confirmed(as_user, manager, reseller, order: Order) -> Order:
     assert (
         api.post(f"{BO_ORDERS}{order.pk}/assign/", {"reseller_id": reseller.pk}).status_code == 200
     )
-    assert api.post(f"{BO_ORDERS}{order.pk}/transition/", {"to": "confirmed"}).status_code == 200
+    # converting needs the delivery confirmed first (with the client's code, or by staff)
+    delivered = api.post(
+        f"{BO_ORDERS}{order.pk}/transition/",
+        {"to": "delivered", "reason": "Remise vérifiée par téléphone"},
+    )
+    assert delivered.status_code == 200, delivered.json()
     order.refresh_from_db()
     return order
 
@@ -107,17 +112,19 @@ class TestConversion:
         assert again.json()["meta"]["reason"] == "already_converted"
         assert Sale.objects.count() == 1
 
-    def test_rejects_unknown_items_and_unconvertible_orders(
-        self, as_user, manager, order, confirmed
+    def test_rejects_unknown_items_and_undelivered_orders(
+        self, as_user, manager, confirmed, *, shopper, phone, place_order
     ):
+        # placed first: the test client is shared and placing signs in as the shopper
+        pending = Order.objects.get(number=place_order(shopper, phone)["number"])
         api = as_user(manager)
 
         unknown = convert(api, confirmed, lines=[{"item_id": 999999, "unit_price": "1.00"}])
-        api.post(f"{BO_ORDERS}{confirmed.pk}/transition/", {"to": "cancelled"})
-        cancelled = convert(api, confirmed, key="convert-000003")
+        undelivered = convert(api, pending, key="convert-000003")
 
         assert unknown.status_code == 400
-        assert cancelled.status_code in (404, 409)
+        assert undelivered.status_code == 409
+        assert undelivered.json()["meta"]["reason"] == "not_delivered"
         assert not Sale.objects.exists()
 
     def test_other_resellers_cannot_convert(self, as_user, confirmed):
