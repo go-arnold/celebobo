@@ -117,6 +117,28 @@ class NotificationFanout:
             exclude=[actor_id],
         )
 
+    # staff record the refund; the reseller who collected the money is told as well
+    def refund_due(self, order_id: int, amount: str) -> None:
+        order = self._orders.ref(order_id)
+        recipients = self._directory.staff_ids()
+        if order.reseller_id is not None:
+            recipients.append(order.reseller_id)
+        self._notifications.notify(
+            recipients,
+            render(
+                NotificationKind.REFUND_DUE, number=order.number, order_id=order.id, amount=amount
+            ),
+            order_id=order.id,
+        )
+
+    def order_refunded(self, order_id: int, amount: str) -> None:
+        order = self._orders.ref(order_id)
+        self._notifications.notify(
+            [order.client_id],
+            render(NotificationKind.ORDER_REFUNDED, number=order.number, amount=amount),
+            order_id=order.id,
+        )
+
     def message_posted(
         self,
         *,

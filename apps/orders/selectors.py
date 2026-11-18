@@ -60,6 +60,7 @@ class OrderSelector:
         counts["unassigned"] = scoped.filter(
             assigned_reseller__isnull=True, status=OrderStatus.PENDING.value
         ).count()
+        counts["refund_pending"] = scoped.filter(_REFUND_PENDING).count()
         summaries, total = self._page(
             _filtered(scoped, filters, include_status=True, staff=staff),
             offset,
@@ -166,6 +167,9 @@ class OrderSelector:
             pickup_address=order.pickup_address,
             delivery_estimate=order.delivery_estimate,
             awaiting_shipping_quote=order.awaiting_shipping_quote,
+            refund_due=order.refund_due,
+            refunded_at=order.refunded_at,
+            refund_note=order.refund_note,
             cancel_reason=order.cancel_reason,
             history=tuple(
                 StatusEntry(
@@ -198,11 +202,16 @@ class OrderSelector:
         )
 
 
+_REFUND_PENDING = Q(refund_due__gt=0, refunded_at__isnull=True)
+
+
 def _filtered(
     orders: QuerySet[Order], filters: OrderFilters, *, include_status: bool, staff: bool
 ) -> QuerySet[Order]:
     if include_status and filters.unassigned:
         orders = orders.filter(assigned_reseller__isnull=True, status=OrderStatus.PENDING.value)
+    if include_status and filters.refund_pending:
+        orders = orders.filter(_REFUND_PENDING)
     if include_status and filters.status is not None:
         orders = orders.filter(status=filters.status.value)
     if filters.reseller_id is not None:
@@ -249,7 +258,14 @@ def _summary(order: Order, preview: OrderItem | None, *, staff: bool) -> OrderSu
         preview_image=preview.product_image if preview else "",
         client_name=_client_name(order, staff=staff),
         reseller_name=_display_name(reseller) if reseller else None,
+        refund_status=_refund_status(order),
     )
+
+
+def _refund_status(order: Order) -> str | None:
+    if order.refund_due <= 0:
+        return None
+    return "done" if order.refunded_at is not None else "due"
 
 
 def _line(item: OrderItem) -> OrderLineView:

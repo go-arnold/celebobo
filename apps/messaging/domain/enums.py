@@ -44,6 +44,8 @@ class NotificationKind(StrEnum):
     PRICE_ANSWERED = "price_answered"
     SHIPPING_QUOTED = "shipping_quoted"
     SHIPPING_ANSWERED = "shipping_answered"
+    REFUND_DUE = "refund_due"
+    ORDER_REFUNDED = "order_refunded"
     MEMBERSHIP_REQUESTED = "membership_requested"
     MEMBERSHIP_STARTED = "membership_started"
     MEMBERSHIP_REJECTED = "membership_rejected"

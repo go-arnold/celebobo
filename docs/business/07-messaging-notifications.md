@@ -70,6 +70,8 @@ Every notification is stored **in the app** (bell / notifications page) and may 
 | Proposal accepted/refused | The proposer | status changed | `/admin/messages/{id}` |
 | Shipping fee quoted | The client | status changed | `/messages/{id}` |
 | Shipping quote accepted/refused | The quoter | status changed | `/admin/messages/{id}` |
+| Paid order cancelled, refund owed | All active staff and the reseller in charge | order assigned | `/admin/commandes/{id}` |
+| Refund recorded | The client | status changed | `/compte/commandes/{number}` |
 | Plus membership requested | All active staff | order assigned | `/admin/abonnements` |
 | Plus membership started (trial or paid) | The client | status changed | `/compte/abonnement` |
 | Plus request refused | The client | status changed | `/compte/abonnement` |

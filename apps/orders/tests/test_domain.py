@@ -31,7 +31,11 @@ class TestStateMachine:
         ("actor", "status", "expected"),
         [
             (CLIENT, S.PENDING, {S.CANCELLED}),
-            (CLIENT, S.ASSIGNED, set()),
+            (CLIENT, S.ASSIGNED, {S.CANCELLED}),
+            (CLIENT, S.CONFIRMED, {S.CANCELLED}),
+            (CLIENT, S.PAID, {S.CANCELLED}),
+            (CLIENT, S.SHIPPING, set()),
+            (CLIENT, S.DELIVERED, set()),
             (STRANGER, S.PENDING, set()),
             (RESELLER, S.ASSIGNED, {S.CONFIRMED}),
             (RESELLER, S.CONFIRMED, {S.PAID}),

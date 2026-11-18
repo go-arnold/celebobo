@@ -45,6 +45,7 @@ from apps.orders.services.coupons import CouponService
 from apps.orders.services.lifecycle import OrderLifecycleService
 from apps.orders.services.pricing import PricingService
 from apps.orders.services.promotions import CouponAdminService, ShippingZoneService
+from apps.orders.services.refunds import RefundService
 from apps.orders.services.returns import LineReturnService
 from apps.orders.services.shipping import ShippingResolver
 from apps.orders.services.shipping_quotes import ShippingQuoteService
@@ -145,6 +146,7 @@ def _client_facade(container: Container) -> ClientOrderFacade:
 def _dispatch_facade(container: Container) -> DispatchFacade:
     return DispatchFacade(
         returns=LineReturnService(OrderRepository(), container.resolve(Inventory)),
+        refunds=RefundService(OrderRepository(), clock=timezone.now),
         orders=OrderRepository(),
         lifecycle=_lifecycle(container),
         selector=OrderSelector(),

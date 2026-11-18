@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
 from apps.orders.domain.commands import AssignOrder, CancelOrder, DeclineAssignment, TransitionOrder
-from apps.orders.domain.enums import CancelReason, OrderStatus
+from apps.orders.domain.enums import PAID_STATUSES, CancelReason, OrderStatus
 from apps.orders.domain.errors import AssignmentClosed, NotAssignedToYou, ResellerNotFound
 from apps.orders.domain.state_machine import OrderState, OrderStateMachine
 from apps.orders.models import Order
@@ -103,7 +103,12 @@ class OrderLifecycleService:
     def _move(self, order: Order, actor: Actor, status: OrderStatus, *, note: str) -> StatusChange:
         previous = order.order_status
         order.status = status.value
-        self._orders.save(order, fields=("status",))
+        fields = ["status"]
+        if status is OrderStatus.CANCELLED and previous in PAID_STATUSES:
+            # what the client really paid (cashback and coupon were not money)
+            order.refund_due = order.total
+            fields.append("refund_due")
+        self._orders.save(order, fields=fields)
         self._record(order, actor, previous, status, note)
         if status in RESTOCKED:
             self._restock(order, actor, status)

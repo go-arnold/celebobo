@@ -111,6 +111,10 @@ class CancelInput(serializers.Serializer[Any]):
         return CancelReason(value)
 
 
+class RecordRefundInput(serializers.Serializer[Any]):
+    note = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
+
+
 class TrackInput(serializers.Serializer[Any]):
     number = serializers.CharField(max_length=20)
     contact = serializers.CharField(max_length=254)
@@ -141,7 +145,8 @@ class TransitionInput(serializers.Serializer[Any]):
 
 class OrderFiltersInput(serializers.Serializer[Any]):
     status = serializers.ChoiceField(
-        choices=[*[item.value for item in OrderStatus], "unassigned"], required=False
+        choices=[*[item.value for item in OrderStatus], "unassigned", "refund_pending"],
+        required=False,
     )
     reseller_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
     payment_method = serializers.ChoiceField(
@@ -155,6 +160,8 @@ class OrderFiltersInput(serializers.Serializer[Any]):
         status = attrs.pop("status", None)
         if status == "unassigned":
             attrs["unassigned"] = True
+        elif status == "refund_pending":
+            attrs["refund_pending"] = True
         elif status:
             attrs["status"] = OrderStatus(status)
         if "payment_method" in attrs:
@@ -224,6 +231,8 @@ class OrderSummaryOutput(serializers.Serializer[Any]):
     preview_image = serializers.CharField()
     client_name = serializers.CharField()
     reseller_name = serializers.CharField(allow_null=True)
+    # "due" until staff record the refund of a paid order that was cancelled, then "done"
+    refund_status = serializers.CharField(allow_null=True)
 
 
 class OrderLineOutput(serializers.Serializer[Any]):
@@ -288,6 +297,9 @@ class OrderDetailOutput(serializers.Serializer[Any]):
     cashback = serializers.DecimalField(max_digits=10, decimal_places=2)
     cashback_earned = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
     cancel_reason = serializers.CharField()
+    refund_due = serializers.DecimalField(max_digits=10, decimal_places=2)
+    refunded_at = serializers.DateTimeField(allow_null=True)
+    refund_note = serializers.CharField()
     history = StatusEntryOutput(many=True)
     allowed_transitions = serializers.ListField(child=serializers.CharField())
     client = PersonOutput()

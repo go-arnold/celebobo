@@ -22,7 +22,9 @@ from apps.orders.domain.events import (
     AssignmentDeclined,
     OrderAssigned,
     OrderPlaced,
+    OrderRefunded,
     OrderStatusChanged,
+    RefundDue,
 )
 from core.container import container
 from core.events.bus import event_bus
@@ -65,6 +67,16 @@ def notify_order_assigned(event: OrderAssigned) -> None:
 @event_bus.on(AssignmentDeclined, background=True)
 def notify_assignment_declined(event: AssignmentDeclined) -> None:
     container.resolve(NotificationRouter).assignment_declined(event)
+
+
+@event_bus.on(RefundDue, background=True)
+def notify_refund_due(event: RefundDue) -> None:
+    container.resolve(NotificationRouter).refund_due(event)
+
+
+@event_bus.on(OrderRefunded, background=True)
+def notify_order_refunded(event: OrderRefunded) -> None:
+    container.resolve(NotificationRouter).order_refunded(event)
 
 
 @event_bus.on(OrderStatusChanged, background=True)

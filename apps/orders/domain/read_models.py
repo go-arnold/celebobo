@@ -116,6 +116,7 @@ class OrderSummary:
     preview_image: str
     client_name: str
     reseller_name: str | None
+    refund_status: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -135,6 +136,9 @@ class OrderDetail:
     pickup_address: str = ""
     delivery_estimate: str = ""
     awaiting_shipping_quote: bool = False
+    refund_due: Decimal = Decimal("0.00")
+    refunded_at: datetime | None = None
+    refund_note: str = ""
     cashback: Decimal = Decimal("0.00")
     cashback_earned: Decimal | None = None
     history: tuple[StatusEntry, ...]

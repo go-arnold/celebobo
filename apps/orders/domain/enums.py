@@ -35,6 +35,13 @@ class OrderStatus(StrEnum):
 
 FINAL_STATUSES = frozenset({OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.RETURNED})
 
+# the client may cancel, free of charge, until the order leaves for delivery
+CLIENT_CANCELLABLE = frozenset(
+    {OrderStatus.PENDING, OrderStatus.ASSIGNED, OrderStatus.CONFIRMED, OrderStatus.PAID}
+)
+# the client has paid: cancelling from here means giving the money back
+PAID_STATUSES = frozenset({OrderStatus.PAID, OrderStatus.SHIPPING})
+
 FULFILMENT_FLOW = (
     OrderStatus.PENDING,
     OrderStatus.ASSIGNED,

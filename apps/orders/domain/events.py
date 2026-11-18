@@ -60,3 +60,15 @@ class ShippingFeeAccepted(DomainEvent):
     order_id: int
     fee: Decimal
     total: Decimal
+
+
+@domain_event
+class RefundDue(DomainEvent):
+    order_id: int
+    amount: Decimal
+
+
+@domain_event
+class OrderRefunded(DomainEvent):
+    order_id: int
+    amount: Decimal

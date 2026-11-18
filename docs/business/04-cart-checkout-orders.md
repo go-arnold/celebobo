@@ -132,7 +132,7 @@ The order detail returns `allowed_transitions` for the current user — the fron
 
 | Actor | Allowed |
 |---|---|
-| Client (own order) | `pending → cancelled` only, with a reason: changed mind, ordered by mistake, too slow, cheaper elsewhere, other (+ optional details). `expired` is reserved for the system. While the shipping quote is awaited, also `assigned → cancelled`. |
+| Client (own order) | **Cancel** until the order is out for delivery (`pending`, `assigned`, `confirmed` or `paid` → `cancelled`), free of charge, with a reason: changed mind, ordered by mistake, too slow, cheaper elsewhere, other (+ optional details). `expired` is reserved for the system. A paid order is refunded (see *Refunds*). |
 | Reseller (order assigned to them) | **One step forward** only: assigned → confirmed → paid → shipping → delivered. Cannot cancel. |
 | Manager / Admin | Any **forward** status (skipping steps allowed, except `assigned`, which only happens through assignment), **cancel** any non-final order, **return** a delivered order. |
 
@@ -157,10 +157,24 @@ Anything else is refused (`invalid_transition`). Every change is written to the 
 
 | Change | Effect |
 |---|---|
-| → `cancelled` | Reserved stock is **released** (reason `order`). The order thread is closed. |
+| → `cancelled` | Reserved stock is **released** (reason `order`). Cashback spent on it comes back. The order thread is closed. Cancelled after payment (`paid` or `shipping`): a refund is owed (below). |
 | → `returned` | Stock comes back (reason `return`). Sales created from this order are marked **returned** and their commissions reversed (§5). The thread is closed. |
 | → `delivered` | The order thread is closed. The client may now review the products. |
 | Any change | Client notified (and the reseller, except for the assignment itself); real-time update for everyone watching. |
+
+### Refunds
+
+An order cancelled once paid (`paid` or `shipping`, by the client or by staff) owes the client what
+they really paid: `refund_due` = the order total (coupon and cashback were not money; the cashback
+comes back to their balance). The delivery policy gives **72 hours** to refund (art. 63).
+
+1. Staff and the reseller in charge are notified ("Remboursement à effectuer").
+2. The back-office order list has a **refund pending** filter (`status=refund_pending`, with its
+   count); each order says `refund_status`: `due`, then `done`.
+3. Once the money is given back, staff record it (`orders.refund`,
+   `POST /bo/orders/{id}/refund/`, optional note such as the Mobile Money reference). The order
+   keeps `refunded_at` and the note, the history records it and the client is notified. Recording
+   it twice, or for an order with nothing owed, is refused (`no_refund_due`).
 
 ### Zones quoted on request
 
@@ -170,7 +184,7 @@ An order placed in a `quote` zone is recorded normally, with **no shipping fee**
 1. The reseller in charge (or staff) sends the fee and the delivery estimate in the order thread
    (`shipping.quote`, see §7). The amount stays in the thread as a trace.
 2. Until the client accepts a fee, **nothing moves forward**: the reseller can't confirm the order,
-   staff can only cancel it, and the client can cancel it free of charge, even once assigned.
+   staff can only cancel it; the client can cancel it free of charge, as any order before delivery.
 3. When the client **accepts**, the fee and estimate are written to the order, the total is
    recomputed and the fee is **fixed**: no further quote is possible (`shipping_not_quotable`).
    The history records it and the order can be confirmed. A refusal changes nothing; the reseller
@@ -226,7 +240,7 @@ quantity is more than what is left on the line (`invalid_return_quantity`, with 
 
 ## Customer views
 
-- `/me/orders/` (own orders), `/me/orders/{number}/` detail, cancel while pending.
+- `/me/orders/` (own orders), `/me/orders/{number}/` detail, cancel until out for delivery.
 - **Invoice PDF** `/me/orders/{number}/invoice/` — not available for a cancelled order (`invoice_unavailable`).
   Back-office users get the invoice of any order they can see.
 - **Public tracking** `POST /orders/track/` with the order number + the email **or** phone used for
