@@ -5,11 +5,12 @@ from typing import Any
 from uuid import UUID
 
 from django.db import IntegrityError, connection, transaction
-from django.db.models import F, OuterRef, QuerySet, Subquery
+from django.db.models import F, OuterRef, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce
 
 from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.numbers import new_order_number
+from apps.orders.domain.pricing import ZERO, LineAmounts
 from apps.orders.models import (
     Cart,
     CartItem,
@@ -17,6 +18,7 @@ from apps.orders.models import (
     CouponRedemption,
     Order,
     OrderItem,
+    OrderLineReturn,
     OrderStatusEvent,
     ShippingZone,
 )
@@ -139,8 +141,26 @@ class OrderRepository:
             note=note[:500],
         )
 
-    def item(self, order: Order, item_id: int) -> OrderItem | None:
-        return order.items.filter(pk=item_id).first()
+    def item(self, order: Order, item_id: int, *, for_update: bool = False) -> OrderItem | None:
+        items = order.items.select_for_update() if for_update else order.items.all()
+        return items.filter(pk=item_id).first()
+
+    def returned_amounts(self, item: OrderItem) -> LineAmounts:
+        totals = OrderLineReturn.objects.filter(item=item).aggregate(
+            discount=Sum("discount"), cashback=Sum("cashback"), paid=Sum("amount_paid")
+        )
+        return LineAmounts(
+            discount=totals["discount"] or ZERO,
+            cashback=totals["cashback"] or ZERO,
+            paid=totals["paid"] or ZERO,
+        )
+
+    def mark_all_returned(self, order: Order) -> None:
+        order.items.update(returned_quantity=F("quantity"))
+
+    def add_return(self, **fields: Any) -> OrderLineReturn:
+        line_return: OrderLineReturn = OrderLineReturn.objects.create(**fields)
+        return line_return
 
     def save_item(self, item: OrderItem, *, fields: Iterable[str]) -> None:
         item.save(update_fields=[*fields])

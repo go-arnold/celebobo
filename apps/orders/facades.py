@@ -17,6 +17,7 @@ from apps.orders.domain.commands import (
     OrderFilters,
     OrderLineInput,
     PlaceOrder,
+    ReturnLine,
     TrackOrder,
     TransitionOrder,
     ZoneChanges,
@@ -27,6 +28,7 @@ from apps.orders.domain.errors import OrderNotFound
 from apps.orders.domain.events import (
     AssignmentDeclined,
     OrderAssigned,
+    OrderLineReturned,
     OrderPlaced,
     OrderRepriced,
     OrderStatusChanged,
@@ -53,6 +55,7 @@ from apps.orders.services.contracts import OrderThreads, ResellerDirectory, Wall
 from apps.orders.services.lifecycle import OrderLifecycleService, StatusChange
 from apps.orders.services.pricing import PricingContext, PricingService
 from apps.orders.services.promotions import CouponAdminService, ShippingZoneService
+from apps.orders.services.returns import LineReturnService
 from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
 from core.events.contracts import EventPublisher
@@ -232,6 +235,7 @@ class DispatchFacade:
         resellers: ResellerDirectory,
         threads: OrderThreads,
         wallet: Wallet,
+        returns: LineReturnService,
         publisher: EventPublisher,
     ) -> None:
         self._orders = orders
@@ -241,6 +245,7 @@ class DispatchFacade:
         self._threads = threads
         self._wallet = wallet
         self._publisher = publisher
+        self._returns = returns
 
     def page(self, actor: Actor, filters: OrderFilters, *, offset: int, limit: int) -> OrderPage:
         orders, total, counts = self._selector.backoffice_page(
@@ -292,6 +297,34 @@ class DispatchFacade:
         with transaction.atomic():
             order = self._locked(actor, order_id)
             _announce(self._publisher, self._lifecycle.transition(order, actor, command), actor)
+        return self.detail(actor, order_id)
+
+    # sales and cashback follow the return in this transaction (transactional handlers); once
+    # every unit is back the order itself becomes returned
+    def return_line(
+        self, actor: Actor, order_id: int, item_id: int, command: ReturnLine
+    ) -> OrderDetail:
+        with transaction.atomic():
+            order = self._locked(actor, order_id)
+            result = self._returns.return_line(order, item_id, actor, command)
+            self._publisher.publish(
+                OrderLineReturned(
+                    order_id=order.pk,
+                    item_id=result.item.pk,
+                    quantity=command.quantity,
+                    amount_paid=result.share.paid,
+                    discount=result.share.discount,
+                    cashback=result.share.cashback,
+                    actor_id=actor.user_id,
+                )
+            )
+            if result.order_fully_returned:
+                change = self._lifecycle.transition(
+                    order,
+                    actor,
+                    TransitionOrder(to=OrderStatus.RETURNED, note="Tous les articles retournés"),
+                )
+                _announce(self._publisher, change, actor)
         return self.detail(actor, order_id)
 
     def assignable(self, search: str | None) -> list[AssignableReseller]:

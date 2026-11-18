@@ -6,7 +6,7 @@ import pytest
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.accounts.tests.factories import ManagerFactory, UserFactory
+from apps.accounts.tests.factories import ManagerFactory, ResellerFactory, UserFactory
 from apps.catalog.tests.factories import ProductFactory
 from apps.loyalty.facades import CashbackFacade
 from apps.loyalty.handlers import settle_cashback
@@ -252,3 +252,69 @@ def test_unused_cashback_expires(programme, member):
     assert container.resolve(CashbackFacade).expire() == 1
     assert CashbackEntry.objects.get(kind="expiry").amount == Decimal("-12.00")
     assert balance(member)["available"] == "0.00"
+
+
+class TestLineReturns:
+    @pytest.fixture
+    def delivered(self, programme, member):
+        product = ProductFactory.create(price=Decimal("100.00"), stock=20)
+        credit(member, "80.00")
+        response = as_api(member).post(
+            "/api/v1/orders/",
+            {
+                "lines": lines(product, quantity=2),
+                "payment_method": "cash",
+                "address": ADDRESS,
+                "use_cashback": True,
+            },
+            format="json",
+            HTTP_IDEMPOTENCY_KEY="cashback-lines-0001",
+        )
+        order = Order.objects.get(pk=response.json()["id"])
+        staff = as_api(ManagerFactory.create())
+        reseller = ResellerFactory.create()
+        staff.post(f"/api/v1/bo/orders/{order.pk}/assign/", {"reseller_id": reseller.pk})
+        staff.post(f"/api/v1/bo/orders/{order.pk}/transition/", {"to": "delivered"})
+        order.refresh_from_db()
+        return order, staff
+
+    def give_back(self, staff, order, key):
+        item = order.items.get()
+        return staff.post(
+            f"/api/v1/bo/orders/{order.pk}/items/{item.pk}/return/",
+            {"quantity": 1},
+            format="json",
+            HTTP_IDEMPOTENCY_KEY=key,
+        )
+
+    def entries(self, order, kind):
+        return [entry.amount for entry in CashbackEntry.objects.filter(order=order, kind=kind)]
+
+    def test_each_unit_takes_back_its_share_of_the_earning_and_the_spending(
+        self, member, delivered
+    ):
+        order, staff = delivered
+        assert (order.cashback, self.entries(order, "earn")) == (
+            Decimal("80.00"),
+            [Decimal("3.60")],
+        )
+
+        self.give_back(staff, order, "cashback-line-000001")
+
+        assert self.entries(order, "reversal") == [Decimal("-1.80")]
+        assert self.entries(order, "refund") == [Decimal("40.00")]
+        detail = as_api(member).get(f"/api/v1/me/orders/{order.number}/").json()
+        assert detail["cashback_earned"] == "1.80"
+
+    def test_the_last_unit_closes_the_books_once(self, member, delivered):
+        order, staff = delivered
+        self.give_back(staff, order, "cashback-line-000002")
+
+        self.give_back(staff, order, "cashback-line-000003")
+
+        order.refresh_from_db()
+        assert order.status == "returned"
+        assert sum(self.entries(order, "reversal")) == Decimal("-3.60")
+        assert sum(self.entries(order, "refund")) == Decimal("80.00")
+        detail = as_api(member).get(f"/api/v1/me/orders/{order.number}/").json()
+        assert detail["cashback_earned"] is None

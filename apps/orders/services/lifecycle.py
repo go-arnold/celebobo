@@ -107,6 +107,8 @@ class OrderLifecycleService:
         self._record(order, actor, previous, status, note)
         if status in RESTOCKED:
             self._restock(order, actor, status)
+        if status is OrderStatus.RETURNED:
+            self._orders.mark_all_returned(order)
         return StatusChange(order, previous, status)
 
     def _record(
@@ -123,12 +125,15 @@ class OrderLifecycleService:
 
     def _restock(self, order: Order, actor: Actor, status: OrderStatus) -> None:
         reason, note = RESTOCKED[status]
+        # units already given back line by line went back to stock then
         lines = [
             StockLine(
-                product_id=item.product_id, variant_id=item.variant_id, quantity=item.quantity
+                product_id=item.product_id,
+                variant_id=item.variant_id,
+                quantity=item.quantity - item.returned_quantity,
             )
             for item in self._orders.items(order)
-            if item.product_id is not None
+            if item.product_id is not None and item.quantity > item.returned_quantity
         ]
         if lines:
             self._inventory.release(

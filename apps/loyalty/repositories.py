@@ -99,6 +99,12 @@ class CashbackRepository:
         rows = CashbackEntry.objects.filter(order_id=order_id, kind=kind.value)
         return (rows.select_for_update() if lock else rows).first()
 
+    def total_for_order(self, order_id: int, kind: EntryKind) -> Decimal:
+        total = CashbackEntry.objects.filter(order_id=order_id, kind=kind.value).aggregate(
+            total=Sum("amount")
+        )["total"]
+        return total or Decimal(0)
+
     def expired(self, now: datetime) -> list[CashbackEntry]:
         return list(
             CashbackEntry.objects.select_for_update().filter(

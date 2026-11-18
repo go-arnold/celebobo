@@ -174,6 +174,10 @@ class CashbackFacade:
         with transaction.atomic():
             self._cashback.undo(order_id)
 
+    def line_returned(self, order_id: int, paid: Decimal, cashback: Decimal) -> None:
+        with transaction.atomic():
+            self._cashback.line_returned(order_id, paid, cashback)
+
     def expire(self) -> int:
         with transaction.atomic():
             return self._cashback.expire()

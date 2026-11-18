@@ -125,9 +125,11 @@ class CashbackEntry(models.Model):
         ordering = ("created_at", "pk")
         indexes = (models.Index(fields=("user", "available_at"), name="loyalty_cashback_user"),)
         constraints = (
+            # an order earns and spends once; reversals and refunds can come in parts (line
+            # returns), bounded by what was earned and spent
             models.UniqueConstraint(
                 fields=("order", "kind"),
-                condition=models.Q(order__isnull=False) & ~models.Q(kind="expiry"),
+                condition=models.Q(order__isnull=False, kind__in=("earn", "spend")),
                 name="loyalty_cashback_once_per_order",
             ),
         )

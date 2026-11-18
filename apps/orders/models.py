@@ -163,12 +163,17 @@ class OrderItem(models.Model):
     amount_paid = models.DecimalField(
         max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
     )
+    returned_quantity = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         ordering = ("pk",)
         constraints = (
             models.CheckConstraint(
                 condition=models.Q(quantity__gte=1), name="orders_item_quantity_positive"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(returned_quantity__lte=models.F("quantity")),
+                name="orders_item_returned_within_quantity",
             ),
             models.CheckConstraint(
                 condition=models.Q(discount__gte=0, cashback__gte=0, amount_paid__gte=0),
@@ -195,6 +200,36 @@ class OrderItem(models.Model):
     def non_cash(self) -> Decimal:
         # paid with something other than money (coupon, cashback); commissions skip such lines
         return self.discount + self.cashback
+
+
+class OrderLineReturn(models.Model):
+    """Units of one line given back after delivery, with their share of the line amounts."""
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="line_returns")
+    item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, related_name="returns")
+    quantity = models.PositiveSmallIntegerField()
+    # real money owed back to the client, and the non-real money that went with these units
+    amount_paid = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
+    discount = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
+    cashback = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
+    reason = models.CharField(max_length=500, blank=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "retour d'article"
+        verbose_name_plural = "retours d'articles"
+        ordering = ("created_at", "pk")
+        constraints = (
+            models.CheckConstraint(
+                condition=models.Q(quantity__gte=1), name="orders_return_quantity_positive"
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.quantity} x {self.item_id} ({self.order_id})"
 
 
 class OrderStatusEvent(models.Model):

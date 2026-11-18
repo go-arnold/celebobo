@@ -26,6 +26,7 @@ from apps.orders.api.v1.serializers import (
     PlaceOrderInput,
     QuoteOutput,
     QuoteRequestInput,
+    ReturnLineInput,
     TrackingOutput,
     TrackInput,
     TransitionInput,
@@ -36,6 +37,7 @@ from apps.orders.domain.commands import (
     DeclineAssignment,
     OrderFilters,
     PlaceOrder,
+    ReturnLine,
     TrackOrder,
     TransitionOrder,
 )
@@ -47,6 +49,7 @@ from apps.orders.permissions import (
     ORDERS_CANCEL_MINE,
     ORDERS_PLACE,
     ORDERS_STATUS_ADVANCE,
+    ORDERS_STATUS_ANY,
     ORDERS_VIEW_ASSIGNED,
     ORDERS_VIEW_MINE,
 )
@@ -218,6 +221,7 @@ class DispatchViewSet(UseCaseViewSet):
         "assign": (ORDERS_ASSIGN,),
         "decline": (ORDERS_ASSIGNMENT_DECLINE,),
         "transition": (ORDERS_STATUS_ADVANCE,),
+        "return_line": (ORDERS_STATUS_ANY,),
         "assignable": (ORDERS_ASSIGN,),
     }
     dispatch_orders = Inject(DispatchFacade)
@@ -260,6 +264,15 @@ class DispatchViewSet(UseCaseViewSet):
         command = self.parse(TransitionInput, into=TransitionOrder)
         return self.respond(
             OrderDetailOutput, self.dispatch_orders.transition(self.actor, order_id, command)
+        )
+
+    @extend_schema(request=ReturnLineInput, responses=OrderDetailOutput)
+    @idempotent()
+    def return_line(self, request: Request, order_id: int, item_id: int) -> Response:
+        command = self.parse(ReturnLineInput, into=ReturnLine)
+        return self.respond(
+            OrderDetailOutput,
+            self.dispatch_orders.return_line(self.actor, order_id, item_id, command),
         )
 
     @extend_schema(

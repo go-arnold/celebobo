@@ -18,6 +18,7 @@ from apps.messaging.domain.events import (
 )
 from apps.orders.domain.events import (
     OrderAssigned,
+    OrderLineReturned,
     OrderPlaced,
     OrderRepriced,
     OrderStatusChanged,
@@ -97,8 +98,8 @@ def push_order_status(event: OrderStatusChanged) -> None:
     )
 
 
-@event_bus.on(OrderRepriced)
-def push_order_repriced(event: OrderRepriced) -> None:
+@event_bus.on(OrderRepriced, OrderLineReturned)
+def push_order_repriced(event: OrderRepriced | OrderLineReturned) -> None:
     _relay().order_event(ServerEvent.ORDER_UPDATED, event.order_id, item_id=event.item_id)
 
 
