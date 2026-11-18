@@ -44,6 +44,12 @@ class CancelOrder:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class RateReseller:
+    score: int
+    comment: str = ""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class RecordRefund:
     # e.g. the Mobile Money transaction reference
     note: str = ""

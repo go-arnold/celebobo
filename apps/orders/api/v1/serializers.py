@@ -112,6 +112,17 @@ class CancelInput(serializers.Serializer[Any]):
         return CancelReason(value)
 
 
+class RateResellerInput(serializers.Serializer[Any]):
+    score = serializers.IntegerField(min_value=1, max_value=5)
+    comment = serializers.CharField(max_length=1000, required=False, allow_blank=True, default="")
+
+
+class RatingOutput(serializers.Serializer[Any]):
+    score = serializers.IntegerField()
+    comment = serializers.CharField()
+    created_at = serializers.DateTimeField()
+
+
 class RecordRefundInput(serializers.Serializer[Any]):
     note = serializers.CharField(max_length=200, required=False, allow_blank=True, default="")
 
@@ -310,6 +321,8 @@ class OrderDetailOutput(serializers.Serializer[Any]):
     refund_note = serializers.CharField()
     delivery_code_attempts = serializers.IntegerField()
     delivery_code_locked = serializers.BooleanField()
+    rating = RatingOutput(allow_null=True)
+    can_rate = serializers.BooleanField()
     history = StatusEntryOutput(many=True)
     allowed_transitions = serializers.ListField(child=serializers.CharField())
     client = PersonOutput()

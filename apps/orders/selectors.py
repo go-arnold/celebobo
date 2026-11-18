@@ -2,11 +2,17 @@ from collections.abc import Iterable
 from datetime import date, datetime, time
 from decimal import Decimal
 
-from django.db.models import Count, Q, QuerySet, Sum
+from django.db.models import Avg, Count, Q, QuerySet, Sum
 from django.utils import timezone
 
 from apps.orders.domain.commands import OrderFilters
-from apps.orders.domain.enums import FINAL_STATUSES, DeliveryMethod, OrderStatus, PaymentMethod
+from apps.orders.domain.enums import (
+    FINAL_STATUSES,
+    RATABLE_STATUSES,
+    DeliveryMethod,
+    OrderStatus,
+    PaymentMethod,
+)
 from apps.orders.domain.errors import CouponNotFound, OrderNotFound, ShippingZoneNotFound
 from apps.orders.domain.pricing import ZonePricing
 from apps.orders.domain.read_models import (
@@ -20,13 +26,23 @@ from apps.orders.domain.read_models import (
     OrderRef,
     OrderSummary,
     PersonBrief,
+    RatingSummary,
+    RatingView,
+    ResellerRatingRow,
     ShippingZoneView,
     StatusEntry,
     TrackedItem,
     TrackedStatus,
     TrackingView,
 )
-from apps.orders.models import Coupon, CouponRedemption, Order, OrderItem, ShippingZone
+from apps.orders.models import (
+    Coupon,
+    CouponRedemption,
+    Order,
+    OrderItem,
+    OrderRating,
+    ShippingZone,
+)
 from core.domain.actor import Actor
 
 
@@ -134,7 +150,7 @@ class OrderSelector:
 
     def _detail(self, orders: QuerySet[Order], *, staff: bool) -> OrderDetail:
         order = (
-            orders.select_related("client", "assigned_reseller")
+            orders.select_related("client", "assigned_reseller", "rating")
             .prefetch_related("items__returns", "history__actor")
             .annotate(items_count=Count("items", distinct=True))
             .first()
@@ -173,6 +189,10 @@ class OrderSelector:
             delivery_code=order.delivery_code,
             delivery_code_attempts=order.delivery_code_attempts,
             delivery_code_locked=order.delivery_code_locked_at is not None,
+            rating=_rating(order),
+            can_rate=order.order_status in RATABLE_STATUSES
+            and order.assigned_reseller_id is not None
+            and getattr(order, "rating", None) is None,
             cancel_reason=order.cancel_reason,
             history=tuple(
                 StatusEntry(
@@ -263,6 +283,47 @@ def _summary(order: Order, preview: OrderItem | None, *, staff: bool) -> OrderSu
         reseller_name=_display_name(reseller) if reseller else None,
         refund_status=_refund_status(order),
     )
+
+
+def _rating(order: Order) -> RatingView | None:
+    rating = getattr(order, "rating", None)
+    if rating is None:
+        return None
+    return RatingView(score=rating.score, comment=rating.comment, created_at=rating.created_at)
+
+
+# the resellers directory shows each reseller's average and number of ratings
+def rating_summaries(reseller_ids: Iterable[int]) -> dict[int, RatingSummary]:
+    ids = list(reseller_ids)
+    rows = (
+        OrderRating.objects.filter(reseller_id__in=ids)
+        .values("reseller_id")
+        .annotate(average=Avg("score"), count=Count("pk"))
+    )
+    found = {
+        row["reseller_id"]: RatingSummary(
+            average=Decimal(str(row["average"])).quantize(Decimal("0.1")), count=row["count"]
+        )
+        for row in rows
+    }
+    return {pk: found.get(pk, RatingSummary(average=None, count=0)) for pk in ids}
+
+
+def reseller_ratings(
+    reseller_id: int, *, offset: int, limit: int
+) -> tuple[list[ResellerRatingRow], int]:
+    ratings = OrderRating.objects.filter(reseller_id=reseller_id).select_related("order", "client")
+    rows = [
+        ResellerRatingRow(
+            order_number=rating.order.number,
+            client_name=rating.client.first_name or "Client",
+            score=rating.score,
+            comment=rating.comment,
+            created_at=rating.created_at,
+        )
+        for rating in ratings[offset : offset + limit]
+    ]
+    return rows, ratings.count()
 
 
 def _refund_status(order: Order) -> str | None:

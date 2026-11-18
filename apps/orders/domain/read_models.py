@@ -120,6 +120,28 @@ class OrderSummary:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class RatingView:
+    score: int
+    comment: str
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ResellerRatingRow:
+    order_number: str
+    client_name: str
+    score: int
+    comment: str
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RatingSummary:
+    average: Decimal | None
+    count: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class OrderDetail:
     summary: OrderSummary
     items: tuple[OrderLineView, ...]
@@ -143,6 +165,8 @@ class OrderDetail:
     delivery_code: str = ""
     delivery_code_attempts: int = 0
     delivery_code_locked: bool = False
+    rating: RatingView | None = None
+    can_rate: bool = False
     cashback: Decimal = Decimal("0.00")
     cashback_earned: Decimal | None = None
     history: tuple[StatusEntry, ...]

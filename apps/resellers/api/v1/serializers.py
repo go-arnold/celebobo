@@ -121,6 +121,18 @@ class ResellerOutput(serializers.Serializer[Any]):
     last_seen_at = serializers.DateTimeField(source="account.last_seen_at", allow_null=True)
     invited_count = serializers.IntegerField(source="account.invited_count")
     performance = PerformanceOutput()
+    rating_average = serializers.DecimalField(
+        source="rating.average", max_digits=2, decimal_places=1, allow_null=True
+    )
+    rating_count = serializers.IntegerField(source="rating.count")
+
+
+class ResellerRatingOutput(serializers.Serializer[Any]):
+    order_number = serializers.CharField()
+    client_name = serializers.CharField()
+    score = serializers.IntegerField()
+    comment = serializers.CharField()
+    created_at = serializers.DateTimeField()
 
 
 class TopResellerOutput(serializers.Serializer[Any]):

@@ -42,8 +42,12 @@ reseller account directly from the user screen.
 
 `/bo/resellers/` — search, active/inactive filter, ordering (name, newest, oldest, most invitees,
 highest rate). Each reseller shows: contact, referral code, rate, availability, manager, join date,
-last seen, number of invitees and cumulative **performance** (sales count, revenue, commission earned
-and due).
+last seen, number of invitees, cumulative **performance** (sales count, revenue, commission earned
+and due) and the clients' **rating**: average out of 5 (`rating_average`, one decimal, `null` until
+the first rating) and number of ratings (`rating_count`).
+
+- `/bo/resellers/{id}/ratings/`: the ratings themselves, newest first: order number, the client's
+  first name, score and comment.
 
 - **Change** commission rate (0–50 %) and manager.
 - **Deactivate / activate**: a deactivated reseller cannot log in and is no longer assignable.

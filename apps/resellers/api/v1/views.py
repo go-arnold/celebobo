@@ -16,6 +16,7 @@ from apps.resellers.api.v1.serializers import (
     ResellerChangesInput,
     ResellerFiltersInput,
     ResellerOutput,
+    ResellerRatingOutput,
     ResellerStatsOutput,
     SubmitApplicationInput,
 )
@@ -113,6 +114,7 @@ class ResellerViewSet(UseCaseViewSet):
         "stats": (RESELLERS_VIEW,),
         "retrieve": (RESELLERS_VIEW,),
         "invitees": (RESELLERS_VIEW,),
+        "ratings": (RESELLERS_VIEW,),
         "partial_update": (RESELLERS_MANAGE,),
         "activate": (RESELLERS_MANAGE,),
         "deactivate": (RESELLERS_MANAGE,),
@@ -135,6 +137,14 @@ class ResellerViewSet(UseCaseViewSet):
     @extend_schema(responses=ResellerOutput)
     def retrieve(self, request: Request, reseller_id: int) -> Response:
         return self.respond(ResellerOutput, self.program.detail(reseller_id))
+
+    @extend_schema(responses=page_of(ResellerRatingOutput))
+    def ratings(self, request: Request, reseller_id: int) -> Response:
+        page = page_request(request, default_size=20, max_size=100)
+        rows, total = self.program.ratings(reseller_id, offset=page.offset, limit=page.page_size)
+        return page_response(
+            request, page, total=total, results=ResellerRatingOutput(rows, many=True).data
+        )
 
     @extend_schema(request=ResellerChangesInput, responses=ResellerOutput)
     def partial_update(self, request: Request, reseller_id: int) -> Response:

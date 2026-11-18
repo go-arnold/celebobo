@@ -9,7 +9,7 @@ from apps.accounts.domain.read_models import (
     ResellerAccount,
     ResellerCounts,
 )
-from apps.orders.domain.read_models import ClientOrderTotals
+from apps.orders.domain.read_models import ClientOrderTotals, RatingSummary, ResellerRatingRow
 from apps.sales.domain.read_models import SellerPerformance
 from core.domain.actor import Actor
 
@@ -60,3 +60,11 @@ class InviteeOrders(Protocol):
 
 class QrRenderer(Protocol):
     def svg_data_uri(self, content: str, *, scale: int) -> str: ...
+
+
+class RatingBook(Protocol):
+    def summaries(self, reseller_ids: Iterable[int]) -> dict[int, RatingSummary]: ...
+
+    def ratings(
+        self, reseller_id: int, *, offset: int, limit: int
+    ) -> tuple[list[ResellerRatingRow], int]: ...

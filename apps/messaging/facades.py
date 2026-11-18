@@ -61,6 +61,7 @@ from apps.orders.domain.events import (
     OrderRefunded,
     OrderStatusChanged,
     RefundDue,
+    ResellerRated,
 )
 from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
@@ -372,6 +373,9 @@ class NotificationRouter:
 
     def delivery_code_issued(self, event: DeliveryCodeIssued) -> None:
         self._fanout.delivery_code(event.order_id)
+
+    def reseller_rated(self, event: ResellerRated) -> None:
+        self._fanout.reseller_rated(event.order_id, event.reseller_id, event.score)
 
     def delivery_code_locked(self, event: DeliveryCodeLocked) -> None:
         self._fanout.delivery_code_locked(event.order_id)

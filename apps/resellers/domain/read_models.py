@@ -3,8 +3,11 @@ from datetime import datetime
 from decimal import Decimal
 
 from apps.accounts.domain.read_models import ResellerAccount
+from apps.orders.domain.read_models import RatingSummary
 from apps.resellers.domain.enums import ApplicationStatus
 from apps.sales.domain.read_models import SellerPerformance
+
+NO_RATINGS = RatingSummary(average=None, count=0)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -35,6 +38,8 @@ class ApplicationView:
 class ResellerOverview:
     account: ResellerAccount
     performance: SellerPerformance
+    # clients' ratings after delivery: average out of 5 (None until the first one) and count
+    rating: RatingSummary = NO_RATINGS
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

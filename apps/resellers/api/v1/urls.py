@@ -57,6 +57,11 @@ urlpatterns = [
         ResellerViewSet.as_view({"get": "invitees"}),
         name="bo-reseller-invitees",
     ),
+    path(
+        "bo/resellers/<id:reseller_id>/ratings/",
+        ResellerViewSet.as_view({"get": "ratings"}),
+        name="bo-reseller-ratings",
+    ),
     path("bo/me/referral/", ReferralViewSet.as_view({"get": "retrieve"}), name="my-referral"),
     path("bo/me/invitees/", ReferralViewSet.as_view({"get": "invitees"}), name="my-invitees"),
 ]

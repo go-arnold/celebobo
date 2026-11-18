@@ -143,6 +143,16 @@ class NotificationFanout:
             order_id=order.id,
         )
 
+    def reseller_rated(self, order_id: int, reseller_id: int, score: int) -> None:
+        order = self._orders.ref(order_id)
+        self._notifications.notify(
+            [reseller_id],
+            render(
+                NotificationKind.RESELLER_RATED, number=order.number, order_id=order.id, score=score
+            ),
+            order_id=order.id,
+        )
+
     def delivery_code_locked(self, order_id: int) -> None:
         order = self._orders.ref(order_id)
         self._notifications.notify(

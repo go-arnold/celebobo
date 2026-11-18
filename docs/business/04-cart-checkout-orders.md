@@ -162,6 +162,14 @@ Anything else is refused (`invalid_transition`). Every change is written to the 
 | → `delivered` | The order thread is closed. The client may now review the products. |
 | Any change | Client notified (and the reseller, except for the assignment itself); real-time update for everyone watching. |
 
+### Rating the reseller
+
+Once the order is **delivered** (or returned after delivery), its client can rate the reseller who
+handled it: a score from **1 to 5** and an optional comment (`POST /me/orders/{number}/rating/`).
+One rating per order (`already_rated`); not before delivery, nor for an order no reseller handled
+(`order_not_ratable`). The client's order detail says `can_rate` and shows the `rating` given. The
+reseller is notified, and the average and count appear in the resellers directory (§6).
+
 ### Delivery code
 
 Delivery is confirmed by the client, through a code (owner's decision of 16 Nov 2026):

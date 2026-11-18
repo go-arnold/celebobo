@@ -130,6 +130,12 @@ TEMPLATES: Mapping[NotificationKind, NotificationTemplate] = MappingProxyType(
             link="/admin/commandes/{order_id}",
             topic=ORDER_ASSIGNED_TOPIC,
         ),
+        NotificationKind.RESELLER_RATED: NotificationTemplate(
+            title="Nouvelle note : {score}/5",
+            body="Le client de la commande {number} vous a donné {score}/5.",
+            link="/admin/commandes/{order_id}",
+            topic=STATUS_CHANGED_TOPIC,
+        ),
         NotificationKind.MEMBERSHIP_REQUESTED: NotificationTemplate(
             title="Abonnement Plus à confirmer",
             body="{client} a choisi la formule {plan}. Confirmez dès réception du paiement.",

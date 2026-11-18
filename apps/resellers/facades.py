@@ -5,6 +5,7 @@ from django.db import transaction
 
 from apps.accounts.domain.commands import ResellerChanges, ResellerFilters
 from apps.accounts.domain.read_models import ResellerAccount
+from apps.orders.domain.read_models import ResellerRatingRow
 from apps.resellers.domain.commands import (
     ApplicationFilters,
     ApproveApplication,
@@ -29,7 +30,12 @@ from apps.resellers.models import ResellerApplication
 from apps.resellers.repositories import ApplicationRepository
 from apps.resellers.selectors import ApplicationSelector
 from apps.resellers.services.applications import ApplicationService
-from apps.resellers.services.contracts import ResellerAccounts, ResellerDirectory, SalesLedger
+from apps.resellers.services.contracts import (
+    RatingBook,
+    ResellerAccounts,
+    ResellerDirectory,
+    SalesLedger,
+)
 from apps.resellers.services.invitees import InviteeService
 from apps.resellers.services.referrals import ReferralKitBuilder
 from core.domain.actor import Actor
@@ -112,9 +118,11 @@ class ResellerProgramFacade:
         ledger: SalesLedger,
         invitees: InviteeService,
         applications: ApplicationSelector,
+        ratings: RatingBook,
         ranking_days: int,
         clock: Callable[[], datetime],
     ) -> None:
+        self._ratings = ratings
         self._accounts = accounts
         self._directory = directory
         self._ledger = ledger
@@ -141,6 +149,13 @@ class ResellerProgramFacade:
     def invitees(self, reseller_id: int, *, offset: int, limit: int) -> tuple[InviteesPage, int]:
         return self._invitees.page(reseller_id, offset=offset, limit=limit)
 
+    # what clients said after delivery, newest first
+    def ratings(
+        self, reseller_id: int, *, offset: int, limit: int
+    ) -> tuple[list[ResellerRatingRow], int]:
+        self._directory.one(reseller_id)
+        return self._ratings.ratings(reseller_id, offset=offset, limit=limit)
+
     def stats(self) -> ResellerStats:
         counts = self._directory.counts()
         since = self._clock() - timedelta(days=self._ranking_days)
@@ -164,9 +179,13 @@ class ResellerProgramFacade:
         return self._overviews([account])[0]
 
     def _overviews(self, accounts: list[ResellerAccount]) -> list[ResellerOverview]:
-        performance = self._ledger.performance(account.id for account in accounts)
+        ids = [account.id for account in accounts]
+        performance = self._ledger.performance(ids)
+        ratings = self._ratings.summaries(ids)
         return [
-            ResellerOverview(account=account, performance=performance[account.id])
+            ResellerOverview(
+                account=account, performance=performance[account.id], rating=ratings[account.id]
+            )
             for account in accounts
         ]
 

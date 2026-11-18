@@ -195,3 +195,13 @@ class DeliveryReasonRequired(ValidationFailed):
 
     def __init__(self) -> None:
         super().__init__(errors={"reason": [self.default_detail]})
+
+
+class OrderNotRatable(BusinessRuleViolation):
+    default_code = "order_not_ratable"
+    default_detail = "Vous pourrez noter le revendeur une fois votre commande livrée."
+
+
+class AlreadyRated(Conflict):
+    default_code = "already_rated"
+    default_detail = "Vous avez déjà noté le revendeur pour cette commande."

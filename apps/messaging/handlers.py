@@ -27,6 +27,7 @@ from apps.orders.domain.events import (
     OrderRefunded,
     OrderStatusChanged,
     RefundDue,
+    ResellerRated,
 )
 from core.container import container
 from core.events.bus import event_bus
@@ -74,6 +75,11 @@ def notify_assignment_declined(event: AssignmentDeclined) -> None:
 @event_bus.on(DeliveryCodeIssued, background=True)
 def notify_delivery_code(event: DeliveryCodeIssued) -> None:
     container.resolve(NotificationRouter).delivery_code_issued(event)
+
+
+@event_bus.on(ResellerRated, background=True)
+def notify_reseller_rated(event: ResellerRated) -> None:
+    container.resolve(NotificationRouter).reseller_rated(event)
 
 
 @event_bus.on(DeliveryCodeLocked, background=True)
