@@ -30,3 +30,8 @@ class InvalidImportFile(ValidationFailed):
 class InvoiceUnavailable(Conflict):
     default_code = "invoice_unavailable"
     default_detail = "La facture n'est pas disponible pour une commande annulée."
+
+
+class ReceiptUnavailable(Conflict):
+    default_code = "receipt_unavailable"
+    default_detail = "Le reçu de livraison n'existe qu'une fois la commande livrée."

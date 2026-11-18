@@ -1,6 +1,12 @@
 from django.urls import path
 
-from apps.documents.api.v1.views import ExportViewSet, InvoiceViewSet, JobViewSet
+from apps.documents.api.v1.views import (
+    ExportViewSet,
+    InvoiceViewSet,
+    JobViewSet,
+    ReceiptVerificationViewSet,
+    ReceiptViewSet,
+)
 
 urlpatterns = [
     path("bo/sales/export/", ExportViewSet.as_view({"post": "sales"}), name="bo-sales-export"),
@@ -35,5 +41,20 @@ urlpatterns = [
         "bo/orders/<id:order_id>/invoice/",
         InvoiceViewSet.as_view({"get": "backoffice"}),
         name="bo-order-invoice",
+    ),
+    path(
+        "me/orders/<str:number>/receipt/",
+        ReceiptViewSet.as_view({"get": "mine"}),
+        name="my-order-receipt",
+    ),
+    path(
+        "bo/orders/<id:order_id>/receipt/",
+        ReceiptViewSet.as_view({"get": "backoffice"}),
+        name="bo-order-receipt",
+    ),
+    path(
+        "receipts/verify/",
+        ReceiptVerificationViewSet.as_view({"post": "create"}),
+        name="receipt-verify",
     ),
 ]

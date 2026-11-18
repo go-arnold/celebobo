@@ -1,0 +1,46 @@
+{% extends "documents/base.html" %}
+{% block title %}Reçu de livraison {{ receipt.order_number }}{% endblock %}
+{% block stamp %}Reçu n° {{ number }}<br>Émis le {{ issued_at|date:"d/m/Y à H:i" }}{% endblock %}
+{% block content %}
+<h1>Reçu de livraison</h1>
+<p class="muted">Commande {{ receipt.order_number }} du {{ ordered_at|date:"d/m/Y" }} · Paiement : {{ receipt.payment_method }}</p>
+<table style="margin: 10px 0 14px;">
+  <tr>
+    <td style="width: 50%; border: none;">
+      <strong>Client</strong><br>{{ receipt.client }}<br>{{ receipt.recipient }}
+    </td>
+    <td style="border: none;">
+      <strong>{% if receipt.pickup %}Retrait sur place{% else %}Livré à{% endif %}</strong><br>{{ receipt.address }}
+    </td>
+  </tr>
+</table>
+<table style="margin-bottom: 14px;">
+  <tr>
+    <td style="border: none;"><strong>Remise au client</strong><br>
+      {{ delivered_at|date:"d/m/Y à H:i" }}{% if receipt.reseller %} · revendeur : {{ receipt.reseller }}{% endif %}<br>
+      <span class="muted">{{ receipt.confirmation }}{% if receipt.confirmed_by %} ({{ receipt.confirmed_by }}){% endif %}</span>
+    </td>
+  </tr>
+</table>
+<table>
+  <thead><tr><th>Article</th><th class="num">Qté</th><th class="num">Prix unitaire</th><th class="num">Total</th></tr></thead>
+  <tbody>
+  {% for item in receipt.items %}
+    <tr><td>{{ item.name }}{% if item.variant %} — {{ item.variant }}{% endif %}</td>
+      <td class="num">{{ item.quantity }}</td><td class="num">{{ item.unit_price }} $</td><td class="num">{{ item.total }} $</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr><td colspan="3" class="num">Sous-total</td><td class="num">{{ receipt.subtotal }} $</td></tr>
+    {% if receipt.discount != "0.00" %}<tr><td colspan="3" class="num">Remise</td><td class="num">-{{ receipt.discount }} $</td></tr>{% endif %}
+    {% if receipt.cashback != "0.00" %}<tr><td colspan="3" class="num">Cagnotte</td><td class="num">-{{ receipt.cashback }} $</td></tr>{% endif %}
+    <tr><td colspan="3" class="num">Livraison</td><td class="num">{{ receipt.shipping_fee }} $</td></tr>
+    <tr class="totals"><td colspan="3" class="num">Total payé</td><td class="num">{{ receipt.total }} $</td></tr>
+  </tfoot>
+</table>
+<h2>Signature électronique</h2>
+<p class="muted">Ce reçu est un document électronique signé par {{ company_name }}. Toute modification de son contenu invalide la signature.
+  Pour vérifier son authenticité, ouvrez le lien ci-dessous, ou saisissez le numéro du reçu et la signature sur {{ verify_page }}.</p>
+<p style="font-family: monospace; font-size: 8pt; word-break: break-all;">{{ number }} · {{ signature }}</p>
+<p style="font-size: 8pt; word-break: break-all;"><a href="{{ verify_link }}">{{ verify_link }}</a></p>
+{% endblock %}

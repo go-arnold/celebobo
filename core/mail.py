@@ -1,3 +1,5 @@
+import base64
+from collections.abc import Sequence
 from typing import Any
 
 from celery import shared_task
@@ -10,13 +12,24 @@ def queue_message(message: EmailMessage) -> None:
     deliver_email.delay(serialize_message(message))
 
 
+# an e-mail attachment: file name, content and media type
+Attachment = tuple[str, bytes, str]
+
+
 def queue_templated(
-    template_prefix: str, *, to: list[str], context: dict[str, Any], subject: str
+    template_prefix: str,
+    *,
+    to: list[str],
+    context: dict[str, Any],
+    subject: str,
+    attachments: Sequence[Attachment] = (),
 ) -> None:
     body = render_to_string(f"{template_prefix}_message.txt", context).strip()
     message = EmailMultiAlternatives(
         subject=subject, body=body, from_email=settings.DEFAULT_FROM_EMAIL, to=to
     )
+    for filename, content, mimetype in attachments:
+        message.attach(filename, content, mimetype)
     queue_message(message)
 
 
@@ -32,6 +45,11 @@ def serialize_message(message: EmailMessage) -> dict[str, Any]:
         "reply_to": list(message.reply_to),
         "headers": dict(message.extra_headers),
         "alternatives": [[content, mimetype] for content, mimetype in alternatives],
+        "attachments": [
+            [name, base64.b64encode(content).decode(), mimetype]
+            for name, content, mimetype in message.attachments
+            if isinstance(content, bytes)
+        ],
     }
 
 
@@ -48,6 +66,8 @@ def build_message(payload: dict[str, Any]) -> EmailMultiAlternatives:
     )
     for content, mimetype in payload["alternatives"]:
         message.attach_alternative(content, mimetype)
+    for name, content, mimetype in payload.get("attachments", []):
+        message.attach(name, base64.b64decode(content), mimetype)
     return message
 
 

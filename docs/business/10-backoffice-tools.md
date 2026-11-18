@@ -54,6 +54,28 @@ event is pushed when it finishes. Users see only their own jobs; files are delet
 PDF invoice of an order: clients for their own orders, back-office users for orders they can see.
 Not available for cancelled orders.
 
+### Delivery receipts
+
+A **signed delivery receipt** (PDF) is the proof that the order was handed over (plan step 3.4,
+Code du numérique art. 58):
+
+- It is issued **once**, when the order becomes **delivered**, and **e-mailed** to the client with
+  the PDF attached. Its content is frozen then: order and receipt numbers (`R-{order number}`),
+  client, delivery or pickup address, items, totals, payment method, date and time of handover,
+  reseller, and how the delivery was confirmed (with the client's code, or by a manager without
+  it, with the reason).
+- That content is **signed** (HMAC-SHA256 with a key derived from the server secret). Every copy of
+  the PDF is rendered from the frozen content, so it always matches the signature printed on it.
+- Download: `/me/orders/{number}/receipt/` (client, `invoices.view.own`) and
+  `/bo/orders/{id}/receipt/` (back-office, `invoices.view`). Before delivery: `receipt_unavailable`.
+  An order delivered before receipts existed gets its receipt on the first download (not e-mailed).
+- **Verification** (anyone): the public page `/verifier-recu` of the site, whose link (number and
+  signature filled in) is printed on every receipt, calls `POST /receipts/verify/` with the receipt
+  number and the signature → `valid`, and if so the order number, delivery date and total, to
+  compare with the paper. A receipt whose stored content was changed afterwards no longer verifies.
+- Rotating the server secret (`DJANGO_SECRET_KEY`) makes existing signatures fail verification:
+  rotate it only together with re-signing the receipts.
+
 ## Uploads (images)
 
 Files go **directly from the browser to Cloudinary**, signed by the API:

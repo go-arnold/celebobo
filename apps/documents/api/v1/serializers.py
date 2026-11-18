@@ -63,3 +63,15 @@ class JobOutput(serializers.Serializer[Any]):
     downloadable = serializers.BooleanField()
     created_at = serializers.DateTimeField()
     finished_at = serializers.DateTimeField(allow_null=True)
+
+
+class VerifyReceiptInput(serializers.Serializer[Any]):
+    number = serializers.CharField(max_length=24)
+    signature = serializers.CharField(max_length=64)
+
+
+class ReceiptVerificationOutput(serializers.Serializer[Any]):
+    valid = serializers.BooleanField()
+    order_number = serializers.CharField(allow_null=True)
+    delivered_at = serializers.CharField(allow_null=True)
+    total = serializers.CharField(allow_null=True)

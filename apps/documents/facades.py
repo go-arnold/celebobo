@@ -10,10 +10,11 @@ from apps.documents.domain.read_models import JobView
 from apps.documents.domain.tables import RenderedFile
 from apps.documents.models import Job
 from apps.documents.selectors import JobSelector, to_job_view
-from apps.documents.services.contracts import OrderSource
+from apps.documents.services.contracts import OrderSource, ReceiptMailer
 from apps.documents.services.importer import parse_csv
 from apps.documents.services.invoices import InvoiceBuilder
 from apps.documents.services.jobs import JobService
+from apps.documents.services.receipts import ReceiptService, Verification
 from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
 from core.events.contracts import EventPublisher
@@ -117,6 +118,44 @@ class InvoiceFacade:
 
     def for_backoffice(self, actor: Actor, order_id: int) -> RenderedFile:
         return self._builder.build(self._orders.for_backoffice(actor, order_id))
+
+
+@logged_facade
+class ReceiptFacade:
+    """The signed receipt of a delivered order: issued and e-mailed at delivery, downloadable."""
+
+    def __init__(
+        self,
+        *,
+        orders: OrderSource,
+        receipts: ReceiptService,
+        mailer: ReceiptMailer,
+    ) -> None:
+        self._orders = orders
+        self._receipts = receipts
+        self._mailer = mailer
+
+    def delivered(self, order_id: int) -> None:
+        with transaction.atomic():
+            order = self._orders.for_backoffice(Actor.system(), order_id)
+            receipt = self._receipts.issue(order)
+            if receipt.emailed_at is not None:
+                return
+            if order.client.email:
+                self._mailer.send(order, receipt, self._receipts.render(receipt))
+            self._receipts.mark_emailed(receipt)
+
+    # orders delivered before receipts existed get theirs on first download
+    def for_client(self, actor: Actor, number: str) -> RenderedFile:
+        order = self._orders.for_client(_user_id(actor), number)
+        return self._receipts.render(self._receipts.issue(order))
+
+    def for_backoffice(self, actor: Actor, order_id: int) -> RenderedFile:
+        order = self._orders.for_backoffice(actor, order_id)
+        return self._receipts.render(self._receipts.issue(order))
+
+    def verify(self, number: str, signature: str) -> Verification:
+        return self._receipts.verify(number, signature)
 
 
 def _user_id(actor: Actor) -> int:

@@ -1,0 +1,7 @@
+Bonjour {{ first_name }},
+
+Votre commande {{ number }} vous a été remise. Vous trouverez en pièce jointe votre reçu de livraison signé ; vous pouvez aussi le télécharger depuis votre commande :
+{{ url }}
+
+Merci pour votre confiance,
+L'équipe {{ company_name }}
