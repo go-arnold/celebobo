@@ -52,9 +52,10 @@ from apps.content.domain.commands import (
 )
 from apps.content.domain.enums import ContactSubject, SectionKind
 from apps.content.facades import ContactFacade, NewsletterFacade, SiteContentFacade
-from apps.demo import catalogue, content, people
+from apps.demo import catalogue, content, people, photos
 from apps.demo.images import banner_image, category_image, product_image
-from apps.demo.uploads import ImageStore
+from apps.demo.photos import photo_url
+from apps.demo.uploads import ImageStore, download
 from apps.media.models import UploadedMedia
 from apps.messaging.domain.commands import OpenSupport, PostMessage
 from apps.messaging.facades import ConversationFacade
@@ -196,11 +197,30 @@ class DemoSeeder:
         self.report.accounts.append(("admin", admin.email, self._password))
         return admin
 
-    def _image(self, name: str, content: Callable[[], bytes], purpose: str) -> int | None:
+    def _image(
+        self,
+        name: str,
+        content: Callable[[], bytes],
+        purpose: str,
+        *,
+        photo: int | None = None,
+        width: int = 900,
+    ) -> int | None:
+        # a real stock photo when there is one: uploaded to Cloudinary when it is configured,
+        # otherwise linked where it is; the drawn picture only when there is no photo
         if self._store is None:
             return None
-        media_id = self._store.upload(name, content(), purpose=purpose)
-        self.report.add("images")
+        if photo is not None:
+            url = photo_url(photo, width=width)
+            media_id = (
+                self._store.upload(name, download(url), purpose=purpose)
+                if self._store.enabled
+                else self._store.link(name, url, purpose=purpose)
+            )
+        else:
+            media_id = self._store.upload(name, content(), purpose=purpose)
+        if media_id is not None:
+            self.report.add("images")
         return media_id
 
     def _site_content(self) -> None:
@@ -238,13 +258,15 @@ class DemoSeeder:
             self.report.add("faq")
         shapes = ("phone", "laptop", "speaker")
         palette = (("#1d4ed8", "#60a5fa"), ("#0f766e", "#5eead4"), ("#b45309", "#fcd34d"))
-        for position, ((title, subtitle, link, label), shape, colors) in enumerate(
-            zip(content.BANNERS, shapes, palette, strict=True), start=1
+        for position, ((title, subtitle, link, label), shape, colors, photo) in enumerate(
+            zip(content.BANNERS, shapes, palette, photos.BANNERS, strict=True), start=1
         ):
             media_id = self._image(
                 f"banner-{position}",
                 partial(banner_image, shape, colors),
                 "category_image",
+                photo=photo,
+                width=1600,
             )
             image = (
                 self._media_url(media_id)
@@ -273,6 +295,7 @@ class DemoSeeder:
                 f"category-{item.key}",
                 partial(category_image, first_shape[item.key], item.name, item.color),
                 "category_image",
+                photo=photos.CATEGORIES.get(item.key),
             )
             created = categories.create(
                 self._actor,
@@ -301,6 +324,7 @@ class DemoSeeder:
                 f"product-{slugify(product.name)}",
                 partial(product_image, product.shape, product.brand, colors[product.category]),
                 "product_image",
+                photo=photos.PRODUCTS.get(product.name),
             )
             detail = admin_products.create(
                 self._actor,
