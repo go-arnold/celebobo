@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 
 from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
@@ -116,6 +117,11 @@ class OrderLifecycleService:
     def cancel(self, order: Order, actor: Actor, command: CancelOrder) -> StatusChange:
         return self._cancel(order, actor, command.reason, " ".join(command.details.split()))
 
+    # the reseller could not deliver on two working days: the system cancels the order
+    def fail_delivery(self, order: Order, *, days: int) -> StatusChange:
+        details = f"Livraison impossible après {days} jours de tentatives"
+        return self._cancel(order, Actor.system(), CancelReason.DELIVERY_FAILED, details)
+
     # nobody took the order in charge in time: the system cancels it and releases its stock
     def expire(self, order: Order, actor: Actor, *, hours: int) -> StatusChange:
         details = f"Aucun revendeur assigné sous {hours} h"
@@ -166,8 +172,14 @@ class OrderLifecycleService:
             order.delivery_code = delivery.new_code()
             fields.append("delivery_code")
         if status is OrderStatus.CANCELLED and previous in PAID_STATUSES:
-            # what the client really paid (cashback and coupon were not money)
-            order.refund_due = order.total
+            # what the client really paid (cashback and coupon were not money); after failed
+            # deliveries the delivery fee is kept (delivery policy)
+            kept = (
+                order.shipping_fee
+                if order.cancel_reason == CancelReason.DELIVERY_FAILED
+                else Decimal(0)
+            )
+            order.refund_due = max(order.total - kept, Decimal(0))
             fields.append("refund_due")
         self._orders.save(order, fields=fields)
         self._record(order, actor, previous, status, note)

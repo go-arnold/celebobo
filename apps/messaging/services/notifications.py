@@ -7,7 +7,8 @@ from apps.messaging.domain.enums import NotificationKind
 from apps.messaging.domain.notifications import RenderedNotification, preview, render
 from apps.messaging.repositories import NotificationRepository
 from apps.messaging.services.contracts import Delivery, Directory, Notifier, OrderGateway
-from apps.orders.domain.enums import OrderStatus
+from apps.orders.domain.attempts import ATTEMPT_DAYS
+from apps.orders.domain.enums import AttemptReason, OrderStatus
 from core.registry import Registry
 
 notifier_registry: Registry[Notifier] = Registry("notification channel")
@@ -118,15 +119,39 @@ class NotificationFanout:
         )
 
     # staff record the refund; the reseller who collected the money is told as well
-    def refund_due(self, order_id: int, amount: str) -> None:
+    def refund_due(self, order_id: int, amount: str, *, delivery_failed: bool = False) -> None:
         order = self._orders.ref(order_id)
         recipients = self._directory.staff_ids()
         if order.reseller_id is not None:
             recipients.append(order.reseller_id)
+        deadline = (
+            "sous 5 jours ouvrables, frais de livraison déduits" if delivery_failed else "sous 72 h"
+        )
         self._notifications.notify(
             recipients,
             render(
-                NotificationKind.REFUND_DUE, number=order.number, order_id=order.id, amount=amount
+                NotificationKind.REFUND_DUE,
+                number=order.number,
+                order_id=order.id,
+                amount=amount,
+                deadline=deadline,
+            ),
+            order_id=order.id,
+        )
+
+    # the order is cancelled on the second working day of failures (its own notification)
+    def delivery_attempt(self, order_id: int, reason: str, *, days: int) -> None:
+        if days >= ATTEMPT_DAYS:
+            return
+        order = self._orders.ref(order_id)
+        self._notifications.notify(
+            [order.client_id],
+            render(
+                NotificationKind.DELIVERY_ATTEMPT,
+                number=order.number,
+                reason=AttemptReason(reason).label.lower(),
+                next="Il repassera un autre jour ouvrable ; sans livraison possible, la commande "
+                "sera annulée.",
             ),
             order_id=order.id,
         )

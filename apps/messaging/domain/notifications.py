@@ -104,7 +104,7 @@ TEMPLATES: Mapping[NotificationKind, NotificationTemplate] = MappingProxyType(
         NotificationKind.REFUND_DUE: NotificationTemplate(
             title="Remboursement à effectuer — {number}",
             body="La commande {number}, déjà payée, a été annulée : {amount} $ à rendre au client "
-            "sous 72 h.",
+            "{deadline}.",
             link="/admin/commandes/{order_id}",
             topic=ORDER_ASSIGNED_TOPIC,
         ),
@@ -129,6 +129,12 @@ TEMPLATES: Mapping[NotificationKind, NotificationTemplate] = MappingProxyType(
             "puis confirmez la livraison avec un motif.",
             link="/admin/commandes/{order_id}",
             topic=ORDER_ASSIGNED_TOPIC,
+        ),
+        NotificationKind.DELIVERY_ATTEMPT: NotificationTemplate(
+            title="Livraison manquée — {number}",
+            body="Le revendeur n'a pas pu vous livrer ({reason}). {next}",
+            link="/compte/commandes/{number}",
+            topic=STATUS_CHANGED_TOPIC,
         ),
         NotificationKind.RESELLER_RATED: NotificationTemplate(
             title="Nouvelle note : {score}/5",

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 
-from apps.orders.domain.enums import CancelReason, OrderStatus, PaymentMethod
+from apps.orders.domain.enums import AttemptReason, CancelReason, OrderStatus, PaymentMethod
 from apps.orders.domain.pricing import CouponKind, ZonePricing
 from core.domain.values import UNSET, Maybe
 
@@ -41,6 +41,12 @@ class PlaceOrder:
 class CancelOrder:
     reason: CancelReason
     details: str = ""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RecordAttempt:
+    reason: AttemptReason
+    note: str = ""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

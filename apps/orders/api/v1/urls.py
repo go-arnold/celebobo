@@ -99,6 +99,11 @@ urlpatterns = [
         name="bo-order-decline",
     ),
     path(
+        "bo/orders/<id:order_id>/delivery-attempts/",
+        DispatchViewSet.as_view({"post": "record_attempt"}),
+        name="bo-order-delivery-attempts",
+    ),
+    path(
         "bo/orders/<id:order_id>/refund/",
         DispatchViewSet.as_view({"post": "refund"}),
         name="bo-order-refund",

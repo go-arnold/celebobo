@@ -66,6 +66,15 @@ class ShippingFeeAccepted(DomainEvent):
 class RefundDue(DomainEvent):
     order_id: int
     amount: Decimal
+    # cancelled after failed deliveries: 5 working days, the delivery fee kept (policy)
+    delivery_failed: bool = False
+
+
+@domain_event
+class DeliveryAttemptFailed(DomainEvent):
+    order_id: int
+    reason: str
+    days: int
 
 
 @domain_event

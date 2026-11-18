@@ -31,6 +31,7 @@ from apps.orders.repositories import (
 )
 from apps.orders.selectors import OrderSelector, PromotionSelector
 from apps.orders.services.adjustments import AdjustmentService
+from apps.orders.services.attempts import DeliveryAttemptService
 from apps.orders.services.cart import CartService
 from apps.orders.services.checkout import CheckoutService
 from apps.orders.services.contracts import (
@@ -148,6 +149,7 @@ def _dispatch_facade(container: Container) -> DispatchFacade:
     return DispatchFacade(
         returns=LineReturnService(OrderRepository(), container.resolve(Inventory)),
         refunds=RefundService(OrderRepository(), clock=timezone.now),
+        attempts=DeliveryAttemptService(_lifecycle(container), clock=timezone.now),
         orders=OrderRepository(),
         lifecycle=_lifecycle(container),
         selector=OrderSelector(),

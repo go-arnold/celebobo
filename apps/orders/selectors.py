@@ -9,6 +9,7 @@ from apps.orders.domain.commands import OrderFilters
 from apps.orders.domain.enums import (
     FINAL_STATUSES,
     RATABLE_STATUSES,
+    AttemptReason,
     DeliveryMethod,
     OrderStatus,
     PaymentMethod,
@@ -17,6 +18,7 @@ from apps.orders.domain.errors import CouponNotFound, OrderNotFound, ShippingZon
 from apps.orders.domain.pricing import ZonePricing
 from apps.orders.domain.read_models import (
     AddressSnapshot,
+    AttemptView,
     ClientOrderTotals,
     ConvertibleItem,
     ConvertibleOrder,
@@ -151,7 +153,7 @@ class OrderSelector:
     def _detail(self, orders: QuerySet[Order], *, staff: bool) -> OrderDetail:
         order = (
             orders.select_related("client", "assigned_reseller", "rating")
-            .prefetch_related("items__returns", "history__actor")
+            .prefetch_related("items__returns", "history__actor", "delivery_attempts")
             .annotate(items_count=Count("items", distinct=True))
             .first()
         )
@@ -190,6 +192,15 @@ class OrderSelector:
             delivery_code_attempts=order.delivery_code_attempts,
             delivery_code_locked=order.delivery_code_locked_at is not None,
             rating=_rating(order),
+            delivery_attempts=tuple(
+                AttemptView(
+                    at=attempt.created_at,
+                    reason=attempt.reason,
+                    reason_label=AttemptReason(attempt.reason).label,
+                    note=attempt.note,
+                )
+                for attempt in order.delivery_attempts.all()
+            ),
             can_rate=order.order_status in RATABLE_STATUSES
             and order.assigned_reseller_id is not None
             and getattr(order, "rating", None) is None,

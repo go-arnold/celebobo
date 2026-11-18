@@ -54,6 +54,7 @@ from apps.messaging.services.proposals import ProposalService
 from apps.orders.domain.errors import ResellerNotFound
 from apps.orders.domain.events import (
     AssignmentDeclined,
+    DeliveryAttemptFailed,
     DeliveryCodeIssued,
     DeliveryCodeLocked,
     OrderAssigned,
@@ -391,7 +392,12 @@ class NotificationRouter:
         self._fanout.delivery_code_locked(event.order_id)
 
     def refund_due(self, event: RefundDue) -> None:
-        self._fanout.refund_due(event.order_id, str(event.amount))
+        self._fanout.refund_due(
+            event.order_id, str(event.amount), delivery_failed=event.delivery_failed
+        )
+
+    def delivery_attempt(self, event: DeliveryAttemptFailed) -> None:
+        self._fanout.delivery_attempt(event.order_id, event.reason, days=event.days)
 
     def order_refunded(self, event: OrderRefunded) -> None:
         self._fanout.order_refunded(event.order_id, str(event.amount))
