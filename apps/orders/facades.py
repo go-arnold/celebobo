@@ -17,6 +17,7 @@ from apps.orders.domain.commands import (
     OrderFilters,
     OrderLineInput,
     PlaceOrder,
+    RecordRefund,
     ReturnLine,
     TrackOrder,
     TransitionOrder,
@@ -30,8 +31,10 @@ from apps.orders.domain.events import (
     OrderAssigned,
     OrderLineReturned,
     OrderPlaced,
+    OrderRefunded,
     OrderRepriced,
     OrderStatusChanged,
+    RefundDue,
     ShippingFeeAccepted,
 )
 from apps.orders.domain.numbers import normalize_order_number
@@ -57,6 +60,7 @@ from apps.orders.services.contracts import OrderThreads, ResellerDirectory, Wall
 from apps.orders.services.lifecycle import OrderLifecycleService, StatusChange
 from apps.orders.services.pricing import PricingContext, PricingService
 from apps.orders.services.promotions import CouponAdminService, ShippingZoneService
+from apps.orders.services.refunds import RefundService
 from apps.orders.services.returns import LineReturnService
 from apps.orders.services.shipping_quotes import ShippingQuoteService
 from core.domain.actor import Actor
@@ -244,8 +248,10 @@ class DispatchFacade:
         threads: OrderThreads,
         wallet: Wallet,
         returns: LineReturnService,
+        refunds: RefundService,
         publisher: EventPublisher,
     ) -> None:
+        self._refunds = refunds
         self._orders = orders
         self._lifecycle = lifecycle
         self._selector = selector
@@ -305,6 +311,15 @@ class DispatchFacade:
         with transaction.atomic():
             order = self._locked(actor, order_id)
             _announce(self._publisher, self._lifecycle.transition(order, actor, command), actor)
+        return self.detail(actor, order_id)
+
+    # a paid order was cancelled: staff record that the money went back to the client
+    def refund(self, actor: Actor, order_id: int, command: RecordRefund) -> OrderDetail:
+        with transaction.atomic():
+            order = self._refunds.record(self._locked(actor, order_id), actor, command)
+            self._publisher.publish(
+                OrderRefunded(order_id=order.pk, amount=order.refund_due, actor_id=actor.user_id)
+            )
         return self.detail(actor, order_id)
 
     # sales and cashback follow the return in this transaction (transactional handlers); once
@@ -403,6 +418,12 @@ def _announce(publisher: EventPublisher, change: StatusChange, actor: Actor) -> 
             actor_id=actor.user_id,
         )
     )
+    if change.status is OrderStatus.CANCELLED and change.order.refund_due > 0:
+        publisher.publish(
+            RefundDue(
+                order_id=change.order.pk, amount=change.order.refund_due, actor_id=actor.user_id
+            )
+        )
 
 
 def _existing(order: Order | None) -> Order:

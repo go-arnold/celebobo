@@ -98,6 +98,19 @@ TEMPLATES: Mapping[NotificationKind, NotificationTemplate] = MappingProxyType(
             link="/admin/messages/{conversation_id}",
             topic=STATUS_CHANGED_TOPIC,
         ),
+        NotificationKind.REFUND_DUE: NotificationTemplate(
+            title="Remboursement à effectuer — {number}",
+            body="La commande {number}, déjà payée, a été annulée : {amount} $ à rendre au client "
+            "sous 72 h.",
+            link="/admin/commandes/{order_id}",
+            topic=ORDER_ASSIGNED_TOPIC,
+        ),
+        NotificationKind.ORDER_REFUNDED: NotificationTemplate(
+            title="Commande {number} remboursée",
+            body="Le remboursement de {amount} $ pour votre commande {number} a été effectué.",
+            link="/compte/commandes/{number}",
+            topic=STATUS_CHANGED_TOPIC,
+        ),
         NotificationKind.MEMBERSHIP_REQUESTED: NotificationTemplate(
             title="Abonnement Plus à confirmer",
             body="{client} a choisi la formule {plan}. Confirmez dès réception du paiement.",

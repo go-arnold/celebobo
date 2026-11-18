@@ -108,6 +108,13 @@ class Order(models.Model):
     total = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     cancel_reason = models.CharField(max_length=24, choices=CANCEL_CHOICES, blank=True)
     cancel_details = models.CharField(max_length=500, blank=True)
+    # cancelled after payment: the money owed back to the client (policy: within 72 h), and when
+    # staff recorded that it was given back
+    refund_due = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
+    )
+    refunded_at = models.DateTimeField(null=True, blank=True)
+    refund_note = models.CharField(max_length=200, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

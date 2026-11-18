@@ -56,7 +56,9 @@ from apps.orders.domain.events import (
     AssignmentDeclined,
     OrderAssigned,
     OrderPlaced,
+    OrderRefunded,
     OrderStatusChanged,
+    RefundDue,
 )
 from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
@@ -365,6 +367,12 @@ class NotificationRouter:
 
     def order_status_changed(self, event: OrderStatusChanged) -> None:
         self._fanout.order_status_changed(event.order_id, event.status, event.actor_id)
+
+    def refund_due(self, event: RefundDue) -> None:
+        self._fanout.refund_due(event.order_id, str(event.amount))
+
+    def order_refunded(self, event: OrderRefunded) -> None:
+        self._fanout.order_refunded(event.order_id, str(event.amount))
 
     def message_posted(self, event: MessagePosted) -> None:
         if event.sender_id is None:

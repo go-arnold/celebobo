@@ -44,6 +44,12 @@ class CancelOrder:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class RecordRefund:
+    # e.g. the Mobile Money transaction reference
+    note: str = ""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class AssignOrder:
     reseller_id: int
     note: str = ""
@@ -71,6 +77,8 @@ class TrackOrder:
 class OrderFilters:
     status: OrderStatus | None = None
     unassigned: bool = False
+    # cancelled after payment, refund not recorded yet
+    refund_pending: bool = False
     reseller_id: int | None = None
     payment_method: PaymentMethod | None = None
     date_from: date | None = None

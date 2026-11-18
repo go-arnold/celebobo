@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Protocol
 
-from apps.orders.domain.enums import FULFILMENT_FLOW, OrderStatus
+from apps.orders.domain.enums import CLIENT_CANCELLABLE, FULFILMENT_FLOW, OrderStatus
 from core.domain.actor import Actor, Role
 from core.domain.errors import InvalidTransition
 
@@ -14,12 +14,8 @@ class OrderState:
     client_id: int
     reseller_id: int | None
     # a quoted zone whose fee the client has not accepted yet: nothing is fixed, so the order
-    # cannot be confirmed and the client may still walk away
+    # cannot be confirmed
     awaiting_shipping_quote: bool = False
-
-
-# the client may cancel free of charge until the shipping quote is accepted
-_CLIENT_CANCELLABLE_WHILE_QUOTING = frozenset({OrderStatus.PENDING, OrderStatus.ASSIGNED})
 
 
 class TransitionPolicy(Protocol):
@@ -28,14 +24,9 @@ class TransitionPolicy(Protocol):
 
 class ClientPolicy:
     def targets(self, state: OrderState, actor: Actor) -> frozenset[OrderStatus]:
-        if not actor.owns(state.client_id):
-            return frozenset()
-        cancellable = (
-            _CLIENT_CANCELLABLE_WHILE_QUOTING
-            if state.awaiting_shipping_quote
-            else frozenset({OrderStatus.PENDING})
-        )
-        return frozenset({OrderStatus.CANCELLED}) if state.status in cancellable else frozenset()
+        if actor.owns(state.client_id) and state.status in CLIENT_CANCELLABLE:
+            return frozenset({OrderStatus.CANCELLED})
+        return frozenset()
 
 
 class ResellerPolicy:

@@ -26,6 +26,7 @@ from apps.orders.api.v1.serializers import (
     PlaceOrderInput,
     QuoteOutput,
     QuoteRequestInput,
+    RecordRefundInput,
     ReturnLineInput,
     TrackingOutput,
     TrackInput,
@@ -37,6 +38,7 @@ from apps.orders.domain.commands import (
     DeclineAssignment,
     OrderFilters,
     PlaceOrder,
+    RecordRefund,
     ReturnLine,
     TrackOrder,
     TransitionOrder,
@@ -48,6 +50,7 @@ from apps.orders.permissions import (
     ORDERS_ASSIGNMENT_DECLINE,
     ORDERS_CANCEL_MINE,
     ORDERS_PLACE,
+    ORDERS_REFUND,
     ORDERS_STATUS_ADVANCE,
     ORDERS_STATUS_ANY,
     ORDERS_VIEW_ASSIGNED,
@@ -223,6 +226,7 @@ class DispatchViewSet(UseCaseViewSet):
         "decline": (ORDERS_ASSIGNMENT_DECLINE,),
         "transition": (ORDERS_STATUS_ADVANCE,),
         "return_line": (ORDERS_STATUS_ANY,),
+        "refund": (ORDERS_REFUND,),
         "assignable": (ORDERS_ASSIGN,),
     }
     dispatch_orders = Inject(DispatchFacade)
@@ -274,6 +278,13 @@ class DispatchViewSet(UseCaseViewSet):
         return self.respond(
             OrderDetailOutput,
             self.dispatch_orders.return_line(self.actor, order_id, item_id, command),
+        )
+
+    @extend_schema(request=RecordRefundInput, responses=OrderDetailOutput)
+    def refund(self, request: Request, order_id: int) -> Response:
+        command = self.parse(RecordRefundInput, into=RecordRefund)
+        return self.respond(
+            OrderDetailOutput, self.dispatch_orders.refund(self.actor, order_id, command)
         )
 
     @extend_schema(

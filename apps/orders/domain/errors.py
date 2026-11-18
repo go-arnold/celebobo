@@ -158,3 +158,8 @@ class InvalidShippingQuote(ValidationFailed):
 
     def __init__(self) -> None:
         super().__init__(errors={"fee": [self.default_detail]})
+
+
+class NoRefundDue(BusinessRuleViolation):
+    default_code = "no_refund_due"
+    default_detail = "Aucun remboursement n'est attendu pour cette commande."

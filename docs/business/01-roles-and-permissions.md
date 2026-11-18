@@ -43,7 +43,7 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `notifications.view` | Own notifications | | ✓ | ✓ | ✓ | ✓ |
 | `orders.place` | Place an order | | ✓ | ✓ | ✓ | ✓ |
 | `orders.view.mine` | Own orders | | ✓ | ✓ | ✓ | ✓ |
-| `orders.cancel.mine` | Cancel own pending order | | ✓ | ✓ | ✓ | ✓ |
+| `orders.cancel.mine` | Cancel own order until it is out for delivery | | ✓ | ✓ | ✓ | ✓ |
 | `push.devices` | Register browsers for push notifications | | ✓ | ✓ | ✓ | ✓ |
 | `availability.update` | Set own availability (online / away / offline) | | | ✓ | ✓ | ✓ |
 | `dashboard.view` | Back-office dashboard (scoped, see below) | | | ✓ | ✓ | ✓ |
@@ -81,6 +81,7 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `orders.view.all` | Every order | | | | ✓ | ✓ |
 | `orders.assign` | Assign / reassign orders | | | | ✓ | ✓ |
 | `orders.status.any` | Any forward transition, cancel, return | | | | ✓ | ✓ |
+| `orders.refund` | Record the refund of a paid order that was cancelled | | | | ✓ | ✓ |
 | `shipping.manage` | Shipping zones | | | | ✓ | ✓ |
 | `coupons.manage` | Coupons | | | | ✓ | ✓ |
 | `presence.view` | Who is online | | | | ✓ | ✓ |
