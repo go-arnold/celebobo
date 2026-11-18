@@ -5,7 +5,7 @@ from typing import Protocol
 
 from apps.accounts.domain.read_models import Contact
 from apps.messaging.domain.notifications import RenderedNotification
-from apps.orders.domain.read_models import AdjustableItem, OrderRef
+from apps.orders.domain.read_models import AdjustableItem, OrderRef, QuotableOrder
 from core.domain.actor import Actor
 
 
@@ -17,6 +17,12 @@ class OrderGateway(Protocol):
     def apply_price(
         self, actor: Actor, order_id: int, item_id: int, price: Decimal
     ) -> AdjustableItem: ...
+
+    def shipping_quotable(self, actor: Actor, order_id: int) -> QuotableOrder: ...
+
+    def accept_shipping(
+        self, actor: Actor, order_id: int, fee: Decimal, delivery_estimate: str
+    ) -> None: ...
 
 
 class Directory(Protocol):

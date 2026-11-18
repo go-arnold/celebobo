@@ -7,12 +7,14 @@ from apps.messaging.domain.enums import (
     MessageKind,
     NotificationKind,
     ProposalStatus,
+    ProposalSubject,
 )
 
 KIND_CHOICES = [(item.value, item.value) for item in ConversationKind]
 STATUS_CHOICES = [(item.value, item.value) for item in ConversationStatus]
 MESSAGE_KIND_CHOICES = [(item.value, item.value) for item in MessageKind]
 PROPOSAL_STATUS_CHOICES = [(item.value, item.value) for item in ProposalStatus]
+PROPOSAL_SUBJECT_CHOICES = [(item.value, item.value) for item in ProposalSubject]
 NOTIFICATION_KIND_CHOICES = [(item.value, item.value) for item in NotificationKind]
 
 
@@ -123,9 +125,16 @@ class PriceProposal(models.Model):
         Conversation, on_delete=models.CASCADE, related_name="proposals"
     )
     message = models.OneToOneField(Message, on_delete=models.CASCADE, related_name="proposal")
-    order_item = models.ForeignKey("orders.OrderItem", on_delete=models.CASCADE, related_name="+")
+    subject = models.CharField(
+        max_length=12, choices=PROPOSAL_SUBJECT_CHOICES, default=ProposalSubject.ITEM_PRICE.value
+    )
+    # set for an item price; a shipping quote is about the whole order
+    order_item = models.ForeignKey(
+        "orders.OrderItem", null=True, blank=True, on_delete=models.CASCADE, related_name="+"
+    )
     previous_price = models.DecimalField(max_digits=10, decimal_places=2)
     proposed_price = models.DecimalField(max_digits=10, decimal_places=2)
+    delivery_estimate = models.CharField(max_length=60, blank=True)
     reason = models.CharField(max_length=500, blank=True)
     status = models.CharField(
         max_length=12, choices=PROPOSAL_STATUS_CHOICES, default=ProposalStatus.PENDING.value
@@ -138,6 +147,13 @@ class PriceProposal(models.Model):
 
     class Meta:
         ordering = ("-created_at", "-pk")
+        constraints = (
+            models.CheckConstraint(
+                condition=models.Q(subject=ProposalSubject.SHIPPING.value)
+                | models.Q(order_item__isnull=False),
+                name="messaging_proposal_item_price_has_item",
+            ),
+        )
 
     def __str__(self) -> str:
         return f"{self.previous_price} → {self.proposed_price}"

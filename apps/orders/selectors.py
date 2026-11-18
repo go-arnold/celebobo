@@ -6,8 +6,9 @@ from django.db.models import Count, Q, QuerySet, Sum
 from django.utils import timezone
 
 from apps.orders.domain.commands import OrderFilters
-from apps.orders.domain.enums import FINAL_STATUSES, OrderStatus, PaymentMethod
+from apps.orders.domain.enums import FINAL_STATUSES, DeliveryMethod, OrderStatus, PaymentMethod
 from apps.orders.domain.errors import CouponNotFound, OrderNotFound, ShippingZoneNotFound
+from apps.orders.domain.pricing import ZonePricing
 from apps.orders.domain.read_models import (
     AddressSnapshot,
     ClientOrderTotals,
@@ -161,6 +162,10 @@ class OrderSelector:
             cashback=order.cashback,
             shipping_zone=order.shipping_zone,
             shipping_fee=order.shipping_fee,
+            delivery_method=DeliveryMethod(order.delivery_method),
+            pickup_address=order.pickup_address,
+            delivery_estimate=order.delivery_estimate,
+            awaiting_shipping_quote=order.awaiting_shipping_quote,
             cancel_reason=order.cancel_reason,
             history=tuple(
                 StatusEntry(
@@ -430,6 +435,8 @@ def to_zone_view(zone: ShippingZone) -> ShippingZoneView:
         is_active=zone.is_active,
         position=zone.position,
         member_free_shipping=zone.member_free_shipping,
+        pricing=ZonePricing(zone.pricing),
+        pickup_address=zone.pickup_address,
     )
 
 

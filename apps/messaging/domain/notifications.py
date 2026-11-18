@@ -83,6 +83,21 @@ TEMPLATES: Mapping[NotificationKind, NotificationTemplate] = MappingProxyType(
             link="/admin/messages/{conversation_id}",
             topic=STATUS_CHANGED_TOPIC,
         ),
+        NotificationKind.SHIPPING_QUOTED: NotificationTemplate(
+            title="Frais de livraison à valider",
+            body=(
+                "Commande {number} : livraison à {fee} ${estimate}. "
+                "Acceptez-la ou annulez sans frais."
+            ),
+            link="/messages/{conversation_id}",
+            topic=STATUS_CHANGED_TOPIC,
+        ),
+        NotificationKind.SHIPPING_ANSWERED: NotificationTemplate(
+            title="Frais de livraison {answer}",
+            body="Le client a {verb} les frais de {fee} $ pour la commande {number}.",
+            link="/admin/messages/{conversation_id}",
+            topic=STATUS_CHANGED_TOPIC,
+        ),
         NotificationKind.MEMBERSHIP_REQUESTED: NotificationTemplate(
             title="Abonnement Plus à confirmer",
             body="{client} a choisi la formule {plan}. Confirmez dès réception du paiement.",

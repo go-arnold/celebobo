@@ -39,6 +39,19 @@ own as a client); a client sees their own.
 3. **Accepted** → the order line, subtotal and total are updated (see §4). **Refused** → nothing changes.
    The proposer is notified either way.
 
+### Shipping quotes (order threads only)
+
+For an order placed in a zone **quoted on request** (§4, `awaiting_shipping_quote`):
+
+1. The reseller in charge (or staff) sends the delivery fee (≥ 0), an estimate (e.g. "3 à 5 jours")
+   and an optional note (`shipping.quote`, `POST /conversations/{id}/shipping-quotes/`). Same
+   thread conditions as price proposals; an order with a fixed fee, or whose fee was already
+   accepted, is refused (`shipping_not_quotable`). A new quote **supersedes** the pending one.
+2. It appears as a `shipping_quote` card; the client answers with the same endpoint as a price
+   proposal (`POST /price-proposals/{id}/respond/`), once.
+3. **Accepted** → the fee and estimate go into the order and can no longer change. **Refused** →
+   nothing changes; the client can still cancel the order free of charge. The quoter is notified.
+
 ## Notifications
 
 Every notification is stored **in the app** (bell / notifications page) and may also be sent by
@@ -55,6 +68,8 @@ Every notification is stored **in the app** (bell / notifications page) and may 
 | Support thread assigned | The reseller | order assigned | `/admin/messages/{id}` |
 | Price proposed | The client | status changed | `/messages/{id}` |
 | Proposal accepted/refused | The proposer | status changed | `/admin/messages/{id}` |
+| Shipping fee quoted | The client | status changed | `/messages/{id}` |
+| Shipping quote accepted/refused | The quoter | status changed | `/admin/messages/{id}` |
 | Plus membership requested | All active staff | order assigned | `/admin/abonnements` |
 | Plus membership started (trial or paid) | The client | status changed | `/compte/abonnement` |
 | Plus request refused | The client | status changed | `/compte/abonnement` |

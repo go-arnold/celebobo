@@ -15,6 +15,14 @@ class MessageKind(StrEnum):
     TEXT = "text"
     SYSTEM = "system"
     PRICE_PROPOSAL = "price_proposal"
+    SHIPPING_QUOTE = "shipping_quote"
+
+
+class ProposalSubject(StrEnum):
+    # a new unit price for one order line
+    ITEM_PRICE = "item_price"
+    # the delivery fee of an order placed in a zone quoted on request
+    SHIPPING = "shipping"
 
 
 class ProposalStatus(StrEnum):
@@ -34,6 +42,8 @@ class NotificationKind(StrEnum):
     CONVERSATION_ASSIGNED = "conversation_assigned"
     PRICE_PROPOSED = "price_proposed"
     PRICE_ANSWERED = "price_answered"
+    SHIPPING_QUOTED = "shipping_quoted"
+    SHIPPING_ANSWERED = "shipping_answered"
     MEMBERSHIP_REQUESTED = "membership_requested"
     MEMBERSHIP_STARTED = "membership_started"
     MEMBERSHIP_REJECTED = "membership_rejected"

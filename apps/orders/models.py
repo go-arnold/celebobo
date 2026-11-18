@@ -5,10 +5,12 @@ from django.conf import settings
 from django.db import models
 from django.db.models.functions import Lower
 
-from apps.orders.domain.enums import CancelReason, OrderStatus, PaymentMethod
-from apps.orders.domain.pricing import CouponKind
+from apps.orders.domain.enums import CancelReason, DeliveryMethod, OrderStatus, PaymentMethod
+from apps.orders.domain.pricing import CouponKind, ZonePricing
 
 STATUS_CHOICES = [(item.value, item.label) for item in OrderStatus]
+DELIVERY_CHOICES = [(item.value, item.label) for item in DeliveryMethod]
+ZONE_PRICING_CHOICES = [(item.value, item.label) for item in ZonePricing]
 PAYMENT_CHOICES = [(item.value, item.label) for item in PaymentMethod]
 CANCEL_CHOICES = [(item.value, item.value) for item in CancelReason]
 MONEY_DIGITS = 10
@@ -83,6 +85,14 @@ class Order(models.Model):
     city = models.CharField(max_length=120)
     country = models.CharField(max_length=80)
     payment_method = models.CharField(max_length=16, choices=PAYMENT_CHOICES)
+    delivery_method = models.CharField(
+        max_length=8, choices=DELIVERY_CHOICES, default=DeliveryMethod.DELIVERY.value
+    )
+    # where a pickup order is collected, copied from the pickup zone when the order is placed
+    pickup_address = models.CharField(max_length=255, blank=True)
+    delivery_estimate = models.CharField(max_length=60, blank=True)
+    # quoted zone: the fee stays at 0 until the client accepts a reseller's quote, then is fixed
+    awaiting_shipping_quote = models.BooleanField(default=False)
     note = models.TextField(blank=True, max_length=1000)
     subtotal = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     discount = models.DecimalField(
@@ -266,6 +276,10 @@ class ShippingZone(models.Model):
     is_active = models.BooleanField(default=True)
     position = models.PositiveSmallIntegerField(default=0)
     member_free_shipping = models.BooleanField("livraison offerte aux abonnés", default=False)
+    pricing = models.CharField(
+        "tarification", max_length=8, choices=ZONE_PRICING_CHOICES, default=ZonePricing.FLAT.value
+    )
+    pickup_address = models.CharField("adresse de retrait", max_length=255, blank=True)
 
     class Meta:
         verbose_name = "zone de livraison"
@@ -278,6 +292,16 @@ class ShippingZone(models.Model):
                 name="orders_zone_single_default",
             ),
             models.CheckConstraint(condition=models.Q(fee__gte=0), name="orders_zone_fee_positive"),
+            models.UniqueConstraint(
+                fields=("pricing",),
+                condition=models.Q(pricing=ZonePricing.PICKUP.value),
+                name="orders_zone_single_pickup",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(pricing=ZonePricing.PICKUP.value)
+                | ~models.Q(pickup_address=""),
+                name="orders_zone_pickup_has_address",
+            ),
         )
 
     def __str__(self) -> str:

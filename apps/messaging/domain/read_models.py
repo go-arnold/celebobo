@@ -90,3 +90,5 @@ class ProposalContext:
     previous_price: str
     proposed_price: str
     reason: str
+    order_number: str = ""
+    delivery_estimate: str = ""

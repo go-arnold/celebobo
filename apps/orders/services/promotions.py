@@ -12,7 +12,7 @@ from apps.orders.domain.errors import (
     CouponNotFound,
     ShippingZoneNotFound,
 )
-from apps.orders.domain.pricing import CouponKind
+from apps.orders.domain.pricing import CouponKind, ZonePricing
 from apps.orders.models import Coupon, ShippingZone
 from core.domain.errors import ValidationFailed
 from core.domain.values import provided
@@ -22,13 +22,13 @@ MAX_PERCENT = Decimal(100)
 
 class ShippingZoneService:
     def create(self, fields: ZoneFields) -> ShippingZone:
-        values = _zone_values(asdict(fields))
+        values = _zone_values(asdict(fields), None)
         self._release_default(values)
         return ShippingZone.objects.create(**values)
 
     def update(self, zone_id: int, changes: ZoneChanges) -> ShippingZone:
         zone = self._get(zone_id)
-        values = _zone_values(dict(provided(changes)))
+        values = _zone_values(dict(provided(changes)), zone)
         self._release_default(values, keep=zone.pk)
         return _apply(zone, values)
 
@@ -98,9 +98,29 @@ class CouponAdminService:
         return coupon
 
 
-def _zone_values(values: dict[str, Any]) -> dict[str, Any]:
+def _zone_values(values: dict[str, Any], zone: ShippingZone | None) -> dict[str, Any]:
     if "cities" in values:
         values["cities"] = _unique(" ".join(city.split()) for city in values["cities"])
+    if "pickup_address" in values:
+        values["pickup_address"] = " ".join(values["pickup_address"].split())
+    if "pricing" in values:
+        values["pricing"] = values["pricing"].value
+    pricing = values.get("pricing", zone.pricing if zone else ZonePricing.FLAT.value)
+    if pricing != ZonePricing.PICKUP:
+        return values
+    address = values.get("pickup_address", zone.pickup_address if zone else "")
+    errors: dict[str, list[str]] = {}
+    if not address:
+        errors["pickup_address"] = ["Indiquez l'adresse du point de retrait."]
+    others = ShippingZone.objects.filter(pricing=ZonePricing.PICKUP.value)
+    if zone is not None:
+        others = others.exclude(pk=zone.pk)
+    if others.exists():
+        errors["pricing"] = ["Il existe déjà une zone de retrait sur place."]
+    if values.get("is_default"):
+        errors["is_default"] = ["La zone de retrait ne peut pas être la zone par défaut."]
+    if errors:
+        raise ValidationFailed(errors=errors)
     return values
 
 

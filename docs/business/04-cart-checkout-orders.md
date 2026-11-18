@@ -42,6 +42,20 @@ city of their default address):
 
 Only one zone can be the default; marking a zone as default unsets the previous one.
 
+**Zone pricing.** Each zone has a pricing mode (`pricing`), set in the back-office (Settings → Shipping zones, `shipping.manage`):
+
+| Mode | At checkout | Then |
+|---|---|---|
+| `flat` (default) | The zone fee, free from its threshold, as above | — |
+| `quote` — *sur devis* | Shipping **0**, the quote says `shipping_quote_required`; no free-shipping threshold | A reseller quotes the fee in the order thread; the client accepts it or cancels free of charge (see *Zones quoted on request* below) |
+| `pickup` — *retrait sur place* | Shipping **0**; the quote returns the shop's `pickup_address` | The client collects the order at the shop |
+
+The delivery policy's "Autres localités" row is the **default zone** set to `quote`. There is at
+most **one pickup zone**, it needs an address and can't be the default (errors on `pricing`,
+`pickup_address`, `is_default`). It is **chosen**, never matched from a city: the quote and the
+order take `pickup: true`; without an active pickup zone the answer is `pickup_unavailable`. Every
+quote says whether pickup is offered (`pickup_available`).
+
 **Cashback**: with `use_cashback`, the client's cashback pays part of the products (see
 [loyalty](12-loyalty.md)); `total = subtotal − discount − cashback + shipping`.
 
@@ -73,7 +87,8 @@ carrying a code answer `429`; quotes without a code still work.
 retrying with the same key never creates a second order.
 
 Input: lines, payment method (`orange_money`, `airtel_money`, `mpesa`, `cash`), an address
-(an address-book id or a full address — `address_required`), optional coupon, optional note.
+(an address-book id or a full address — `address_required`), optional coupon, optional note,
+optional `pickup` (collect at the shop; the address then only gives the contact name and phone).
 
 0. A client can have at most **3 pending orders** at once (`ORDERS_MAX_PENDING_ORDERS`), because
    each one reserves stock (`too_many_pending_orders`). Assigned or cancelled orders free a place.
@@ -81,7 +96,9 @@ Input: lines, payment method (`orange_money`, `airtel_money`, `mpesa`, `cash`), 
    stock fails the whole order (`product_unavailable`, `variant_required`, `insufficient_stock`).
    Max **30 different lines** (`too_many_lines`), not empty (`empty_order`).
 2. The order gets a public **number** `CB-XXXX-XXXX` (unambiguous letters and digits) and status **pending**.
-3. The address, product names, images, SKUs and prices are **copied** into the order (snapshot).
+3. The address, product names, images, SKUs and prices are **copied** into the order (snapshot),
+   with the delivery method (`delivery` or `pickup`), the pickup address, the zone's delivery
+   estimate and, for a zone quoted on request, `awaiting_shipping_quote: true`.
    Each line also records its share of the order's **coupon** (`discount`) and **cashback**, and the
    **real money** paid for it (`amount_paid` = line total − both); see *Line amounts* below.
 4. The coupon is redeemed; the **stock is reserved** (reason `order`).
@@ -115,7 +132,7 @@ The order detail returns `allowed_transitions` for the current user — the fron
 
 | Actor | Allowed |
 |---|---|
-| Client (own order) | `pending → cancelled` only, with a reason: changed mind, ordered by mistake, too slow, cheaper elsewhere, other (+ optional details). `expired` is reserved for the system. |
+| Client (own order) | `pending → cancelled` only, with a reason: changed mind, ordered by mistake, too slow, cheaper elsewhere, other (+ optional details). `expired` is reserved for the system. While the shipping quote is awaited, also `assigned → cancelled`. |
 | Reseller (order assigned to them) | **One step forward** only: assigned → confirmed → paid → shipping → delivered. Cannot cancel. |
 | Manager / Admin | Any **forward** status (skipping steps allowed, except `assigned`, which only happens through assignment), **cancel** any non-final order, **return** a delivered order. |
 
@@ -144,6 +161,20 @@ Anything else is refused (`invalid_transition`). Every change is written to the 
 | → `returned` | Stock comes back (reason `return`). Sales created from this order are marked **returned** and their commissions reversed (§5). The thread is closed. |
 | → `delivered` | The order thread is closed. The client may now review the products. |
 | Any change | Client notified (and the reseller, except for the assignment itself); real-time update for everyone watching. |
+
+### Zones quoted on request
+
+An order placed in a `quote` zone is recorded normally, with **no shipping fee** and
+`awaiting_shipping_quote: true` (delivery policy, "Votre zone n'est pas reconnue ?"):
+
+1. The reseller in charge (or staff) sends the fee and the delivery estimate in the order thread
+   (`shipping.quote`, see §7). The amount stays in the thread as a trace.
+2. Until the client accepts a fee, **nothing moves forward**: the reseller can't confirm the order,
+   staff can only cancel it, and the client can cancel it free of charge, even once assigned.
+3. When the client **accepts**, the fee and estimate are written to the order, the total is
+   recomputed and the fee is **fixed**: no further quote is possible (`shipping_not_quotable`).
+   The history records it and the order can be confirmed. A refusal changes nothing; the reseller
+   can send another quote.
 
 ### Price adjustment
 

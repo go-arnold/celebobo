@@ -12,6 +12,22 @@ class CouponKind(StrEnum):
     FIXED = "fixed"
 
 
+class ZonePricing(StrEnum):
+    # the zone's fee, waived from its threshold
+    FLAT = "flat"
+    # no fee at checkout: a reseller quotes it in the order discussion, the client accepts it
+    # or cancels
+    QUOTE = "quote"
+    # the client collects the order at the shop, free of charge
+    PICKUP = "pickup"
+
+    @property
+    def label(self) -> str:
+        return {"flat": "Tarif fixe", "quote": "Sur devis", "pickup": "Retrait sur place"}[
+            self.value
+        ]
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ShippingRules:
     free_threshold: Decimal | None
@@ -19,6 +35,12 @@ class ShippingRules:
     zone: str = ""
     delivery_estimate: str = ""
     member_free: bool = False
+    pricing: ZonePricing = ZonePricing.FLAT
+    pickup_address: str = ""
+
+    @property
+    def priced_later(self) -> bool:
+        return self.pricing is ZonePricing.QUOTE
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -60,11 +82,13 @@ def quote(
 ) -> Quote:
     subtotal = sum((line.total for line in lines), ZERO)
     discount = discount_for(coupon, subtotal) if coupon else ZERO
-    free = member or (coupon is not None and coupon.free_shipping)
+    # pickup is free and a quoted zone has no fee until the client accepts the reseller's quote
+    flat = rules.pricing is ZonePricing.FLAT
+    free = not flat or member or (coupon is not None and coupon.free_shipping)
     shipping = ZERO if free else _shipping_fee(lines, subtotal, rules)
     remaining = (
         max(rules.free_threshold - subtotal, ZERO)
-        if rules.free_threshold is not None and not member
+        if flat and rules.free_threshold is not None and not member
         else None
     )
     return Quote(

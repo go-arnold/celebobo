@@ -149,4 +149,5 @@ def state_of(order: Order) -> OrderState:
         status=order.order_status,
         client_id=order.client_id,
         reseller_id=order.assigned_reseller_id,
+        awaiting_shipping_quote=order.awaiting_shipping_quote,
     )

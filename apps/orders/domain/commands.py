@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from apps.orders.domain.enums import CancelReason, OrderStatus, PaymentMethod
-from apps.orders.domain.pricing import CouponKind
+from apps.orders.domain.pricing import CouponKind, ZonePricing
 from core.domain.values import UNSET, Maybe
 
 
@@ -33,6 +33,8 @@ class PlaceOrder:
     note: str = ""
     coupon_code: str | None = None
     use_cashback: bool = False
+    # collected at the shop: the address only gives the contact details
+    pickup: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -87,6 +89,8 @@ class ZoneFields:
     is_active: bool = True
     position: int = 0
     member_free_shipping: bool = False
+    pricing: ZonePricing = ZonePricing.FLAT
+    pickup_address: str = ""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -100,6 +104,8 @@ class ZoneChanges:
     is_active: Maybe[bool] = UNSET
     position: Maybe[int] = UNSET
     member_free_shipping: Maybe[bool] = UNSET
+    pricing: Maybe[ZonePricing] = UNSET
+    pickup_address: Maybe[str] = UNSET
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

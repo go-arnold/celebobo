@@ -215,6 +215,45 @@ class NotificationFanout:
             conversation_id=conversation_id,
         )
 
+    def shipping_quoted(
+        self, *, conversation_id: int, client_id: int, number: str, fee: str, estimate: str
+    ) -> None:
+        self._notifications.notify(
+            [client_id],
+            render(
+                NotificationKind.SHIPPING_QUOTED,
+                number=number,
+                fee=fee,
+                estimate=f" ({estimate})" if estimate else "",
+                conversation_id=conversation_id,
+            ),
+            conversation_id=conversation_id,
+        )
+
+    def shipping_answered(
+        self,
+        *,
+        conversation_id: int,
+        proposer_id: int | None,
+        number: str,
+        fee: str,
+        accepted: bool,
+    ) -> None:
+        if proposer_id is None:
+            return
+        self._notifications.notify(
+            [proposer_id],
+            render(
+                NotificationKind.SHIPPING_ANSWERED,
+                answer="acceptés" if accepted else "refusés",
+                verb="accepté" if accepted else "refusé",
+                number=number,
+                fee=fee,
+                conversation_id=conversation_id,
+            ),
+            conversation_id=conversation_id,
+        )
+
     def membership_requested(self, *, client_name: str, plan: str) -> None:
         self._notifications.notify(
             self._directory.staff_ids(),

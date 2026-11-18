@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from apps.orders.domain.enums import OrderStatus, PaymentMethod
+from apps.orders.domain.enums import DeliveryMethod, OrderStatus, PaymentMethod
+from apps.orders.domain.pricing import ZonePricing
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -32,6 +33,11 @@ class QuoteView:
     member_free_shipping: bool = False
     cashback: Decimal = Decimal("0.00")
     cashback_available: Decimal = Decimal("0.00")
+    delivery_method: DeliveryMethod = DeliveryMethod.DELIVERY
+    pickup_address: str = ""
+    # the zone is quoted on request: the fee is unknown until a reseller quotes it
+    shipping_quote_required: bool = False
+    pickup_available: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -125,6 +131,10 @@ class OrderDetail:
     discount: Decimal = Decimal("0.00")
     coupon_code: str = ""
     shipping_zone: str = ""
+    delivery_method: DeliveryMethod = DeliveryMethod.DELIVERY
+    pickup_address: str = ""
+    delivery_estimate: str = ""
+    awaiting_shipping_quote: bool = False
     cashback: Decimal = Decimal("0.00")
     cashback_earned: Decimal | None = None
     history: tuple[StatusEntry, ...]
@@ -176,6 +186,16 @@ class AdjustableItem:
     quantity: int
     unit_price: Decimal
     list_unit_price: Decimal
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class QuotableOrder:
+    order_id: int
+    order_number: str
+    client_id: int
+    reseller_id: int | None
+    city: str
+    delivery_estimate: str
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -231,6 +251,8 @@ class ShippingZoneView:
     is_active: bool
     position: int
     member_free_shipping: bool
+    pricing: ZonePricing = ZonePricing.FLAT
+    pickup_address: str = ""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

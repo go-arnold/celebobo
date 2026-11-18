@@ -12,6 +12,8 @@ from apps.messaging.domain.events import (
     MessagePosted,
     PriceProposalAnswered,
     PriceProposed,
+    ShippingQuoteAnswered,
+    ShippingQuoted,
 )
 from apps.messaging.facades import NotificationRouter
 from apps.messaging.services.contracts import Directory
@@ -93,6 +95,16 @@ def notify_price_proposed(event: PriceProposed) -> None:
 @event_bus.on(PriceProposalAnswered, background=True)
 def notify_price_answered(event: PriceProposalAnswered) -> None:
     container.resolve(NotificationRouter).price_answered(event)
+
+
+@event_bus.on(ShippingQuoted, background=True)
+def notify_shipping_quoted(event: ShippingQuoted) -> None:
+    container.resolve(NotificationRouter).shipping_quoted(event)
+
+
+@event_bus.on(ShippingQuoteAnswered, background=True)
+def notify_shipping_answered(event: ShippingQuoteAnswered) -> None:
+    container.resolve(NotificationRouter).shipping_answered(event)
 
 
 @event_bus.on(MembershipRequested, background=True)

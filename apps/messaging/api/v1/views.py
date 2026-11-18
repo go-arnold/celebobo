@@ -13,6 +13,7 @@ from apps.messaging.api.v1.serializers import (
     OpenSupportInput,
     PostMessageInput,
     ProposePriceInput,
+    QuoteShippingInput,
     ReadAllOutput,
     ReadInput,
     ReadOutput,
@@ -24,6 +25,7 @@ from apps.messaging.domain.commands import (
     OpenSupport,
     PostMessage,
     ProposePrice,
+    QuoteShipping,
 )
 from apps.messaging.domain.enums import NotificationKind
 from apps.messaging.facades import ConversationFacade, NotificationFacade, ProposalFacade
@@ -35,6 +37,7 @@ from apps.messaging.permissions import (
     CONVERSATIONS_USE,
     NOTIFICATIONS_VIEW,
     PRICE_ADJUST,
+    SHIPPING_QUOTE,
 )
 from core.api.pagination import page_of, page_request, page_response
 from core.api.views import UseCaseViewSet
@@ -133,6 +136,7 @@ class ConversationViewSet(UseCaseViewSet):
 class ProposalViewSet(UseCaseViewSet):
     action_permissions = {
         "create": (PRICE_ADJUST,),
+        "quote_shipping": (SHIPPING_QUOTE,),
         "respond": (CONVERSATIONS_RESPOND_PROPOSAL,),
     }
     proposals = Inject(ProposalFacade)
@@ -141,6 +145,12 @@ class ProposalViewSet(UseCaseViewSet):
     def create(self, request: Request, conversation_id: int) -> Response:
         command = self.parse(ProposePriceInput, into=ProposePrice)
         message = self.proposals.propose(self.actor, conversation_id, command)
+        return self.respond(MessageOutput, message, status=201)
+
+    @extend_schema(request=QuoteShippingInput, responses={201: MessageOutput})
+    def quote_shipping(self, request: Request, conversation_id: int) -> Response:
+        command = self.parse(QuoteShippingInput, into=QuoteShipping)
+        message = self.proposals.quote_shipping(self.actor, conversation_id, command)
         return self.respond(MessageOutput, message, status=201)
 
     @extend_schema(request=RespondProposalInput, responses=MessageOutput)

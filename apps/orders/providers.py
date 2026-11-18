@@ -21,6 +21,7 @@ from apps.orders.facades import (
     OrderAdjustmentFacade,
     OrderExpiryFacade,
     PromotionFacade,
+    ShippingQuoteFacade,
 )
 from apps.orders.repositories import (
     CartRepository,
@@ -46,6 +47,7 @@ from apps.orders.services.pricing import PricingService
 from apps.orders.services.promotions import CouponAdminService, ShippingZoneService
 from apps.orders.services.returns import LineReturnService
 from apps.orders.services.shipping import ShippingResolver
+from apps.orders.services.shipping_quotes import ShippingQuoteService
 from core.container import Container, Lifetime
 from core.events.contracts import EventPublisher
 
@@ -68,6 +70,7 @@ def register(container: Container) -> None:
     container.register(OrderExpiryFacade, _expiry_facade, lifetime=Lifetime.TRANSIENT)
     container.register(OrderAdjustmentFacade, _adjustment_facade, lifetime=Lifetime.TRANSIENT)
     container.register(PromotionFacade, _promotion_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(ShippingQuoteFacade, _shipping_quote_facade, lifetime=Lifetime.TRANSIENT)
 
 
 def _coupons() -> CouponService:
@@ -164,6 +167,13 @@ def _expiry_facade(container: Container) -> OrderExpiryFacade:
 def _adjustment_facade(container: Container) -> OrderAdjustmentFacade:
     return OrderAdjustmentFacade(
         adjustments=AdjustmentService(OrderRepository()),
+        publisher=container.resolve(EventPublisher),
+    )
+
+
+def _shipping_quote_facade(container: Container) -> ShippingQuoteFacade:
+    return ShippingQuoteFacade(
+        quotes=ShippingQuoteService(OrderRepository()),
         publisher=container.resolve(EventPublisher),
     )
 

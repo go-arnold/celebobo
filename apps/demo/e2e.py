@@ -20,9 +20,10 @@ from apps.catalog.facades import CategoryAdminFacade, ProductAdminFacade
 from apps.catalog.services.indexing import ProductIndexer
 from apps.content.domain.commands import SettingsChanges
 from apps.content.facades import SiteContentFacade
+from apps.demo.content import PICKUP_ZONE
 from apps.demo.seeder import SeedReport, quiet_side_effects
 from apps.orders.domain.commands import CouponFields, ZoneFields
-from apps.orders.domain.pricing import CouponKind
+from apps.orders.domain.pricing import CouponKind, ZonePricing
 from apps.orders.facades import PromotionFacade
 from core.api.actor import actor_from_user
 from core.container import container
@@ -212,18 +213,32 @@ class E2eSeeder:
             )
         )
         for position, (name, fee, estimate) in enumerate(SHIPPING_ZONES, start=1):
+            last = position == len(SHIPPING_ZONES)
             promotions.create_zone(
                 ZoneFields(
                     name=name,
                     fee=Decimal(fee),
-                    cities=(name,) if position < len(SHIPPING_ZONES) else (),
+                    cities=() if last else (name,),
                     delivery_estimate=estimate,
-                    is_default=position == len(SHIPPING_ZONES),
+                    is_default=last,
                     position=position,
+                    # the rest of the country is quoted on request, as in the delivery policy
+                    pricing=ZonePricing.QUOTE if last else ZonePricing.FLAT,
                 )
             )
+        name, address, estimate = PICKUP_ZONE
+        promotions.create_zone(
+            ZoneFields(
+                name=name,
+                fee=Decimal(0),
+                pricing=ZonePricing.PICKUP,
+                pickup_address=address,
+                delivery_estimate=estimate,
+                position=len(SHIPPING_ZONES) + 1,
+            )
+        )
         self.report.add("coupons")
-        self.report.add("shipping zones", len(SHIPPING_ZONES))
+        self.report.add("shipping zones", len(SHIPPING_ZONES) + 1)
 
     def _ready(self, user: User, account: E2eAccount) -> User:
         user.set_password(self._password)

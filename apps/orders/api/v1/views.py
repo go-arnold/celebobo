@@ -146,6 +146,7 @@ class QuoteViewSet(UseCaseViewSet):
             city=data.get("city") or None,
             coupon_code=coupon_code,
             use_cashback=data.get("use_cashback", False),
+            pickup=data.get("pickup", False),
         )
         if quote.coupon_error:
             guesses.record(request)

@@ -5,6 +5,7 @@ from decimal import Decimal
 from apps.catalog.domain.queries import StockLine
 from apps.catalog.domain.read_models import PricedLine
 from apps.orders.domain.commands import OrderLineInput
+from apps.orders.domain.enums import DeliveryMethod
 from apps.orders.domain.errors import CouponRejected, EmptyOrder, TooManyLines
 from apps.orders.domain.pricing import ZERO, CouponTerms, QuoteLine, quote
 from apps.orders.domain.read_models import QuoteLineView, QuoteView
@@ -22,6 +23,7 @@ class PricingContext:
     strict: bool = False
     lock: bool = False
     use_cashback: bool = False
+    pickup: bool = False
 
 
 DEFAULT_CONTEXT = PricingContext()
@@ -79,7 +81,7 @@ class PricingService:
         ]
         subtotal = sum((line.total for line in quote_lines), ZERO)
         coupon, terms, error = self._coupon(context, subtotal)
-        rules = self._shipping.rules_for(self._city(context))
+        rules = self._shipping.rules_for(self._city(context), pickup=context.pickup)
         member = (
             rules.member_free
             and context.user_id is not None
@@ -109,6 +111,12 @@ class PricingService:
                 member_free_shipping=member,
                 cashback=cashback,
                 cashback_available=available,
+                delivery_method=DeliveryMethod.PICKUP
+                if context.pickup
+                else DeliveryMethod.DELIVERY,
+                pickup_address=rules.pickup_address,
+                shipping_quote_required=rules.priced_later,
+                pickup_available=self._shipping.pickup_available(),
             ),
             coupon,
         )
