@@ -70,7 +70,8 @@ Code du numérique art. 58):
   `/bo/orders/{id}/receipt/` (back-office, `invoices.view`). Before delivery: `receipt_unavailable`.
   An order delivered before receipts existed gets its receipt on the first download (not e-mailed).
 - **Verification** (anyone): the public page `/verifier-recu` of the site, whose link (number and
-  signature filled in) is printed on every receipt, calls `POST /receipts/verify/` with the receipt
+  signature filled in) is printed on every receipt, both as text and as a **QR code** to scan with
+  a phone, calls `POST /receipts/verify/` with the receipt
   number and the signature → `valid`, and if so the order number, delivery date and total, to
   compare with the paper. A receipt whose stored content was changed afterwards no longer verifies.
 - Rotating the server secret (`DJANGO_SECRET_KEY`) makes existing signatures fail verification:

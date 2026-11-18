@@ -11,7 +11,7 @@ from django.utils.crypto import constant_time_compare, salted_hmac
 from apps.documents.domain.errors import ReceiptUnavailable
 from apps.documents.domain.tables import RenderedFile
 from apps.documents.models import DeliveryReceipt
-from apps.documents.services.contracts import PdfRenderer
+from apps.documents.services.contracts import PdfRenderer, QrCode
 from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.read_models import OrderDetail
 
@@ -85,8 +85,10 @@ class ReceiptService:
         *,
         clock: Callable[[], datetime],
         verify_page: str,
+        qr: QrCode,
     ) -> None:
         self._verify_page = verify_page
+        self._qr = qr
         self._renderer = renderer
         self._branding = branding
         self._clock = clock
@@ -111,6 +113,9 @@ class ReceiptService:
         return receipt
 
     def render(self, receipt: DeliveryReceipt) -> RenderedFile:
+        link = f"{self._verify_page}?" + urlencode(
+            {"numero": receipt.number, "signature": receipt.signature}
+        )
         content = self._renderer.render(
             RECEIPT_TEMPLATE,
             {
@@ -120,9 +125,9 @@ class ReceiptService:
                 "issued_at": receipt.issued_at,
                 "ordered_at": _moment(receipt.payload.get("ordered_at")),
                 "delivered_at": _moment(receipt.payload.get("delivered_at")),
-                # the public page that checks this receipt, filled in
-                "verify_link": f"{self._verify_page}?"
-                + urlencode({"numero": receipt.number, "signature": receipt.signature}),
+                # the public page that checks this receipt, filled in: as a link and a QR code
+                "verify_link": link,
+                "verify_qr": self._qr.data_uri(link),
                 "verify_page": self._verify_page,
                 **self._branding,
             },

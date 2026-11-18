@@ -52,6 +52,8 @@ def test_delivery_issues_a_signed_receipt_and_emails_it(
     assert context["verify_link"].endswith(
         f"/verifier-recu?numero={receipt.number}&signature={receipt.signature}"
     )
+    # the QR code carries the same link, to verify the paper receipt with a phone
+    assert context["verify_qr"].startswith("data:image/svg+xml")
 
 
 @pytest.mark.django_db(transaction=True)

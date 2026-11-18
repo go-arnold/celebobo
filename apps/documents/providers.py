@@ -9,6 +9,7 @@ from apps.documents.adapters.gateways import (
     OrdersInvoiceSource,
     SalesLedgerSource,
 )
+from apps.documents.adapters.qr import SvgQrCode
 from apps.documents.adapters.rendering import DjangoFileStore, WeasyPdfRenderer
 from apps.documents.conf import DocumentSettings, document_settings
 from apps.documents.domain.enums import JobFormat, JobKind
@@ -129,6 +130,7 @@ def _receipt_facade(container: Container) -> ReceiptFacade:
             branding(document_settings()),
             clock=timezone.now,
             verify_page=f"{str(django_settings.FRONTEND_URL).rstrip('/')}/verifier-recu",
+            qr=SvgQrCode(),
         ),
         mailer=EmailReceiptMailer(),
     )

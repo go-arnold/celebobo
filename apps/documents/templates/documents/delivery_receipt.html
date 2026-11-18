@@ -39,8 +39,15 @@
   </tfoot>
 </table>
 <h2>Signature électronique</h2>
-<p class="muted">Ce reçu est un document électronique signé par {{ company_name }}. Toute modification de son contenu invalide la signature.
-  Pour vérifier son authenticité, ouvrez le lien ci-dessous, ou saisissez le numéro du reçu et la signature sur {{ verify_page }}.</p>
-<p style="font-family: monospace; font-size: 8pt; word-break: break-all;">{{ number }} · {{ signature }}</p>
-<p style="font-size: 8pt; word-break: break-all;"><a href="{{ verify_link }}">{{ verify_link }}</a></p>
+<table style="margin-top: 4px;">
+  <tr>
+    <td style="width: 34mm; border: none; padding: 0;"><img src="{{ verify_qr }}" alt="QR code de vérification" style="width: 30mm; height: 30mm;"></td>
+    <td style="border: none; vertical-align: middle;">
+      <p class="muted" style="margin-top: 0;">Ce reçu est un document électronique signé par {{ company_name }}. Toute modification de son contenu invalide la signature.
+        Pour vérifier son authenticité, scannez le QR code, ouvrez le lien ci-dessous, ou saisissez le numéro du reçu et la signature sur {{ verify_page }}.</p>
+      <p style="font-family: monospace; font-size: 8pt; word-break: break-all;">{{ number }} · {{ signature }}</p>
+      <p style="font-size: 8pt; word-break: break-all; margin-bottom: 0;"><a href="{{ verify_link }}">{{ verify_link }}</a></p>
+    </td>
+  </tr>
+</table>
 {% endblock %}
