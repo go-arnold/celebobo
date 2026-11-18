@@ -1,16 +1,18 @@
+from django.conf import settings as django_settings
 from django.utils import timezone
 
 from apps.documents.adapters.gateways import (
     AnalyticsInsights,
     CatalogProductSource,
     CatalogProductWriter,
+    EmailReceiptMailer,
     OrdersInvoiceSource,
     SalesLedgerSource,
 )
 from apps.documents.adapters.rendering import DjangoFileStore, WeasyPdfRenderer
 from apps.documents.conf import DocumentSettings, document_settings
 from apps.documents.domain.enums import JobFormat, JobKind
-from apps.documents.facades import DocumentJobFacade, InvoiceFacade
+from apps.documents.facades import DocumentJobFacade, InvoiceFacade, ReceiptFacade
 from apps.documents.repositories import JobRepository
 from apps.documents.selectors import JobSelector
 from apps.documents.services.contracts import (
@@ -31,6 +33,7 @@ from apps.documents.services.generators import (
 from apps.documents.services.importer import ProductImport
 from apps.documents.services.invoices import InvoiceBuilder
 from apps.documents.services.jobs import JobService
+from apps.documents.services.receipts import ReceiptService
 from apps.documents.services.writers import (
     CsvWriter,
     PdfTableWriter,
@@ -59,6 +62,7 @@ def register(container: Container) -> None:
     container.register(OrderSource, lambda _: OrdersInvoiceSource())
     container.register(DocumentJobFacade, _job_facade, lifetime=Lifetime.TRANSIENT)
     container.register(InvoiceFacade, _invoice_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(ReceiptFacade, _receipt_facade, lifetime=Lifetime.TRANSIENT)
     register_writers(container)
     register_generators(container)
 
@@ -114,6 +118,19 @@ def _job_facade(container: Container) -> DocumentJobFacade:
         max_import_rows=settings.max_import_rows,
         max_import_bytes=settings.max_import_bytes,
         retention_days=settings.retention_days,
+    )
+
+
+def _receipt_facade(container: Container) -> ReceiptFacade:
+    return ReceiptFacade(
+        orders=container.resolve(OrderSource),
+        receipts=ReceiptService(
+            container.resolve(PdfRenderer),
+            branding(document_settings()),
+            clock=timezone.now,
+            verify_page=f"{str(django_settings.FRONTEND_URL).rstrip('/')}/verifier-recu",
+        ),
+        mailer=EmailReceiptMailer(),
     )
 
 

@@ -1,5 +1,7 @@
 from collections.abc import Iterator
 
+from django.conf import settings
+
 from apps.analytics.domain.queries import AnalyticsFilters
 from apps.analytics.domain.read_models import (
     CategoryPerformance,
@@ -25,6 +27,9 @@ from apps.catalog.selectors import (
     AdminProductSelector,
     ProductLabelSelector,
 )
+from apps.documents.conf import document_settings
+from apps.documents.domain.tables import RenderedFile
+from apps.documents.models import DeliveryReceipt
 from apps.orders.domain.read_models import OrderDetail
 from apps.orders.selectors import OrderSelector
 from apps.sales.domain.commands import SaleFilters
@@ -32,6 +37,7 @@ from apps.sales.domain.read_models import SaleView
 from apps.sales.selectors import SaleSelector
 from core.container import container
 from core.domain.actor import Actor
+from core.mail import queue_templated
 
 BATCH = 500
 
@@ -116,3 +122,23 @@ class OrdersInvoiceSource:
 
     def for_backoffice(self, actor: Actor, order_id: int) -> OrderDetail:
         return OrderSelector().backoffice_detail(actor, order_id)
+
+
+class EmailReceiptMailer:
+    def send(self, order: OrderDetail, receipt: DeliveryReceipt, pdf: RenderedFile) -> None:
+        email = order.client.email
+        if not email:
+            return
+        base_url = str(settings.FRONTEND_URL).rstrip("/")
+        queue_templated(
+            "documents/email/receipt",
+            to=[email],
+            subject=f"Celebobo — reçu de livraison de la commande {order.summary.number}",
+            context={
+                "first_name": order.client.name.split(" ")[0],
+                "number": order.summary.number,
+                "url": f"{base_url}/compte/commandes/{order.summary.number}",
+                "company_name": document_settings().company_name,
+            },
+            attachments=[(pdf.filename, pdf.content, pdf.content_type)],
+        )

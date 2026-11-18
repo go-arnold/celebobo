@@ -328,6 +328,8 @@ class DispatchFacade:
                 # the wrong attempt stays counted: refuse only once this transaction commits
                 refused = handover.error
             else:
+                if command.to is OrderStatus.DELIVERED:
+                    command = replace(command, note=_handover_note(handover))
                 _announce(self._publisher, self._lifecycle.transition(order, actor, command), actor)
                 if handover.without_code is not None:
                     self._publisher.publish(
@@ -452,6 +454,12 @@ def _announce(publisher: EventPublisher, change: StatusChange, actor: Actor) -> 
                 order_id=change.order.pk, amount=change.order.refund_due, actor_id=actor.user_id
             )
         )
+
+
+def _handover_note(handover: Handover) -> str:
+    if handover.without_code is not None:
+        return f"Livraison confirmée sans code par un responsable : {handover.without_code}"[:500]
+    return "Remise confirmée avec le code de livraison du client"
 
 
 def _existing(order: Order | None) -> Order:

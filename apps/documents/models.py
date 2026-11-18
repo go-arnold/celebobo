@@ -52,3 +52,27 @@ class Job(models.Model):
     @property
     def job_status(self) -> JobStatus:
         return JobStatus(self.status)
+
+
+class DeliveryReceipt(models.Model):
+    """The receipt of a delivered order: its content frozen at delivery, and signed.
+
+    The PDF is always rendered from ``payload``, so every copy matches ``signature``.
+    """
+
+    order = models.OneToOneField(
+        "orders.Order", on_delete=models.PROTECT, related_name="delivery_receipt"
+    )
+    number = models.CharField(max_length=24, unique=True)
+    payload = models.JSONField()
+    signature = models.CharField(max_length=64)
+    issued_at = models.DateTimeField()
+    emailed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "reçu de livraison"
+        verbose_name_plural = "reçus de livraison"
+        ordering = ("-issued_at",)
+
+    def __str__(self) -> str:
+        return self.number

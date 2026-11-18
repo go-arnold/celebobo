@@ -111,6 +111,7 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 400 | `unsupported_format` | Format non pris en charge pour ce document. |
 | 400 | `invalid_import_file` | Fichier d'import invalide. |
 | 409 | `invoice_unavailable` | La facture n'est pas disponible pour une commande annulée. |
+| 409 | `receipt_unavailable` | Le reçu de livraison n'existe qu'une fois la commande livrée. |
 
 ## Uploads
 

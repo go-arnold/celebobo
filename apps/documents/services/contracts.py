@@ -10,7 +10,8 @@ from apps.analytics.domain.read_models import (
 )
 from apps.catalog.domain.backoffice import AdminProductRow
 from apps.catalog.domain.management import ProductChanges, ProductDraft
-from apps.documents.domain.tables import Table
+from apps.documents.domain.tables import RenderedFile, Table
+from apps.documents.models import DeliveryReceipt
 from apps.orders.domain.read_models import OrderDetail
 from apps.sales.domain.commands import SaleFilters
 from apps.sales.domain.read_models import SaleView
@@ -72,3 +73,7 @@ class OrderSource(Protocol):
     def for_client(self, client_id: int, number: str) -> OrderDetail: ...
 
     def for_backoffice(self, actor: Actor, order_id: int) -> OrderDetail: ...
+
+
+class ReceiptMailer(Protocol):
+    def send(self, order: OrderDetail, receipt: DeliveryReceipt, pdf: RenderedFile) -> None: ...

@@ -35,7 +35,7 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `assistant.history` | Keep and reopen assistant sessions | | ✓ | ✓ | ✓ | ✓ |
 | `reviews.create` | Review a product (only if received, see §3) | | ✓ | ✓ | ✓ | ✓ |
 | `favorites.manage` | Own favorites | | ✓ | ✓ | ✓ | ✓ |
-| `invoices.view.own` | Download the invoice of own orders | | ✓ | ✓ | ✓ | ✓ |
+| `invoices.view.own` | Download the invoice and delivery receipt of own orders | | ✓ | ✓ | ✓ | ✓ |
 | `media.upload` | Upload an avatar or a message attachment | | ✓ | ✓ | ✓ | ✓ |
 | `conversations.use` | Read and write in own conversations | | ✓ | ✓ | ✓ | ✓ |
 | `conversations.open_support` | Open a support thread | | ✓ | ✓ | ✓ | ✓ |
@@ -48,7 +48,7 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `availability.update` | Set own availability (online / away / offline) | | | ✓ | ✓ | ✓ |
 | `dashboard.view` | Back-office dashboard (scoped, see below) | | | ✓ | ✓ | ✓ |
 | `products.view` | Back-office product list | | | ✓ | ✓ | ✓ |
-| `invoices.view` | Invoice of any order they can see | | | ✓ | ✓ | ✓ |
+| `invoices.view` | Invoice and delivery receipt of any order they can see | | | ✓ | ✓ | ✓ |
 | `jobs.view.own` | Own export/import jobs | | | ✓ | ✓ | ✓ |
 | `exports.sales` | Export sales (CSV, XLSX, PDF) | | | ✓ | ✓ | ✓ |
 | `reports.analytics` | PDF analytics report | | | ✓ | ✓ | ✓ |

@@ -262,6 +262,9 @@ quantity is more than what is left on the line (`invalid_return_quantity`, with 
 - `/me/orders/` (own orders), `/me/orders/{number}/` detail, cancel until out for delivery.
 - **Invoice PDF** `/me/orders/{number}/invoice/` — not available for a cancelled order (`invoice_unavailable`).
   Back-office users get the invoice of any order they can see.
+- **Delivery receipt PDF** `/me/orders/{number}/receipt/` — signed, issued and e-mailed at delivery
+  (see [back-office tools](10-backoffice-tools.md#delivery-receipts)); before delivery
+  `receipt_unavailable`.
 - **Public tracking** `POST /orders/track/` with the order number + the email **or** phone used for
   the order: returns the status timeline, without logging in.
 

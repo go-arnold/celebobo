@@ -5,6 +5,7 @@ from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -13,12 +14,14 @@ from apps.documents.api.v1.serializers import (
     JobOutput,
     ProductsExportInput,
     ProductsImportInput,
+    ReceiptVerificationOutput,
     SalesExportInput,
+    VerifyReceiptInput,
 )
 from apps.documents.domain.enums import JobFormat, JobKind
 from apps.documents.domain.read_models import JobView
 from apps.documents.domain.tables import RenderedFile
-from apps.documents.facades import DocumentJobFacade, InvoiceFacade
+from apps.documents.facades import DocumentJobFacade, InvoiceFacade, ReceiptFacade
 from apps.documents.permissions import (
     EXPORTS_PRODUCTS,
     EXPORTS_SALES,
@@ -133,3 +136,38 @@ class InvoiceViewSet(UseCaseViewSet):
     @extend_schema(responses={(200, "application/pdf"): OpenApiTypes.BINARY})
     def backoffice(self, request: Request, order_id: int) -> HttpResponse:
         return file_response(self.invoices.for_backoffice(self.actor, order_id), inline=True)
+
+
+class ReceiptViewSet(UseCaseViewSet):
+    action_permissions = {"mine": (INVOICES_VIEW_OWN,), "backoffice": (INVOICES_VIEW,)}
+    receipts = Inject(ReceiptFacade)
+
+    @extend_schema(responses={(200, "application/pdf"): OpenApiTypes.BINARY})
+    def mine(self, request: Request, number: str) -> HttpResponse:
+        return file_response(self.receipts.for_client(self.actor, number), inline=True)
+
+    @extend_schema(responses={(200, "application/pdf"): OpenApiTypes.BINARY})
+    def backoffice(self, request: Request, order_id: int) -> HttpResponse:
+        return file_response(self.receipts.for_backoffice(self.actor, order_id), inline=True)
+
+
+class ReceiptVerificationViewSet(UseCaseViewSet):
+    permission_classes = (AllowAny,)
+    receipts = Inject(ReceiptFacade)
+
+    # anyone holding a receipt can check it was issued by Celebobo and is unchanged
+    @extend_schema(request=VerifyReceiptInput, responses=ReceiptVerificationOutput)
+    def create(self, request: Request) -> Response:
+        data = self.validated(VerifyReceiptInput)
+        result = self.receipts.verify(data["number"], data["signature"])
+        payload = result.receipt.payload if result.receipt else {}
+        return Response(
+            ReceiptVerificationOutput(
+                {
+                    "valid": result.valid,
+                    "order_number": payload.get("order_number"),
+                    "delivered_at": payload.get("delivered_at"),
+                    "total": payload.get("total"),
+                }
+            ).data
+        )
