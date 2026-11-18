@@ -47,6 +47,7 @@ class CheckoutService:
                 strict=True,
                 lock=True,
                 use_cashback=command.use_cashback,
+                pickup=command.pickup,
             ),
         )
         quote, priced = priced_quote.view, priced_quote.lines
@@ -60,6 +61,10 @@ class CheckoutService:
             city=address.city,
             country=address.country,
             payment_method=command.payment_method.value,
+            delivery_method=quote.delivery_method.value,
+            pickup_address=quote.pickup_address,
+            delivery_estimate=quote.delivery_estimate,
+            awaiting_shipping_quote=quote.shipping_quote_required,
             note=" ".join(command.note.split()),
             subtotal=quote.subtotal,
             discount=quote.discount,

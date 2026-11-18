@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 from rest_framework import serializers
@@ -50,6 +51,14 @@ class AssignConversationInput(serializers.Serializer[Any]):
 class ProposePriceInput(serializers.Serializer[Any]):
     item_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
     new_price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0)
+    reason = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
+
+
+class QuoteShippingInput(serializers.Serializer[Any]):
+    fee = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal(0))
+    delivery_estimate = serializers.CharField(
+        max_length=60, required=False, allow_blank=True, default=""
+    )
     reason = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
 
 

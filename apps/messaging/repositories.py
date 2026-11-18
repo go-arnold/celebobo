@@ -5,7 +5,7 @@ from typing import Any
 from django.db.models import F, Q
 from django.db.models.functions import Greatest
 
-from apps.messaging.domain.enums import NotificationKind, ProposalStatus
+from apps.messaging.domain.enums import NotificationKind, ProposalStatus, ProposalSubject
 from apps.messaging.models import Conversation, Message, Notification, Participant, PriceProposal
 
 
@@ -73,14 +73,19 @@ class ProposalRepository:
         )
         return queryset.select_related("conversation").filter(pk=proposal_id).first()
 
-    def supersede_pending(self, conversation: Conversation, order_item_id: int) -> None:
-        PriceProposal.objects.filter(
-            conversation=conversation,
-            order_item_id=order_item_id,
-            status=ProposalStatus.PENDING.value,
-        ).update(status=ProposalStatus.SUPERSEDED.value)
+    # a new proposal replaces the pending one on the same line, or the pending shipping quote
+    def supersede_pending(self, conversation: Conversation, order_item_id: int | None) -> None:
+        pending = PriceProposal.objects.filter(
+            conversation=conversation, status=ProposalStatus.PENDING.value
+        )
+        if order_item_id is None:
+            pending = pending.filter(subject=ProposalSubject.SHIPPING.value)
+        else:
+            pending = pending.filter(order_item_id=order_item_id)
+        for proposal in pending.select_related("message"):
+            self.answer(proposal, ProposalStatus.SUPERSEDED, None)
 
-    def answer(self, proposal: PriceProposal, status: ProposalStatus, at: datetime) -> None:
+    def answer(self, proposal: PriceProposal, status: ProposalStatus, at: datetime | None) -> None:
         proposal.status = status.value
         proposal.responded_at = at
         proposal.save(update_fields=["status", "responded_at"])

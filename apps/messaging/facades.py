@@ -13,8 +13,9 @@ from apps.messaging.domain.commands import (
     OpenSupport,
     PostMessage,
     ProposePrice,
+    QuoteShipping,
 )
-from apps.messaging.domain.enums import ConversationKind, NotificationKind
+from apps.messaging.domain.enums import ConversationKind, NotificationKind, ProposalSubject
 from apps.messaging.domain.errors import (
     ConversationNotFound,
     NotificationNotFound,
@@ -29,6 +30,8 @@ from apps.messaging.domain.events import (
     MessagePosted,
     PriceProposalAnswered,
     PriceProposed,
+    ShippingQuoteAnswered,
+    ShippingQuoted,
 )
 from apps.messaging.domain.read_models import (
     ConversationView,
@@ -211,7 +214,7 @@ class ProposalFacade:
                     conversation_id=conversation.pk,
                     proposal_id=proposal.pk,
                     order_id=conversation.order_id,
-                    item_id=proposal.order_item_id,
+                    item_id=command.item_id,
                     previous_price=proposal.previous_price,
                     price=proposal.proposed_price,
                     actor_id=actor.user_id,
@@ -233,11 +236,41 @@ class ProposalFacade:
             if proposal is None or not self._selector.visible(actor, proposal.conversation_id):
                 raise ProposalNotFound
             self._proposals.respond(actor, proposal, accept=accept)
+            answered = (
+                ShippingQuoteAnswered
+                if proposal.subject == ProposalSubject.SHIPPING
+                else PriceProposalAnswered
+            )
             self._publisher.publish(
-                PriceProposalAnswered(
+                answered(
                     conversation_id=proposal.conversation_id,
                     proposal_id=proposal.pk,
                     accepted=accept,
+                    actor_id=actor.user_id,
+                )
+            )
+        return self._selector.message(proposal.message_id)
+
+    def quote_shipping(
+        self, actor: Actor, conversation_id: int, command: QuoteShipping
+    ) -> MessageView:
+        with transaction.atomic():
+            conversation = _locked(actor, conversation_id)
+            proposal = self._proposals.quote_shipping(actor, conversation, command)
+            self._publisher.publish(
+                ShippingQuoted(
+                    conversation_id=conversation.pk,
+                    proposal_id=proposal.pk,
+                    order_id=conversation.order_id,
+                    fee=proposal.proposed_price,
+                    actor_id=actor.user_id,
+                )
+            )
+            self._publisher.publish(
+                MessagePosted(
+                    conversation_id=conversation.pk,
+                    message_id=proposal.message_id,
+                    sender_id=actor.user_id,
                     actor_id=actor.user_id,
                 )
             )
@@ -386,5 +419,25 @@ class NotificationRouter:
             proposer_id=context.proposer_id,
             product=context.product,
             new_price=context.proposed_price,
+            accepted=event.accepted,
+        )
+
+    def shipping_quoted(self, event: ShippingQuoted) -> None:
+        context = self._selector.proposal(event.proposal_id)
+        self._fanout.shipping_quoted(
+            conversation_id=context.conversation_id,
+            client_id=context.client_id,
+            number=context.order_number,
+            fee=context.proposed_price,
+            estimate=context.delivery_estimate,
+        )
+
+    def shipping_answered(self, event: ShippingQuoteAnswered) -> None:
+        context = self._selector.proposal(event.proposal_id)
+        self._fanout.shipping_answered(
+            conversation_id=context.conversation_id,
+            proposer_id=context.proposer_id,
+            number=context.order_number,
+            fee=context.proposed_price,
             accepted=event.accepted,
         )

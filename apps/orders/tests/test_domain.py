@@ -5,7 +5,7 @@ import pytest
 
 from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.numbers import new_order_number, normalize_order_number
-from apps.orders.domain.pricing import QuoteLine, ShippingRules, quote
+from apps.orders.domain.pricing import QuoteLine, ShippingRules, ZonePricing, quote
 from apps.orders.domain.state_machine import OrderState, OrderStateMachine, TransitionPolicyFactory
 from core.domain.actor import Actor, Role
 from core.domain.errors import InvalidTransition
@@ -20,8 +20,10 @@ S = OrderStatus
 machine = OrderStateMachine(TransitionPolicyFactory())
 
 
-def state(status: OrderStatus, reseller_id: int | None = 2) -> OrderState:
-    return OrderState(status=status, client_id=1, reseller_id=reseller_id)
+def state(status: OrderStatus, reseller_id: int | None = 2, *, quoting: bool = False) -> OrderState:
+    return OrderState(
+        status=status, client_id=1, reseller_id=reseller_id, awaiting_shipping_quote=quoting
+    )
 
 
 class TestStateMachine:
@@ -47,6 +49,20 @@ class TestStateMachine:
     )
     def test_allowed_targets(self, actor, status, expected):
         assert machine.allowed(state(status), actor) == expected
+
+    @pytest.mark.parametrize(
+        ("actor", "status", "expected"),
+        [
+            (CLIENT, S.PENDING, {S.CANCELLED}),
+            (CLIENT, S.ASSIGNED, {S.CANCELLED}),
+            (RESELLER, S.ASSIGNED, set()),
+            (MANAGER, S.ASSIGNED, {S.CANCELLED}),
+        ],
+    )
+    def test_nothing_moves_forward_until_the_shipping_quote_is_accepted(
+        self, actor, status, expected
+    ):
+        assert machine.allowed(state(status, quoting=True), actor) == expected
 
     def test_resellers_cannot_act_on_unassigned_pending_orders(self):
         assert machine.allowed(state(S.PENDING, reseller_id=None), RESELLER) == set()
@@ -99,6 +115,15 @@ class TestPricing:
         result = quote([line("10.00", fee="7.50"), line("10.00"), line("5.00", free=True)], RULES)
 
         assert result.shipping_fee == Decimal("7.50")
+
+    @pytest.mark.parametrize("pricing", [ZonePricing.QUOTE, ZonePricing.PICKUP])
+    def test_quoted_and_pickup_zones_charge_nothing_at_checkout(self, pricing):
+        rules = ShippingRules(free_threshold=Decimal(199), flat_fee=Decimal(5), pricing=pricing)
+
+        result = quote([line("50.00", fee="7.50")], rules)
+
+        assert (result.shipping_fee, result.total) == (Decimal(0), Decimal("50.00"))
+        assert result.free_shipping_remaining is None
 
 
 class TestOrderNumbers:

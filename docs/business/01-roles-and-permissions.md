@@ -54,6 +54,7 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `reports.analytics` | PDF analytics report | | | ✓ | ✓ | ✓ |
 | `conversations.moderate` | Close / reopen conversations they take part in | | | ✓ | ✓ | ✓ |
 | `price.adjust` | Propose a price in an order thread | | | ✓ | ✓ | ✓ |
+| `shipping.quote` | Quote the delivery fee of an order in a zone quoted on request | | | ✓ | ✓ | ✓ |
 | `orders.view.assigned` | Orders assigned to them | | | ✓ | ✓ | ✓ |
 | `orders.status.advance` | Move their order one step forward | | | ✓ | ✓ | ✓ |
 | `orders.assignment.decline` | Give back an order assigned to them | | | ✓ | ✓ | ✓ |
@@ -121,5 +122,6 @@ shown to resellers under the order's recipient name.
 - Nobody can change **their own role** or **deactivate their own account**.
 - Only **client** accounts can delete themselves; reseller and staff accounts are deactivated by an admin.
 - A manager or admin account **cannot become a reseller**.
-- A reseller can only act on orders **assigned to them** (advance, decline, propose a price).
-- Only the **client of the order** can accept or refuse a price proposal.
+- A reseller can only act on orders **assigned to them** (advance, decline, propose a price, quote
+  the shipping fee).
+- Only the **client of the order** can accept or refuse a price proposal or a shipping quote.

@@ -25,6 +25,13 @@ class ProposePrice:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class QuoteShipping:
+    fee: Decimal
+    delivery_estimate: str = ""
+    reason: str = ""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ConversationFilters:
     kind: ConversationKind | None = None
     status: ConversationStatus | None = None

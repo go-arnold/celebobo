@@ -125,6 +125,9 @@ SHIPPING_ZONES = (
     ("Reste du pays", (), "7.50", None, "3 à 7 jours", True),
 )
 
+# the delivery policy's pickup row
+PICKUP_ZONE = ("Retrait sur place", "Avenue Mwanga n° 21, Nyalukemba, Bukavu", "Dès confirmation")
+
 OPENING_HOURS = (
     {"days": "Lundi à vendredi", "hours": "8 h 30 à 18 h 30"},
     {"days": "Samedi", "hours": "9 h à 16 h"},

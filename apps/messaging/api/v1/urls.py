@@ -44,6 +44,11 @@ urlpatterns = [
         name="price-proposals",
     ),
     path(
+        "conversations/<id:conversation_id>/shipping-quotes/",
+        ProposalViewSet.as_view({"post": "quote_shipping"}),
+        name="shipping-quotes",
+    ),
+    path(
         "price-proposals/<id:proposal_id>/respond/",
         ProposalViewSet.as_view({"post": "respond_to"}),
         name="price-proposal-respond",

@@ -57,6 +57,7 @@ class QuoteRequestInput(QuoteInput):
     city = serializers.CharField(max_length=120, required=False, allow_blank=True)
     coupon_code = serializers.CharField(max_length=40, required=False, allow_blank=True)
     use_cashback = serializers.BooleanField(required=False, default=False)
+    pickup = serializers.BooleanField(required=False, default=False)
 
 
 class AssignableSearchInput(serializers.Serializer[Any]):
@@ -82,6 +83,7 @@ class PlaceOrderInput(QuoteInput):
     address = DeliveryAddressInput(required=False, allow_null=True)
     note = serializers.CharField(max_length=1000, required=False, allow_blank=True, default="")
     use_cashback = serializers.BooleanField(required=False, default=False)
+    pickup = serializers.BooleanField(required=False, default=False)
 
     def validate_payment_method(self, value: str) -> PaymentMethod:
         return PaymentMethod(value)
@@ -191,6 +193,10 @@ class QuoteOutput(serializers.Serializer[Any]):
     member_free_shipping = serializers.BooleanField()
     cashback = serializers.DecimalField(max_digits=10, decimal_places=2)
     cashback_available = serializers.DecimalField(max_digits=10, decimal_places=2)
+    delivery_method = serializers.CharField()
+    pickup_address = serializers.CharField()
+    shipping_quote_required = serializers.BooleanField()
+    pickup_available = serializers.BooleanField()
 
 
 class CartLineOutput(serializers.Serializer[Any]):
@@ -275,6 +281,10 @@ class OrderDetailOutput(serializers.Serializer[Any]):
     coupon_code = serializers.CharField()
     shipping_zone = serializers.CharField()
     shipping_fee = serializers.DecimalField(max_digits=10, decimal_places=2)
+    delivery_method = serializers.CharField()
+    pickup_address = serializers.CharField()
+    delivery_estimate = serializers.CharField()
+    awaiting_shipping_quote = serializers.BooleanField()
     cashback = serializers.DecimalField(max_digits=10, decimal_places=2)
     cashback_earned = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
     cancel_reason = serializers.CharField()

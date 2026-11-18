@@ -32,6 +32,7 @@ from apps.orders.domain.events import (
     OrderPlaced,
     OrderRepriced,
     OrderStatusChanged,
+    ShippingFeeAccepted,
 )
 from apps.orders.domain.numbers import normalize_order_number
 from apps.orders.domain.read_models import (
@@ -41,6 +42,7 @@ from apps.orders.domain.read_models import (
     CouponView,
     OrderDetail,
     OrderSummary,
+    QuotableOrder,
     QuoteView,
     ShippingZoneView,
     TrackingView,
@@ -56,6 +58,7 @@ from apps.orders.services.lifecycle import OrderLifecycleService, StatusChange
 from apps.orders.services.pricing import PricingContext, PricingService
 from apps.orders.services.promotions import CouponAdminService, ShippingZoneService
 from apps.orders.services.returns import LineReturnService
+from apps.orders.services.shipping_quotes import ShippingQuoteService
 from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
 from core.events.contracts import EventPublisher
@@ -137,9 +140,14 @@ class CheckoutFacade:
         city: str | None = None,
         coupon_code: str | None = None,
         use_cashback: bool = False,
+        pickup: bool = False,
     ) -> QuoteView:
         context = PricingContext(
-            city=city, coupon_code=coupon_code, user_id=actor.user_id, use_cashback=use_cashback
+            city=city,
+            coupon_code=coupon_code,
+            user_id=actor.user_id,
+            use_cashback=use_cashback,
+            pickup=pickup,
         )
         return self._pricing.price(lines, context).view
 
@@ -438,6 +446,25 @@ class OrderAdjustmentFacade:
                 )
             )
         return self._adjustments.adjustable(Actor.system(), order_id, item_id)
+
+
+@logged_facade
+class ShippingQuoteFacade:
+    def __init__(self, *, quotes: ShippingQuoteService, publisher: EventPublisher) -> None:
+        self._quotes = quotes
+        self._publisher = publisher
+
+    def quotable(self, actor: Actor, order_id: int) -> QuotableOrder:
+        return self._quotes.quotable(actor, order_id)
+
+    def accept(self, actor: Actor, order_id: int, fee: Decimal, delivery_estimate: str) -> None:
+        with transaction.atomic():
+            order = self._quotes.accept(actor, order_id, fee, delivery_estimate)
+            self._publisher.publish(
+                ShippingFeeAccepted(
+                    order_id=order.pk, fee=fee, total=order.total, actor_id=actor.user_id
+                )
+            )
 
 
 @logged_facade

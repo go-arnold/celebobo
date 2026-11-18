@@ -135,6 +135,8 @@ class ConversationSelector:
             previous_price=str(proposal.previous_price),
             proposed_price=str(proposal.proposed_price),
             reason=proposal.reason,
+            order_number=str(proposal.message.metadata.get("order_number", "")),
+            delivery_estimate=proposal.delivery_estimate,
         )
 
     @staticmethod

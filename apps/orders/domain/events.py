@@ -53,3 +53,10 @@ class OrderLineReturned(DomainEvent):
     amount_paid: Decimal
     discount: Decimal
     cashback: Decimal
+
+
+@domain_event
+class ShippingFeeAccepted(DomainEvent):
+    order_id: int
+    fee: Decimal
+    total: Decimal

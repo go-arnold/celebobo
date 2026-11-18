@@ -22,6 +22,7 @@ from apps.orders.domain.events import (
     OrderPlaced,
     OrderRepriced,
     OrderStatusChanged,
+    ShippingFeeAccepted,
 )
 from apps.realtime.domain.protocol import ServerEvent
 from apps.realtime.services.relay import RealtimeRelay
@@ -101,6 +102,11 @@ def push_order_status(event: OrderStatusChanged) -> None:
 @event_bus.on(OrderRepriced, OrderLineReturned)
 def push_order_repriced(event: OrderRepriced | OrderLineReturned) -> None:
     _relay().order_event(ServerEvent.ORDER_UPDATED, event.order_id, item_id=event.item_id)
+
+
+@event_bus.on(ShippingFeeAccepted)
+def push_shipping_fee_accepted(event: ShippingFeeAccepted) -> None:
+    _relay().order_event(ServerEvent.ORDER_UPDATED, event.order_id)
 
 
 @event_bus.on(RoleChanged, AccountDeleted)

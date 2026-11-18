@@ -59,6 +59,21 @@ class PriceProposalAnswered(DomainEvent):
 
 
 @domain_event
+class ShippingQuoted(DomainEvent):
+    conversation_id: int
+    proposal_id: int
+    order_id: int | None
+    fee: Decimal
+
+
+@domain_event
+class ShippingQuoteAnswered(DomainEvent):
+    conversation_id: int
+    proposal_id: int
+    accepted: bool
+
+
+@domain_event
 class NotificationCreated(DomainEvent):
     notification_id: int
     recipient_id: int

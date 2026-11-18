@@ -13,6 +13,13 @@ class OrderState:
     status: OrderStatus
     client_id: int
     reseller_id: int | None
+    # a quoted zone whose fee the client has not accepted yet: nothing is fixed, so the order
+    # cannot be confirmed and the client may still walk away
+    awaiting_shipping_quote: bool = False
+
+
+# the client may cancel free of charge until the shipping quote is accepted
+_CLIENT_CANCELLABLE_WHILE_QUOTING = frozenset({OrderStatus.PENDING, OrderStatus.ASSIGNED})
 
 
 class TransitionPolicy(Protocol):
@@ -21,14 +28,19 @@ class TransitionPolicy(Protocol):
 
 class ClientPolicy:
     def targets(self, state: OrderState, actor: Actor) -> frozenset[OrderStatus]:
-        if actor.owns(state.client_id) and state.status is OrderStatus.PENDING:
-            return frozenset({OrderStatus.CANCELLED})
-        return frozenset()
+        if not actor.owns(state.client_id):
+            return frozenset()
+        cancellable = (
+            _CLIENT_CANCELLABLE_WHILE_QUOTING
+            if state.awaiting_shipping_quote
+            else frozenset({OrderStatus.PENDING})
+        )
+        return frozenset({OrderStatus.CANCELLED}) if state.status in cancellable else frozenset()
 
 
 class ResellerPolicy:
     def targets(self, state: OrderState, actor: Actor) -> frozenset[OrderStatus]:
-        if not actor.owns(state.reseller_id):
+        if not actor.owns(state.reseller_id) or state.awaiting_shipping_quote:
             return frozenset()
         return _next_step(state.status)
 
@@ -39,6 +51,8 @@ class StaffPolicy:
             return frozenset({OrderStatus.RETURNED})
         if state.status.is_final:
             return frozenset()
+        if state.awaiting_shipping_quote:
+            return frozenset({OrderStatus.CANCELLED})
         forward = {
             status
             for status in FULFILMENT_FLOW

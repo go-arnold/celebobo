@@ -137,3 +137,24 @@ class InvalidReturnQuantity(ValidationFailed):
 
     def __init__(self, remaining: int) -> None:
         super().__init__(errors={"quantity": [self.default_detail]}, meta={"remaining": remaining})
+
+
+class PickupUnavailable(ValidationFailed):
+    default_code = "pickup_unavailable"
+    default_detail = "Le retrait sur place n'est pas proposé pour le moment."
+
+    def __init__(self) -> None:
+        super().__init__(errors={"pickup": [self.default_detail]})
+
+
+class ShippingNotQuotable(BusinessRuleViolation):
+    default_code = "shipping_not_quotable"
+    default_detail = "Les frais de livraison de cette commande ne sont pas à proposer."
+
+
+class InvalidShippingQuote(ValidationFailed):
+    default_code = "invalid_shipping_quote"
+    default_detail = "Indiquez des frais de livraison valides."
+
+    def __init__(self) -> None:
+        super().__init__(errors={"fee": [self.default_detail]})

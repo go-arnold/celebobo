@@ -152,6 +152,9 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 404 | `cart_line_not_found` | Article introuvable dans le panier. |
 | 422 | `item_not_adjustable` | Le prix ne peut plus être modifié pour cette commande. |
 | 400 | `invalid_proposed_price` | Le prix proposé doit être positif et ne pas dépasser le prix catalogue. |
+| 400 | `pickup_unavailable` | Le retrait sur place n'est pas proposé pour le moment. |
+| 422 | `shipping_not_quotable` | Les frais de livraison de cette commande ne sont pas à proposer. |
+| 400 | `invalid_shipping_quote` | Indiquez des frais de livraison valides. |
 | 422 | `line_not_returnable` | Seuls les articles d'une commande livrée peuvent être retournés. |
 | 400 | `invalid_return_quantity` | Quantité à retourner invalide. |
 | 404 | `order_item_not_found` | Article introuvable dans cette commande. |

@@ -57,8 +57,8 @@ from apps.demo.images import banner_image, category_image, product_image
 from apps.demo.photos import photo_url
 from apps.demo.uploads import ImageStore, download
 from apps.media.models import UploadedMedia
-from apps.messaging.domain.commands import OpenSupport, PostMessage
-from apps.messaging.facades import ConversationFacade
+from apps.messaging.domain.commands import OpenSupport, PostMessage, QuoteShipping
+from apps.messaging.facades import ConversationFacade, ProposalFacade
 from apps.orders.domain.commands import (
     AssignOrder,
     CancelOrder,
@@ -66,9 +66,11 @@ from apps.orders.domain.commands import (
     OrderLineInput,
     PlaceOrder,
     TransitionOrder,
+    ZoneChanges,
     ZoneFields,
 )
 from apps.orders.domain.enums import CancelReason, OrderStatus, PaymentMethod
+from apps.orders.domain.pricing import ZonePricing
 from apps.orders.facades import CheckoutFacade, ClientOrderFacade, DispatchFacade, PromotionFacade
 from apps.orders.models import Order, OrderStatusEvent
 from apps.resellers.domain.commands import SubmitApplication
@@ -499,8 +501,31 @@ class DemoSeeder:
 
     def _shipping_zones(self) -> None:
         promotions = container.resolve(PromotionFacade)
-        if promotions.shipping_zones(active_only=False):
-            return
+        if not promotions.shipping_zones(active_only=False):
+            self._create_zones(promotions)
+        self._policy_zones(promotions)
+
+    # the delivery policy's last rows: other places are quoted on request, pickup at the shop is free
+    def _policy_zones(self, promotions: PromotionFacade) -> None:
+        zones = promotions.shipping_zones(active_only=False)
+        default = next((zone for zone in zones if zone.is_default), None)
+        if default is not None and default.pricing is ZonePricing.FLAT:
+            promotions.update_zone(default.id, ZoneChanges(pricing=ZonePricing.QUOTE))
+        if not any(zone.pricing is ZonePricing.PICKUP for zone in zones):
+            name, address, estimate = content.PICKUP_ZONE
+            promotions.create_zone(
+                ZoneFields(
+                    name=name,
+                    fee=Decimal(0),
+                    pricing=ZonePricing.PICKUP,
+                    pickup_address=address,
+                    delivery_estimate=estimate,
+                    position=len(zones) + 1,
+                )
+            )
+            self.report.add("shipping zones")
+
+    def _create_zones(self, promotions: PromotionFacade) -> None:
         for position, (name, cities, fee, threshold, estimate, default) in enumerate(
             content.SHIPPING_ZONES, start=1
         ):
@@ -562,6 +587,8 @@ class DemoSeeder:
                 )
             elif target is not OrderStatus.PENDING:
                 dispatch.assign(staff, order_id, AssignOrder(reseller_id=reseller.pk))
+                if order.conversation_id and order.awaiting_shipping_quote:
+                    self._quote_shipping(order.conversation_id, client, reseller)
                 if order.conversation_id and index % 3 == 0:
                     self._chat(order.conversation_id, client, reseller)
                 for status in FLOW[: self._steps(target)]:
@@ -590,6 +617,21 @@ class DemoSeeder:
         if target is OrderStatus.ASSIGNED:
             return 0
         return FLOW.index(target) + 1
+
+    # an order outside the named zones: the reseller quotes the delivery, the client accepts
+    def _quote_shipping(self, conversation_id: int, client: User, reseller: User) -> None:
+        proposals = container.resolve(ProposalFacade)
+        message = proposals.quote_shipping(
+            actor_from_user(reseller),
+            conversation_id,
+            QuoteShipping(
+                fee=Decimal("12.00"),
+                delivery_estimate="4 à 6 jours",
+                reason="Envoi par transporteur depuis Bukavu.",
+            ),
+        )
+        proposals.respond(actor_from_user(client), message.metadata["proposal_id"], accept=True)
+        self.report.add("shipping quotes")
 
     def _chat(self, conversation_id: int, client: User, staff: User) -> None:
         conversations = container.resolve(ConversationFacade)

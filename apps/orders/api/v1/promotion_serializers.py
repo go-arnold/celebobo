@@ -3,7 +3,7 @@ from typing import Any
 
 from rest_framework import serializers
 
-from apps.orders.domain.pricing import CouponKind
+from apps.orders.domain.pricing import CouponKind, ZonePricing
 from core.api.fields import MAX_INTEGER
 
 
@@ -36,9 +36,18 @@ class ZoneInput(serializers.Serializer[Any]):
     is_active = serializers.BooleanField(default=True)
     position = serializers.IntegerField(min_value=0, max_value=32767, default=0)
     member_free_shipping = serializers.BooleanField(default=False)
+    pricing = serializers.ChoiceField(
+        choices=[item.value for item in ZonePricing], default=ZonePricing.FLAT.value
+    )
+    pickup_address = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, default=""
+    )
 
     def validate_cities(self, value: list[str]) -> tuple[str, ...]:
         return tuple(value)
+
+    def validate_pricing(self, value: str) -> ZonePricing:
+        return ZonePricing(value)
 
 
 class ZoneOutput(serializers.Serializer[Any]):
@@ -52,6 +61,8 @@ class ZoneOutput(serializers.Serializer[Any]):
     is_active = serializers.BooleanField()
     position = serializers.IntegerField()
     member_free_shipping = serializers.BooleanField()
+    pricing = serializers.CharField()
+    pickup_address = serializers.CharField()
 
 
 class CouponInput(serializers.Serializer[Any]):

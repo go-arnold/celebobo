@@ -45,6 +45,15 @@ FULFILMENT_FLOW = (
 )
 
 
+class DeliveryMethod(StrEnum):
+    DELIVERY = "delivery"
+    PICKUP = "pickup"
+
+    @property
+    def label(self) -> str:
+        return {"delivery": "Livraison", "pickup": "Retrait sur place"}[self.value]
+
+
 class PaymentMethod(StrEnum):
     ORANGE_MONEY = "orange_money"
     AIRTEL_MONEY = "airtel_money"
