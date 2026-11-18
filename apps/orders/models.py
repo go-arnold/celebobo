@@ -371,3 +371,32 @@ class CouponRedemption(models.Model):
 
     def __str__(self) -> str:
         return f"{self.coupon_id} → {self.order_id}"
+
+
+class OrderRating(models.Model):
+    """The client's rating of the reseller who handled their order, once it is delivered."""
+
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="rating")
+    reseller = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="ratings_received"
+    )
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="ratings_given"
+    )
+    score = models.PositiveSmallIntegerField()
+    comment = models.TextField(max_length=1000, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "note du revendeur"
+        verbose_name_plural = "notes des revendeurs"
+        ordering = ("-created_at", "-pk")
+        indexes = (models.Index(fields=("reseller", "-created_at"), name="orders_rating_reseller"),)
+        constraints = (
+            models.CheckConstraint(
+                condition=models.Q(score__gte=1, score__lte=5), name="orders_rating_score_range"
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.score}/5 — {self.order_id}"

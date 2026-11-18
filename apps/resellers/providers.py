@@ -4,6 +4,7 @@ from django.utils import timezone
 from apps.resellers.adapters.gateways import (
     AccountsDirectory,
     AccountsResellers,
+    OrderRatingBook,
     OrdersInviteeTotals,
     SalesPerformanceLedger,
 )
@@ -75,6 +76,7 @@ def _program_facade(container: Container) -> ResellerProgramFacade:
         ledger=container.resolve(SalesLedger),
         invitees=_invitees(container),
         applications=ApplicationSelector(),
+        ratings=OrderRatingBook(),
         ranking_days=reseller_settings().ranking_days,
         clock=timezone.now,
     )

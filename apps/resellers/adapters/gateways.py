@@ -10,8 +10,8 @@ from apps.accounts.domain.read_models import (
 )
 from apps.accounts.facades import ResellerAccountFacade
 from apps.accounts.selectors import ResellerDirectorySelector
-from apps.orders.domain.read_models import ClientOrderTotals
-from apps.orders.selectors import client_order_totals
+from apps.orders.domain.read_models import ClientOrderTotals, RatingSummary, ResellerRatingRow
+from apps.orders.selectors import client_order_totals, rating_summaries, reseller_ratings
 from apps.sales.domain.read_models import SellerPerformance
 from apps.sales.selectors import seller_performance, top_sellers
 from core.container import container
@@ -76,3 +76,13 @@ class SalesPerformanceLedger:
 class OrdersInviteeTotals:
     def totals(self, client_ids: Iterable[int]) -> dict[int, ClientOrderTotals]:
         return client_order_totals(client_ids)
+
+
+class OrderRatingBook:
+    def summaries(self, reseller_ids: Iterable[int]) -> dict[int, RatingSummary]:
+        return rating_summaries(reseller_ids)
+
+    def ratings(
+        self, reseller_id: int, *, offset: int, limit: int
+    ) -> tuple[list[ResellerRatingRow], int]:
+        return reseller_ratings(reseller_id, offset=offset, limit=limit)

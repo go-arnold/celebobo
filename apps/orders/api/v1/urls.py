@@ -77,6 +77,11 @@ urlpatterns = [
         ClientOrderViewSet.as_view({"post": "cancel"}),
         name="my-order-cancel",
     ),
+    path(
+        "me/orders/<str:number>/rating/",
+        ClientOrderViewSet.as_view({"post": "rate"}),
+        name="my-order-rating",
+    ),
     path("bo/orders/", DispatchViewSet.as_view({"get": "list"}), name="bo-orders"),
     path(
         "bo/orders/<id:order_id>/",

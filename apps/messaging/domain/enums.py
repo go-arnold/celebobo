@@ -48,6 +48,7 @@ class NotificationKind(StrEnum):
     ORDER_REFUNDED = "order_refunded"
     DELIVERY_CODE = "delivery_code"
     DELIVERY_CODE_LOCKED = "delivery_code_locked"
+    RESELLER_RATED = "reseller_rated"
     MEMBERSHIP_REQUESTED = "membership_requested"
     MEMBERSHIP_STARTED = "membership_started"
     MEMBERSHIP_REJECTED = "membership_rejected"

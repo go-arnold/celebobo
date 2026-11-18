@@ -88,3 +88,10 @@ class DeliveryCodeLocked(DomainEvent):
 class DeliveredWithoutCode(DomainEvent):
     order_id: int
     reason: str
+
+
+@domain_event
+class ResellerRated(DomainEvent):
+    order_id: int
+    reseller_id: int
+    score: int

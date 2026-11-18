@@ -42,6 +42,9 @@ CLIENT_CANCELLABLE = frozenset(
 # the client has paid: cancelling from here means giving the money back
 PAID_STATUSES = frozenset({OrderStatus.PAID, OrderStatus.SHIPPING})
 
+# the handover happened (a returned order was delivered first): the client may rate the reseller
+RATABLE_STATUSES = frozenset({OrderStatus.DELIVERED, OrderStatus.RETURNED})
+
 FULFILMENT_FLOW = (
     OrderStatus.PENDING,
     OrderStatus.ASSIGNED,

@@ -17,6 +17,7 @@ from apps.orders.domain.commands import (
     OrderFilters,
     OrderLineInput,
     PlaceOrder,
+    RateReseller,
     RecordRefund,
     ReturnLine,
     TrackOrder,
@@ -38,6 +39,7 @@ from apps.orders.domain.events import (
     OrderRepriced,
     OrderStatusChanged,
     RefundDue,
+    ResellerRated,
     ShippingFeeAccepted,
 )
 from apps.orders.domain.numbers import normalize_order_number
@@ -63,6 +65,7 @@ from apps.orders.services.contracts import OrderThreads, ResellerDirectory, Wall
 from apps.orders.services.lifecycle import Handover, OrderLifecycleService, StatusChange
 from apps.orders.services.pricing import PricingContext, PricingService
 from apps.orders.services.promotions import CouponAdminService, ShippingZoneService
+from apps.orders.services.ratings import RatingService
 from apps.orders.services.refunds import RefundService
 from apps.orders.services.returns import LineReturnService
 from apps.orders.services.shipping_quotes import ShippingQuoteService
@@ -224,6 +227,26 @@ class ClientOrderFacade:
             if order is None:
                 raise OrderNotFound
             _announce(self._publisher, self._lifecycle.cancel(order, actor, command), actor)
+        return self.detail(actor, number)
+
+    # once delivered, the client rates the reseller who handled the order (once)
+    def rate(self, actor: Actor, number: str, command: RateReseller) -> OrderDetail:
+        client_id = _user_id(actor)
+        with transaction.atomic():
+            order = self._orders.for_client(
+                client_id, normalize_order_number(number), for_update=True
+            )
+            if order is None:
+                raise OrderNotFound
+            rating = RatingService().rate(order, command)
+            self._publisher.publish(
+                ResellerRated(
+                    order_id=order.pk,
+                    reseller_id=rating.reseller_id,
+                    score=rating.score,
+                    actor_id=client_id,
+                )
+            )
         return self.detail(actor, number)
 
     def track(self, command: TrackOrder) -> TrackingView:

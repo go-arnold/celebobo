@@ -26,6 +26,7 @@ from apps.orders.api.v1.serializers import (
     PlaceOrderInput,
     QuoteOutput,
     QuoteRequestInput,
+    RateResellerInput,
     RecordRefundInput,
     ReturnLineInput,
     TrackingOutput,
@@ -38,6 +39,7 @@ from apps.orders.domain.commands import (
     DeclineAssignment,
     OrderFilters,
     PlaceOrder,
+    RateReseller,
     RecordRefund,
     ReturnLine,
     TrackOrder,
@@ -186,6 +188,7 @@ class ClientOrderViewSet(UseCaseViewSet):
         "list": (ORDERS_VIEW_MINE,),
         "retrieve": (ORDERS_VIEW_MINE,),
         "cancel": (ORDERS_CANCEL_MINE,),
+        "rate": (ORDERS_VIEW_MINE,),
     }
     orders = Inject(ClientOrderFacade)
 
@@ -216,6 +219,11 @@ class ClientOrderViewSet(UseCaseViewSet):
         return self.respond(
             ClientOrderDetailOutput, self.orders.cancel(self.actor, number, command)
         )
+
+    @extend_schema(request=RateResellerInput, responses=ClientOrderDetailOutput)
+    def rate(self, request: Request, number: str) -> Response:
+        command = self.parse(RateResellerInput, into=RateReseller)
+        return self.respond(ClientOrderDetailOutput, self.orders.rate(self.actor, number, command))
 
 
 class DispatchViewSet(UseCaseViewSet):
