@@ -404,6 +404,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "orders.expire_stale",
         "schedule": 60 * 60,
     },
+    "close-finished-order-threads": {
+        "task": "messaging.close_expired_threads",
+        "schedule": 60 * 60,
+    },
     "expire-cashback": {
         "task": "loyalty.expire_cashback",
         "schedule": 24 * 60 * 60,

@@ -5,7 +5,12 @@ from typing import Any
 from django.db.models import F, Q
 from django.db.models.functions import Greatest
 
-from apps.messaging.domain.enums import NotificationKind, ProposalStatus, ProposalSubject
+from apps.messaging.domain.enums import (
+    ConversationStatus,
+    NotificationKind,
+    ProposalStatus,
+    ProposalSubject,
+)
 from apps.messaging.models import Conversation, Message, Notification, Participant, PriceProposal
 
 
@@ -20,6 +25,13 @@ class ConversationRepository:
     def for_order(self, order_id: int, *, for_update: bool = False) -> Conversation | None:
         queryset = Conversation.objects.select_for_update() if for_update else Conversation.objects
         return queryset.filter(order_id=order_id).first()
+
+    def due_to_close(self, now: datetime) -> list[Conversation]:
+        return list(
+            Conversation.objects.select_for_update(skip_locked=True).filter(
+                status=ConversationStatus.OPEN.value, closes_at__lte=now
+            )
+        )
 
     def id_for_order(self, order_id: int) -> int | None:
         return Conversation.objects.filter(order_id=order_id).values_list("pk", flat=True).first()

@@ -159,6 +159,16 @@ class ConversationFacade:
                 )
         return self._selector.detail(actor, conversation_id)
 
+    # hourly: order discussions whose grace period after the order ended is over
+    def close_expired(self) -> int:
+        with transaction.atomic():
+            closed = self._conversations.close_due()
+            for conversation in closed:
+                self._publisher.publish(
+                    ConversationClosed(conversation_id=conversation.pk, actor_id=None)
+                )
+        return len(closed)
+
     def reopen(self, actor: Actor, conversation_id: int) -> ConversationView:
         with transaction.atomic():
             conversation = _locked(actor, conversation_id)

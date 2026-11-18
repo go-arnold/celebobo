@@ -1,6 +1,8 @@
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
+
+from django.utils import timezone
 
 from apps.messaging.domain.commands import OpenSupport, PostMessage
 from apps.messaging.domain.enums import ConversationKind, ConversationStatus, MessageKind
@@ -30,7 +32,9 @@ class ConversationService:
         notifications: NotificationRepository,
         *,
         clock: Callable[[], datetime],
+        grace_days: int = 7,
     ) -> None:
+        self._grace = timedelta(days=grace_days)
         self._conversations = conversations
         self._messages = messages
         self._participants = participants
@@ -108,16 +112,19 @@ class ConversationService:
             return False
         conversation.status = ConversationStatus.CLOSED.value
         conversation.closed_at = self._clock()
-        self._conversations.save(conversation, fields=("status", "closed_at"))
+        conversation.closes_at = None
+        self._conversations.save(conversation, fields=("status", "closed_at", "closes_at"))
         self.system_message(conversation, note, {"event": "closed"})
         return True
 
+    # reopened by hand: it stays open until someone closes it
     def reopen(self, conversation: Conversation) -> bool:
         if conversation.is_open:
             return False
         conversation.status = ConversationStatus.OPEN.value
         conversation.closed_at = None
-        self._conversations.save(conversation, fields=("status", "closed_at"))
+        conversation.closes_at = None
+        self._conversations.save(conversation, fields=("status", "closed_at", "closes_at"))
         self.system_message(conversation, "Discussion rouverte.", {"event": "reopened"})
         return True
 
@@ -142,11 +149,30 @@ class ConversationService:
         self._set_reseller(conversation, reseller_id, reseller_name)
         return conversation
 
-    def close_for_order(self, order_id: int, status_label: str) -> Conversation | None:
+    # the order ended: the client may still ask questions for a while (a return restarts the delay)
+    def wind_down_for_order(self, order_id: int, status_label: str) -> Conversation | None:
         conversation = self._conversations.for_order(order_id, for_update=True)
-        if conversation is not None:
-            self.close(conversation, note=f"Commande {status_label.lower()} : discussion clôturée.")
+        if conversation is None or not conversation.is_open:
+            return conversation
+        conversation.closes_at = self._clock() + self._grace
+        self._conversations.save(conversation, fields=("closes_at",))
+        until = timezone.localtime(conversation.closes_at).strftime("%d/%m/%Y")
+        self.system_message(
+            conversation,
+            f"Commande {status_label.lower()} : la discussion reste ouverte jusqu'au {until} "
+            "pour vos questions, puis sera clôturée.",
+            {"event": "closing", "closes_at": conversation.closes_at.isoformat()},
+        )
         return conversation
+
+    def close_due(self) -> list[Conversation]:
+        return [
+            conversation
+            for conversation in self._conversations.due_to_close(self._clock())
+            if self.close(
+                conversation, note="Discussion clôturée : le délai après la commande est écoulé."
+            )
+        ]
 
     def system_message(
         self, conversation: Conversation, body: str, metadata: dict[str, Any]

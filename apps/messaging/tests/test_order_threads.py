@@ -1,8 +1,13 @@
+from datetime import timedelta
+
 import pytest
+from django.conf import settings
 from django.core import mail
+from django.utils import timezone
 
 from apps.accounts.tests.factories import ResellerFactory, UserFactory
 from apps.messaging.models import Conversation, Message, Notification
+from apps.messaging.tasks import close_expired_threads
 from apps.messaging.tests.conftest import thread_of
 
 pytestmark = pytest.mark.django_db(transaction=True)
@@ -72,15 +77,82 @@ class TestOrderThread:
         ]
         assert not Notification.objects.filter(recipient=reseller, kind="order_status").exists()
 
-    def test_finished_orders_close_their_thread(self, as_user, manager, assigned_order):
+    def test_a_finished_order_keeps_its_thread_open_for_seven_days(
+        self, as_user, client_user, manager, assigned_order
+    ):
         as_user(manager).post(
             f"/api/v1/bo/orders/{assigned_order.pk}/transition/",
             {"to": "delivered", "reason": "Remise vérifiée par téléphone"},
         )
 
         conversation = thread_of(assigned_order)
-        assert conversation.status == "closed"
-        assert messages_of(conversation)[-1] == ("system", "Commande livrée : discussion clôturée.")
+        assert conversation.status == "open"
+        assert conversation.closes_at is not None
+        assert (
+            timedelta(days=6, hours=23)
+            < conversation.closes_at - timezone.now()
+            <= timedelta(days=7)
+        )
+        until = timezone.localtime(conversation.closes_at).strftime("%d/%m/%Y")
+        assert messages_of(conversation)[-1] == (
+            "system",
+            f"Commande livrée : la discussion reste ouverte jusqu'au {until} pour vos questions, "
+            "puis sera clôturée.",
+        )
+        # the client can still write during the grace period
+        sent = as_user(client_user).post(
+            f"/api/v1/conversations/{conversation.pk}/messages/", {"body": "Merci, bien reçu !"}
+        )
+        assert sent.status_code == 201
+        detail = as_user(client_user).get(f"/api/v1/conversations/{conversation.pk}/").json()
+        assert detail["closes_at"] is not None
+
+    def test_the_hourly_job_closes_threads_past_their_grace(
+        self, as_user, client_user, manager, assigned_order, place_order
+    ):
+        as_user(manager).post(
+            f"/api/v1/bo/orders/{assigned_order.pk}/transition/",
+            {"to": "delivered", "reason": "Remise vérifiée par téléphone"},
+        )
+        ended = thread_of(assigned_order)
+        Conversation.objects.filter(pk=ended.pk).update(
+            closes_at=timezone.now() - timedelta(minutes=1)
+        )
+        ongoing = thread_of(place_order(client_user))
+
+        closed = close_expired_threads()
+
+        ended.refresh_from_db()
+        ongoing.refresh_from_db()
+        assert closed == 1
+        assert (ended.status, ended.closes_at) == ("closed", None)
+        assert messages_of(ended)[-1] == (
+            "system",
+            "Discussion clôturée : le délai après la commande est écoulé.",
+        )
+        assert ongoing.status == "open"
+        refused = as_user(client_user).post(
+            f"/api/v1/conversations/{ended.pk}/messages/", {"body": "Encore une question"}
+        )
+        assert refused.json()["code"] == "conversation_closed"
+        assert settings.CELERY_BEAT_SCHEDULE["close-finished-order-threads"] == {
+            "task": "messaging.close_expired_threads",
+            "schedule": 3600,
+        }
+
+    def test_reopening_by_hand_drops_the_closing_date(self, as_user, manager, assigned_order):
+        as_user(manager).post(
+            f"/api/v1/bo/orders/{assigned_order.pk}/transition/",
+            {"to": "delivered", "reason": "Remise vérifiée par téléphone"},
+        )
+        conversation = thread_of(assigned_order)
+        api = as_user(manager)
+
+        api.post(f"/api/v1/conversations/{conversation.pk}/close/")
+        api.post(f"/api/v1/conversations/{conversation.pk}/reopen/")
+
+        conversation.refresh_from_db()
+        assert (conversation.status, conversation.closes_at) == ("open", None)
 
 
 class TestMessaging:

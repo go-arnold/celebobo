@@ -23,7 +23,11 @@ own as a client); a client sees their own.
 
 ### Closing
 
-- An **order thread is closed automatically** when its order becomes delivered, cancelled or returned.
+- When its order **ends** (delivered, cancelled or returned), an order thread **stays open 7 days**
+  (`MESSAGING_ORDER_THREAD_GRACE_DAYS`) so the client can still ask questions: a system message says
+  until when, and the conversation shows `closes_at`. A return after delivery restarts the delay.
+  An hourly job then **closes** it ("délai écoulé"). Closing it by hand still works at any time;
+  reopening it by hand removes the closing date (it stays open until closed again).
 - Back-office participants (`conversations.moderate`) can close and reopen a conversation manually.
 - Staff can **assign a support thread** to a reseller (`conversations.assign`); order threads follow
   the order's assignment instead (`not_a_support_conversation`).

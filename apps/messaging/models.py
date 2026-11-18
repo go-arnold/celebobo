@@ -44,6 +44,8 @@ class Conversation(models.Model):
     last_message_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     closed_at = models.DateTimeField(null=True, blank=True)
+    # the order ended: the discussion stays open for questions until then, and closes by itself
+    closes_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
         verbose_name = "discussion"

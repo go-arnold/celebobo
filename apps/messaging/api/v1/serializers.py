@@ -110,6 +110,7 @@ class ConversationOutput(serializers.Serializer[Any]):
     unread_count = serializers.IntegerField()
     created_at = serializers.DateTimeField()
     last_message_at = serializers.DateTimeField(allow_null=True)
+    closes_at = serializers.DateTimeField(allow_null=True)
 
 
 class ReadOutput(serializers.Serializer[Any]):
