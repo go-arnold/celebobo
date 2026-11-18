@@ -131,6 +131,26 @@ class NotificationFanout:
             order_id=order.id,
         )
 
+    def delivery_code(self, order_id: int) -> None:
+        order = self._orders.ref(order_id)
+        self._notifications.notify(
+            [order.client_id],
+            render(
+                NotificationKind.DELIVERY_CODE,
+                number=order.number,
+                code=self._orders.delivery_code(order_id),
+            ),
+            order_id=order.id,
+        )
+
+    def delivery_code_locked(self, order_id: int) -> None:
+        order = self._orders.ref(order_id)
+        self._notifications.notify(
+            self._directory.staff_ids(),
+            render(NotificationKind.DELIVERY_CODE_LOCKED, number=order.number, order_id=order.id),
+            order_id=order.id,
+        )
+
     def order_refunded(self, order_id: int, amount: str) -> None:
         order = self._orders.ref(order_id)
         self._notifications.notify(

@@ -115,6 +115,11 @@ class Order(models.Model):
     )
     refunded_at = models.DateTimeField(null=True, blank=True)
     refund_note = models.CharField(max_length=200, blank=True)
+    # created when the order is confirmed, shown to the client only; the reseller enters it at
+    # handover to mark the order delivered. Wrong codes count; past the limit the code locks.
+    delivery_code = models.CharField(max_length=6, blank=True)
+    delivery_code_attempts = models.PositiveSmallIntegerField(default=0)
+    delivery_code_locked_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

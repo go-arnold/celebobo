@@ -59,7 +59,10 @@ def delivered(as_user, shopper, manager, reseller, products) -> Order:
     order = Order.objects.get(number=response.json()["number"])
     staff = as_user(manager)
     staff.post(f"{BO}{order.pk}/assign/", {"reseller_id": reseller.pk})
-    staff.post(f"{BO}{order.pk}/transition/", {"to": "delivered"})
+    staff.post(
+        f"{BO}{order.pk}/transition/",
+        {"to": "delivered", "reason": "Remise vérifiée par téléphone"},
+    )
     order.refresh_from_db()
     assert order.status == "delivered"
     return order

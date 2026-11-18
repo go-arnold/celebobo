@@ -72,6 +72,8 @@ Every notification is stored **in the app** (bell / notifications page) and may 
 | Shipping quote accepted/refused | The quoter | status changed | `/admin/messages/{id}` |
 | Paid order cancelled, refund owed | All active staff and the reseller in charge | order assigned | `/admin/commandes/{id}` |
 | Refund recorded | The client | status changed | `/compte/commandes/{number}` |
+| Delivery code issued (order confirmed) | The client — **e-mail always sent**, whatever the preferences | status changed | `/compte/commandes/{number}` |
+| Delivery code locked (5 wrong codes) | All active staff | order assigned | `/admin/commandes/{id}` |
 | Plus membership requested | All active staff | order assigned | `/admin/abonnements` |
 | Plus membership started (trial or paid) | The client | status changed | `/compte/abonnement` |
 | Plus request refused | The client | status changed | `/compte/abonnement` |

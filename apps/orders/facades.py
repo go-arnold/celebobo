@@ -28,6 +28,9 @@ from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.errors import OrderNotFound
 from apps.orders.domain.events import (
     AssignmentDeclined,
+    DeliveredWithoutCode,
+    DeliveryCodeIssued,
+    DeliveryCodeLocked,
     OrderAssigned,
     OrderLineReturned,
     OrderPlaced,
@@ -57,14 +60,14 @@ from apps.orders.services.adjustments import AdjustmentService
 from apps.orders.services.cart import CartOwner, CartService
 from apps.orders.services.checkout import CheckoutService
 from apps.orders.services.contracts import OrderThreads, ResellerDirectory, Wallet
-from apps.orders.services.lifecycle import OrderLifecycleService, StatusChange
+from apps.orders.services.lifecycle import Handover, OrderLifecycleService, StatusChange
 from apps.orders.services.pricing import PricingContext, PricingService
 from apps.orders.services.promotions import CouponAdminService, ShippingZoneService
 from apps.orders.services.refunds import RefundService
 from apps.orders.services.returns import LineReturnService
 from apps.orders.services.shipping_quotes import ShippingQuoteService
 from core.domain.actor import Actor
-from core.domain.errors import Unauthenticated
+from core.domain.errors import DomainError, Unauthenticated
 from core.events.contracts import EventPublisher
 from core.observability.decorators import logged_facade
 
@@ -308,9 +311,32 @@ class DispatchFacade:
             _announce(self._publisher, change, actor)
 
     def transition(self, actor: Actor, order_id: int, command: TransitionOrder) -> OrderDetail:
+        refused: DomainError | None = None
         with transaction.atomic():
             order = self._locked(actor, order_id)
-            _announce(self._publisher, self._lifecycle.transition(order, actor, command), actor)
+            handover = (
+                self._lifecycle.handover(order, actor, command)
+                if command.to is OrderStatus.DELIVERED
+                and command.to in self._lifecycle.allowed(order, actor)
+                else Handover()
+            )
+            if handover.locked_now:
+                self._publisher.publish(
+                    DeliveryCodeLocked(order_id=order.pk, actor_id=actor.user_id)
+                )
+            if handover.error is not None:
+                # the wrong attempt stays counted: refuse only once this transaction commits
+                refused = handover.error
+            else:
+                _announce(self._publisher, self._lifecycle.transition(order, actor, command), actor)
+                if handover.without_code is not None:
+                    self._publisher.publish(
+                        DeliveredWithoutCode(
+                            order_id=order.pk, reason=handover.without_code, actor_id=actor.user_id
+                        )
+                    )
+        if refused is not None:
+            raise refused
         return self.detail(actor, order_id)
 
     # a paid order was cancelled: staff record that the money went back to the client
@@ -418,6 +444,8 @@ def _announce(publisher: EventPublisher, change: StatusChange, actor: Actor) -> 
             actor_id=actor.user_id,
         )
     )
+    if change.code_issued:
+        publisher.publish(DeliveryCodeIssued(order_id=change.order.pk, actor_id=actor.user_id))
     if change.status is OrderStatus.CANCELLED and change.order.refund_due > 0:
         publisher.publish(
             RefundDue(

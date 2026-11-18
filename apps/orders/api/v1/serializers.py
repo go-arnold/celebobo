@@ -10,6 +10,7 @@ from core.api.fields import MAX_INTEGER
 
 PHONE_PATTERN = r"^\+?[\d\s().-]{7,20}$"
 PHONE_ERROR: dict[str, str | StrPromise] = {"invalid": "Numéro de téléphone invalide."}
+HANDOVER_STATUSES = frozenset({OrderStatus.CONFIRMED, OrderStatus.PAID, OrderStatus.SHIPPING})
 TRANSITION_TARGETS = [
     status.value
     for status in OrderStatus
@@ -138,6 +139,13 @@ class TransitionInput(serializers.Serializer[Any]):
     to = serializers.ChoiceField(choices=TRANSITION_TARGETS)
     note = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
     reason = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
+    delivery_code = serializers.RegexField(
+        r"^\s*\d{6}\s*$",
+        required=False,
+        allow_blank=True,
+        default="",
+        error_messages={"invalid": "Le code de livraison compte 6 chiffres."},
+    )
 
     def validate_to(self, value: str) -> OrderStatus:
         return OrderStatus(value)
@@ -300,6 +308,8 @@ class OrderDetailOutput(serializers.Serializer[Any]):
     refund_due = serializers.DecimalField(max_digits=10, decimal_places=2)
     refunded_at = serializers.DateTimeField(allow_null=True)
     refund_note = serializers.CharField()
+    delivery_code_attempts = serializers.IntegerField()
+    delivery_code_locked = serializers.BooleanField()
     history = StatusEntryOutput(many=True)
     allowed_transitions = serializers.ListField(child=serializers.CharField())
     client = PersonOutput()
@@ -314,6 +324,10 @@ class ClientOrderDetailOutput(OrderDetailOutput):
     def to_representation(self, instance: Any) -> dict[str, Any]:
         data = super().to_representation(instance)
         data.pop("client", None)
+        # the client's own code, to give the reseller at handover, until the order is delivered
+        data["delivery_code"] = (
+            instance.delivery_code if instance.summary.status in HANDOVER_STATUSES else None
+        )
         if data.get("reseller"):
             data["reseller"] = {
                 key: data["reseller"][key] for key in ("id", "name", "availability")

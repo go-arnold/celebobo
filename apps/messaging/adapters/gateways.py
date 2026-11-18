@@ -16,7 +16,7 @@ from apps.messaging.services.conversations import ConversationService
 from apps.orders.domain.read_models import AdjustableItem, OrderRef, QuotableOrder
 from apps.orders.facades import OrderAdjustmentFacade, ShippingQuoteFacade
 from apps.orders.models import Order
-from apps.orders.selectors import order_ref
+from apps.orders.selectors import delivery_code, order_ref
 from core.container import container
 from core.domain.actor import Actor
 
@@ -32,6 +32,9 @@ class OrdersGateway:
         self, actor: Actor, order_id: int, item_id: int, price: Decimal
     ) -> AdjustableItem:
         return container.resolve(OrderAdjustmentFacade).apply(actor, order_id, item_id, price)
+
+    def delivery_code(self, order_id: int) -> str:
+        return delivery_code(order_id)
 
     def shipping_quotable(self, actor: Actor, order_id: int) -> QuotableOrder:
         return container.resolve(ShippingQuoteFacade).quotable(actor, order_id)

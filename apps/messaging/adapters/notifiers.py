@@ -53,10 +53,12 @@ class EmailNotifier:
         base_url = str(settings.FRONTEND_URL).rstrip("/")
         for delivery in deliveries:
             notification = delivery.notification
-            subscribed = directory.subscribed(
-                delivery.recipient_ids, notification.topic, EMAIL_CHANNEL
+            recipients = (
+                set(delivery.recipient_ids)
+                if notification.essential
+                else directory.subscribed(delivery.recipient_ids, notification.topic, EMAIL_CHANNEL)
             )
-            contacts = directory.contacts(subscribed)
+            contacts = directory.contacts(recipients)
             for contact in contacts.values():
                 queue_templated(
                     EMAIL_TEMPLATE,

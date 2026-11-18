@@ -16,6 +16,8 @@ class NotificationTemplate:
     body: str
     link: str
     topic: str
+    # sent by e-mail whatever the recipient's preferences (the client needs it to get the order)
+    essential: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +27,7 @@ class RenderedNotification:
     body: str
     link: str
     topic: str
+    essential: bool = False
 
 
 TEMPLATES: Mapping[NotificationKind, NotificationTemplate] = MappingProxyType(
@@ -111,6 +114,22 @@ TEMPLATES: Mapping[NotificationKind, NotificationTemplate] = MappingProxyType(
             link="/compte/commandes/{number}",
             topic=STATUS_CHANGED_TOPIC,
         ),
+        NotificationKind.DELIVERY_CODE: NotificationTemplate(
+            title="Votre code de livraison — {number}",
+            body="Code de livraison de la commande {number} : {code}. Donnez-le au revendeur "
+            "seulement quand vous avez votre commande en main et en bon état : c'est ce code "
+            "qui confirme la livraison.",
+            link="/compte/commandes/{number}",
+            topic=STATUS_CHANGED_TOPIC,
+            essential=True,
+        ),
+        NotificationKind.DELIVERY_CODE_LOCKED: NotificationTemplate(
+            title="Code de livraison bloqué — {number}",
+            body="Trop de codes incorrects pour la commande {number}. Vérifiez avec le client, "
+            "puis confirmez la livraison avec un motif.",
+            link="/admin/commandes/{order_id}",
+            topic=ORDER_ASSIGNED_TOPIC,
+        ),
         NotificationKind.MEMBERSHIP_REQUESTED: NotificationTemplate(
             title="Abonnement Plus à confirmer",
             body="{client} a choisi la formule {plan}. Confirmez dès réception du paiement.",
@@ -147,6 +166,7 @@ def render(kind: NotificationKind, **context: Any) -> RenderedNotification:
         body=" ".join(template.body.format(**context).split()),
         link=template.link.format(**context),
         topic=template.topic,
+        essential=template.essential,
     )
 
 

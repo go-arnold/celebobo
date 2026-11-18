@@ -54,6 +54,8 @@ from apps.messaging.services.proposals import ProposalService
 from apps.orders.domain.errors import ResellerNotFound
 from apps.orders.domain.events import (
     AssignmentDeclined,
+    DeliveryCodeIssued,
+    DeliveryCodeLocked,
     OrderAssigned,
     OrderPlaced,
     OrderRefunded,
@@ -367,6 +369,12 @@ class NotificationRouter:
 
     def order_status_changed(self, event: OrderStatusChanged) -> None:
         self._fanout.order_status_changed(event.order_id, event.status, event.actor_id)
+
+    def delivery_code_issued(self, event: DeliveryCodeIssued) -> None:
+        self._fanout.delivery_code(event.order_id)
+
+    def delivery_code_locked(self, event: DeliveryCodeLocked) -> None:
+        self._fanout.delivery_code_locked(event.order_id)
 
     def refund_due(self, event: RefundDue) -> None:
         self._fanout.refund_due(event.order_id, str(event.amount))

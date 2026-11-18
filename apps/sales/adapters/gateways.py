@@ -6,10 +6,7 @@ from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
 from apps.catalog.domain.read_models import PricedLine
 from apps.catalog.facades import InventoryFacade
-from apps.orders.domain.commands import TransitionOrder
-from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.read_models import ConvertibleOrder
-from apps.orders.facades import DispatchFacade
 from apps.orders.selectors import convertible_order, convertible_orders
 from core.container import container
 from core.domain.actor import Actor
@@ -49,11 +46,6 @@ class OrdersBook:
 
     def order(self, actor: Actor, order_id: int) -> ConvertibleOrder:
         return convertible_order(actor, order_id)
-
-    def mark_delivered(self, order_id: int, *, note: str) -> None:
-        container.resolve(DispatchFacade).transition(
-            Actor.system(), order_id, TransitionOrder(to=OrderStatus.DELIVERED, note=note)
-        )
 
 
 class AccountsSellers:

@@ -65,6 +65,8 @@ class TransitionOrder:
     to: OrderStatus
     note: str = ""
     reason: str = ""
+    # to mark an order delivered: the code the client gives the reseller at handover
+    delivery_code: str = ""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

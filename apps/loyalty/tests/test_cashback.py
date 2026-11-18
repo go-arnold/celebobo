@@ -274,7 +274,10 @@ class TestLineReturns:
         staff = as_api(ManagerFactory.create())
         reseller = ResellerFactory.create()
         staff.post(f"/api/v1/bo/orders/{order.pk}/assign/", {"reseller_id": reseller.pk})
-        staff.post(f"/api/v1/bo/orders/{order.pk}/transition/", {"to": "delivered"})
+        staff.post(
+            f"/api/v1/bo/orders/{order.pk}/transition/",
+            {"to": "delivered", "reason": "Remise vérifiée par téléphone"},
+        )
         order.refresh_from_db()
         return order, staff
 

@@ -36,9 +36,10 @@ On recording:
 - The **seller** is the reseller assigned to the order, or else the person converting.
 - Payment method defaults to the order's; "sold to" defaults to the client's name; the buyer is the client.
 - Stock is **not** taken again (it was reserved when the order was placed).
-- An order **cannot be converted** if it is cancelled or returned, if any of its lines was already
-  converted (`already_converted`), or if no line still points to a product (`no_products`).
-- If the order was not yet delivered, converting marks it **delivered** ("Commande convertie en ventes").
+- An order **cannot be converted** if it is cancelled or returned, if it is not **delivered** yet
+  (`not_delivered`: delivery is confirmed first, with the client's code, see §4), if any of its lines
+  was already converted (`already_converted`), or if no line still points to a product
+  (`no_products`). `/bo/orders/convertible/` lists delivered orders only.
 
 ## Editing a sale
 

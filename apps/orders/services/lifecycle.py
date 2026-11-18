@@ -1,20 +1,35 @@
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 
 from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
+from apps.orders.domain import delivery
 from apps.orders.domain.commands import AssignOrder, CancelOrder, DeclineAssignment, TransitionOrder
 from apps.orders.domain.enums import PAID_STATUSES, CancelReason, OrderStatus
-from apps.orders.domain.errors import AssignmentClosed, NotAssignedToYou, ResellerNotFound
+from apps.orders.domain.errors import (
+    AssignmentClosed,
+    DeliveryCodeLocked,
+    DeliveryCodeRequired,
+    DeliveryReasonRequired,
+    InvalidDeliveryCode,
+    NotAssignedToYou,
+    ResellerNotFound,
+)
 from apps.orders.domain.state_machine import OrderState, OrderStateMachine
 from apps.orders.models import Order
 from apps.orders.repositories import OrderRepository
 from apps.orders.services.checkout import ORDER_SOURCE, actor_role
 from apps.orders.services.contracts import Inventory, ResellerDirectory
-from core.domain.actor import Actor
+from core.domain.actor import Actor, Role
+from core.domain.errors import DomainError
 
 REASSIGNABLE = frozenset(
     {OrderStatus.PENDING, OrderStatus.ASSIGNED, OrderStatus.CONFIRMED, OrderStatus.PAID}
 )
+# the client gets the delivery code once the order is confirmed (or later, if staff skip a step)
+CODE_STATUSES = frozenset({OrderStatus.CONFIRMED, OrderStatus.PAID, OrderStatus.SHIPPING})
+
 RESTOCKED = {
     OrderStatus.CANCELLED: (StockReason.ORDER, "Annulation de la commande {number}"),
     OrderStatus.RETURNED: (StockReason.RETURN, "Retour de la commande {number}"),
@@ -26,6 +41,19 @@ class StatusChange:
     order: Order
     previous: OrderStatus
     status: OrderStatus
+    code_issued: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class Handover:
+    """Whether an order may be marked delivered, and what to record about it."""
+
+    # refused: the error to raise once the attempt is saved
+    error: DomainError | None = None
+    # this wrong code was the last allowed one
+    locked_now: bool = False
+    # staff confirmed without the client's code, for this reason
+    without_code: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,7 +70,10 @@ class OrderLifecycleService:
         machine: OrderStateMachine,
         inventory: Inventory,
         resellers: ResellerDirectory,
+        *,
+        clock: Callable[[], datetime],
     ) -> None:
+        self._clock = clock
         self._orders = orders
         self._machine = machine
         self._inventory = inventory
@@ -55,6 +86,32 @@ class OrderLifecycleService:
     def transition(self, order: Order, actor: Actor, command: TransitionOrder) -> StatusChange:
         self._machine.ensure(state_of(order), command.to, actor)
         return self._move(order, actor, command.to, note=command.note or command.reason)
+
+    # the reseller enters the client's code; staff may confirm without it, giving a reason. A wrong
+    # code is saved even though the delivery is refused, so the caller must not roll it back.
+    def handover(self, order: Order, actor: Actor, command: TransitionOrder) -> Handover:
+        code = command.delivery_code.strip()
+        reason = " ".join(command.reason.split())
+        if actor.role is Role.SYSTEM:
+            return Handover()
+        if not code:
+            if actor.is_staff:
+                return (
+                    Handover(without_code=reason) if reason else Handover(DeliveryReasonRequired())
+                )
+            return Handover(DeliveryCodeRequired())
+        if order.delivery_code_locked_at is not None:
+            return Handover(DeliveryCodeLocked())
+        if delivery.matches(order.delivery_code, code):
+            return Handover()
+        order.delivery_code_attempts += 1
+        left = delivery.MAX_ATTEMPTS - order.delivery_code_attempts
+        if left <= 0:
+            order.delivery_code_locked_at = self._clock()
+        self._orders.save(order, fields=("delivery_code_attempts", "delivery_code_locked_at"))
+        if left <= 0:
+            return Handover(DeliveryCodeLocked(), locked_now=True)
+        return Handover(InvalidDeliveryCode(left))
 
     def cancel(self, order: Order, actor: Actor, command: CancelOrder) -> StatusChange:
         return self._cancel(order, actor, command.reason, " ".join(command.details.split()))
@@ -104,6 +161,10 @@ class OrderLifecycleService:
         previous = order.order_status
         order.status = status.value
         fields = ["status"]
+        issued = status in CODE_STATUSES and not order.delivery_code
+        if issued:
+            order.delivery_code = delivery.new_code()
+            fields.append("delivery_code")
         if status is OrderStatus.CANCELLED and previous in PAID_STATUSES:
             # what the client really paid (cashback and coupon were not money)
             order.refund_due = order.total
@@ -114,7 +175,7 @@ class OrderLifecycleService:
             self._restock(order, actor, status)
         if status is OrderStatus.RETURNED:
             self._orders.mark_all_returned(order)
-        return StatusChange(order, previous, status)
+        return StatusChange(order, previous, status, code_issued=issued)
 
     def _record(
         self, order: Order, actor: Actor, previous: OrderStatus, status: OrderStatus, note: str
