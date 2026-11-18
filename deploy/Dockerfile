@@ -34,6 +34,7 @@ RUN DJANGO_SECRET_KEY=collectstatic DJANGO_ALLOWED_HOSTS=localhost \
         python manage.py collectstatic --noinput \
     && mkdir -p /app/var/documents \
     && chown -R app:app /app/var /app/staticfiles \
+    && sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
 
 USER app
