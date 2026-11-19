@@ -215,6 +215,8 @@ def to_page_view(page: Page) -> PageView:
         is_published=page.is_published,
         position=page.position,
         updated_at=page.updated_at,
+        version=page.version,
+        effective_on=page.effective_on,
     )
 
 

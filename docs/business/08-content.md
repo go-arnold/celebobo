@@ -13,10 +13,16 @@ Public content is cached and refreshed automatically when content or categories 
 |---|---|
 | **Banner** | Title, subtitle, image (`banner` upload), link URL and label, position, active flag, optional start/end dates (end must follow start, `invalid_schedule`). Only active banners within their dates are shown. A **placement** says where it goes: `hero` (carousel, the default), `hero_mini`, `hero_side`, `deal_side`, `showcase:<category>` or `column:<category>`. It can point to a **product** (must be visible, `banner_product_unavailable`): the shop then shows the product's real price and link. A small **eyebrow** ("Audio", "Nouveau") and a **tone** (`light` image with dark text, `dark` image with light text) complete it. The order is set per placement. |
 | **Home section** | `/bo/home-sections/`: a category shown as a large block (`showcase`) or a column (`column`), with an optional title (the category name otherwise), active flag and order (`POST reorder/ {ids}`). The home page returns each active section with the category's best sellers and its sub-categories. The category must be visible (`section_category_unavailable`). |
-| **Page** (CMS) | Slug (unique, `slug_taken`), title, summary, body, published flag, position. Shop URL `/pages/{slug}`. Seeded: `a-propos`, `guide`, `conditions`, `retours`. |
+| **Page** (CMS) | Slug (unique, `slug_taken`), title, summary, body (Markdown: headings, lists, tables, bold, links), published flag, position, and for a policy its **version** and **effective date** (`effective_on`), shown above the text. Shop URL `/pages/{slug}`. Demo seed: `a-propos`, `guide`, `conditions`, `retours`. |
 | **FAQ** | Question, answer, category (groups the FAQ page), position, published flag. |
 
 Unpublished pages and FAQ entries are visible only in the back-office.
+
+**Policies.** The five policies are pages, loaded once by a migration from `apps/content/policies/*.md`
+(a page that already exists is never overwritten), then edited in the back-office:
+`politique-de-confidentialite` (0.9.2), `politique-de-livraison` (0.9.2), `garantie-et-retours`,
+`programme-de-fidelite`, `politique-revendeurs` (0.9.1). The site footer links to them. When a policy
+changes, staff update its text, version and effective date together.
 
 ## Site settings (`settings.manage`, admin)
 

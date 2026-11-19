@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from apps.content.domain.enums import BannerTone, ContactStatus, ContactSubject, SectionKind
@@ -37,6 +37,8 @@ class PageFields:
     summary: str = ""
     is_published: bool = True
     position: int = 0
+    version: str = ""
+    effective_on: date | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -47,6 +49,8 @@ class PageChanges:
     summary: Maybe[str] = UNSET
     is_published: Maybe[bool] = UNSET
     position: Maybe[int] = UNSET
+    version: Maybe[str] = UNSET
+    effective_on: Maybe[date | None] = UNSET
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

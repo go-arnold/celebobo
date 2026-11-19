@@ -37,3 +37,11 @@ def site(db) -> SiteSettings:
         },
     )
     return settings
+
+
+@pytest.fixture
+def no_pages(db) -> None:
+    # the policies are loaded by a migration: these tests start from no page at all
+    from apps.content.models import Page
+
+    Page.objects.all().delete()

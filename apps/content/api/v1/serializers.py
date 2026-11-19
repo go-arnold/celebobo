@@ -107,6 +107,8 @@ class PageFieldsInput(serializers.Serializer[Any]):
     body = serializers.CharField()
     is_published = serializers.BooleanField(default=True)
     position = serializers.IntegerField(min_value=0, max_value=32767, default=0)
+    version = serializers.CharField(max_length=20, required=False, allow_blank=True, default="")
+    effective_on = serializers.DateField(required=False, allow_null=True, default=None)
 
 
 class PageSummaryOutput(serializers.Serializer[Any]):
@@ -117,6 +119,8 @@ class PageSummaryOutput(serializers.Serializer[Any]):
     is_published = serializers.BooleanField()
     position = serializers.IntegerField()
     updated_at = serializers.DateTimeField()
+    version = serializers.CharField()
+    effective_on = serializers.DateField(allow_null=True)
 
 
 class PageOutput(PageSummaryOutput):
