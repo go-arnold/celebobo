@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from apps.catalog.domain.deals import DealOfTheDay
@@ -52,6 +52,8 @@ class PageView:
     is_published: bool
     position: int
     updated_at: datetime
+    version: str = ""
+    effective_on: date | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

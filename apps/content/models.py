@@ -76,6 +76,9 @@ class Page(models.Model):
     body = models.TextField()
     is_published = models.BooleanField(default=True)
     position = models.PositiveSmallIntegerField(default=0)
+    # policies: the version and the date it applies from, shown above the text
+    version = models.CharField(max_length=20, blank=True)
+    effective_on = models.DateField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

@@ -18,8 +18,9 @@ from apps.catalog.domain.enums import CategoryIcon
 from apps.catalog.domain.management import CategoryDraft, OptionInput, ProductDraft, VariantDraft
 from apps.catalog.facades import CategoryAdminFacade, ProductAdminFacade
 from apps.catalog.services.indexing import ProductIndexer
-from apps.content.domain.commands import SettingsChanges
+from apps.content.domain.commands import PageFields, SettingsChanges
 from apps.content.facades import SiteContentFacade
+from apps.content.policies import policies
 from apps.demo.content import PICKUP_ZONE
 from apps.demo.seeder import SeedReport, quiet_side_effects
 from apps.orders.domain.commands import CouponFields, ZoneFields
@@ -73,6 +74,7 @@ class E2eSeeder:
             admin = self._admin(admin_account)
             actor = actor_from_user(admin)
             self._settings(actor)
+            self._policies(actor)
             self._catalogue(actor)
             manager = self._manager(actor, manager_account)
             self._reseller(actor, reseller_account, manager)
@@ -80,6 +82,24 @@ class E2eSeeder:
             self._promotions()
             container.resolve(ProductIndexer).rebuild()
         return self.report
+
+    # the reset emptied the pages the migration loaded: the policies come back from their files
+    def _policies(self, actor: Actor) -> None:
+        site = container.resolve(SiteContentFacade)
+        for policy in policies():
+            site.create_page(
+                actor,
+                PageFields(
+                    slug=policy.slug,
+                    title=policy.title,
+                    summary=policy.summary,
+                    body=policy.body,
+                    version=policy.version,
+                    effective_on=policy.effective_on,
+                    position=100 + policy.position,
+                ),
+            )
+        self.report.add("policies", len(policies()))
 
     def _admin(self, account: E2eAccount) -> User:
         admin = User.objects.create_superuser(

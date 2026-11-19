@@ -9,7 +9,7 @@ SETTINGS = "/api/v1/bo/settings/"
 
 
 def test_page_lifecycle_and_cache_invalidation(
-    api, as_user, manager, django_capture_on_commit_callbacks
+    api, as_user, manager, django_capture_on_commit_callbacks, no_pages
 ):
     staff = as_user(manager)
     created = staff.post(

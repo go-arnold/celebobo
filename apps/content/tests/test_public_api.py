@@ -55,7 +55,7 @@ def test_public_settings_have_defaults(api):
     assert api.get("/api/v1/settings/public/").json()["usd_to_cdf"] == "2800.00"
 
 
-def test_pages_only_show_published_content(api):
+def test_pages_only_show_published_content(api, no_pages):
     Page.objects.create(slug="a-propos", title="À propos", body="# Qui sommes-nous", position=1)
     Page.objects.create(slug="brouillon", title="Brouillon", body="…", is_published=False)
 
@@ -82,7 +82,7 @@ def test_faq_is_grouped_by_category(api):
     ]
 
 
-def test_sitemap_lists_only_what_is_public(api, django_assert_max_num_queries):
+def test_sitemap_lists_only_what_is_public(api, django_assert_max_num_queries, no_pages):
     phones = CategoryFactory.create(slug="smartphones")
     hidden = CategoryFactory.create(slug="cachee", is_active=False)
     shown = ProductFactory.create(slug="galaxy-a55", category=phones)
