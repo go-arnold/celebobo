@@ -215,8 +215,12 @@ class SaleService:
             if sale.order_id is None:
                 self._restock(actor, sale, StockReason.CORRECTION, "Suppression de vente")
             self._inventory.count_sales(sale.product_id, -sale.quantity, actor_id=actor.user_id)
-        self._sales.delete(sale)
         return SaleOutcome([], changes)
+
+    # the row goes last: until then the void entry still names the sale, so a prepared statement
+    # holding its commission can take the void in
+    def remove(self, sale: Sale) -> None:
+        self._sales.delete(sale)
 
     def order_returned(self, actor: Actor, order_id: int) -> SaleOutcome:
         outcome = SaleOutcome([])

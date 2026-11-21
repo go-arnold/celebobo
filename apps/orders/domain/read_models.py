@@ -248,6 +248,18 @@ class OrderRef:
     total: Decimal
 
 
+# how an order was handed over: who delivered it, when, and the delivery fee the client paid
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OrderDelivery:
+    id: int
+    number: str
+    status: OrderStatus
+    reseller_id: int | None
+    delivery_method: DeliveryMethod
+    shipping_fee: Decimal
+    delivered_at: datetime | None
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ConvertibleItem:
     id: int

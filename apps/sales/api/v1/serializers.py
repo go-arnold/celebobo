@@ -6,6 +6,7 @@ from rest_framework import serializers
 from apps.orders.domain.enums import PaymentMethod
 from apps.sales.domain.commands import ConversionLine, RecordSale
 from apps.sales.domain.enums import RefundKind, SalesPeriod, SaleStatus
+from apps.sales.domain.payouts import StatementStatus
 from core.api.fields import MAX_INTEGER
 
 MAX_BULK_LINES = 50
@@ -126,9 +127,14 @@ class ResellerScopeInput(serializers.Serializer[Any]):
     reseller_id = serializers.IntegerField(min_value=1, required=False, max_value=MAX_INTEGER)
 
 
+class StatementFiltersInput(ResellerScopeInput):
+    status = serializers.ChoiceField(
+        choices=[item.value for item in StatementStatus], required=False
+    )
+
+
 class RecordPayoutInput(serializers.Serializer[Any]):
-    reseller_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
-    amount = money(min_value=Decimal("0.01"))
+    statement_id = serializers.IntegerField(min_value=1, max_value=MAX_INTEGER)
     note = serializers.CharField(max_length=500, required=False, allow_blank=True)
     paid_at = serializers.DateTimeField(required=False, allow_null=True)
 
@@ -204,6 +210,9 @@ class CommissionEntryOutput(serializers.Serializer[Any]):
     base_amount = money()
     amount = money()
     created_at = serializers.DateTimeField()
+    status = serializers.CharField(source="status.value")
+    available_at = serializers.DateTimeField()
+    statement_id = serializers.IntegerField(allow_null=True)
 
 
 class CommissionSummaryOutput(serializers.Serializer[Any]):
@@ -212,6 +221,11 @@ class CommissionSummaryOutput(serializers.Serializer[Any]):
     earned_total = money()
     paid_total = money()
     due = money()
+    pending = money()
+    validated = money()
+    delivery_fees = money()
+    next_payout_date = serializers.DateField()
+    payout_threshold = money()
 
 
 class MonthlyCommissionOutput(serializers.Serializer[Any]):
@@ -227,3 +241,32 @@ class PayoutOutput(serializers.Serializer[Any]):
     note = serializers.CharField()
     paid_at = serializers.DateTimeField()
     paid_by = SalePersonOutput(allow_null=True)
+    statement_id = serializers.IntegerField(allow_null=True)
+    payout_date = serializers.DateField(allow_null=True)
+
+
+class StatementLineOutput(serializers.Serializer[Any]):
+    kind = serializers.CharField(source="kind.value")
+    title = serializers.CharField(source="label")
+    sale_id = serializers.IntegerField(allow_null=True)
+    order_number = serializers.CharField(allow_null=True)
+    base_amount = money(allow_null=True)
+    amount = money()
+    at = serializers.DateTimeField()
+
+
+class StatementOutput(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    reseller = SalePersonOutput()
+    payout_date = serializers.DateField()
+    status = serializers.CharField(source="status.value")
+    commissions = money()
+    delivery_fees = money()
+    total = money()
+    prepared_at = serializers.DateTimeField()
+    paid_at = serializers.DateTimeField(allow_null=True)
+    payout_id = serializers.IntegerField(allow_null=True)
+
+
+class StatementDetailOutput(StatementOutput):
+    lines = StatementLineOutput(many=True)

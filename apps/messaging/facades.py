@@ -58,6 +58,7 @@ from apps.orders.domain.events import (
     RefundDue,
     ResellerRated,
 )
+from apps.sales.domain.events import PayoutRecorded, PayoutStatementPrepared
 from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
 from core.events.contracts import EventPublisher
@@ -367,6 +368,25 @@ class NotificationRouter:
 
     def reseller_rated(self, event: ResellerRated) -> None:
         self._fanout.reseller_rated(event.order_id, event.reseller_id, event.score)
+
+    def payout_statement_prepared(self, event: PayoutStatementPrepared) -> None:
+        self._fanout.payout_statement(
+            event.reseller_id,
+            event.statement_id,
+            total=str(event.total),
+            date=f"{event.payout_date:%d/%m/%Y}",
+        )
+
+    # only payouts of a statement: the reseller already got the statement
+    def payout_recorded(self, event: PayoutRecorded) -> None:
+        if event.statement_id is None or event.payout_date is None:
+            return
+        self._fanout.payout_paid(
+            event.reseller_id,
+            event.statement_id,
+            amount=str(event.amount),
+            date=f"{event.payout_date:%d/%m/%Y}",
+        )
 
     def delivery_code_locked(self, event: DeliveryCodeLocked) -> None:
         self._fanout.delivery_code_locked(event.order_id)

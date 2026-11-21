@@ -5,7 +5,7 @@ from apps.accounts.domain.read_models import SellerProfile
 from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
 from apps.catalog.domain.read_models import PricedLine
-from apps.orders.domain.read_models import ConvertibleOrder
+from apps.orders.domain.read_models import ConvertibleOrder, OrderDelivery
 from core.domain.actor import Actor
 
 
@@ -29,6 +29,8 @@ class OrderBook(Protocol):
     def convertible(self, actor: Actor, search: str | None) -> list[ConvertibleOrder]: ...
 
     def order(self, actor: Actor, order_id: int) -> ConvertibleOrder: ...
+
+    def delivery(self, order_id: int) -> OrderDelivery | None: ...
 
 
 class Sellers(Protocol):

@@ -76,6 +76,7 @@ from apps.orders.models import Order, OrderStatusEvent
 from apps.resellers.domain.commands import SubmitApplication
 from apps.resellers.facades import ApplicationFacade
 from apps.sales.domain.commands import ConvertOrder, RecordPayout, RecordSale
+from apps.sales.domain.payouts import PayoutCalendar, StatementStatus
 from apps.sales.facades import CommissionFacade, SalesFacade
 from config.celery import app as celery_app
 from core.api.actor import actor_from_user
@@ -676,18 +677,18 @@ class DemoSeeder:
                 continue
             self.report.add("sales")
 
+    # statements of the last payout date; the first two resellers are already paid
     def _payouts(self, resellers: list[User]) -> None:
         commissions = container.resolve(CommissionFacade)
+        commissions.prepare_statements(PayoutCalendar().latest(timezone.localdate()))
         for reseller in resellers[:2]:
-            due = commissions.summary(self._actor, reseller.pk).due
-            if due >= Decimal("5"):
+            statements, _ = commissions.statements(
+                self._actor, reseller.pk, StatementStatus.PREPARED, offset=0, limit=1
+            )
+            for statement in statements:
                 commissions.record_payout(
                     self._actor,
-                    RecordPayout(
-                        reseller_id=reseller.pk,
-                        amount=(due / 2).quantize(Decimal("0.01")),
-                        note="Paiement Orange Money",
-                    ),
+                    RecordPayout(statement_id=statement.id, note="Paiement Orange Money"),
                 )
                 self.report.add("payouts")
 
