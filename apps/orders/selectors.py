@@ -528,7 +528,6 @@ def to_zone_view(zone: ShippingZone) -> ShippingZoneView:
         is_default=zone.is_default,
         is_active=zone.is_active,
         position=zone.position,
-        member_free_shipping=zone.member_free_shipping,
         pricing=ZonePricing(zone.pricing),
         pickup_address=zone.pickup_address,
     )

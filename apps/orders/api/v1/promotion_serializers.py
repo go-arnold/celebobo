@@ -35,7 +35,6 @@ class ZoneInput(serializers.Serializer[Any]):
     is_default = serializers.BooleanField(default=False)
     is_active = serializers.BooleanField(default=True)
     position = serializers.IntegerField(min_value=0, max_value=32767, default=0)
-    member_free_shipping = serializers.BooleanField(default=False)
     pricing = serializers.ChoiceField(
         choices=[item.value for item in ZonePricing], default=ZonePricing.FLAT.value
     )
@@ -60,7 +59,6 @@ class ZoneOutput(serializers.Serializer[Any]):
     is_default = serializers.BooleanField()
     is_active = serializers.BooleanField()
     position = serializers.IntegerField()
-    member_free_shipping = serializers.BooleanField()
     pricing = serializers.CharField()
     pickup_address = serializers.CharField()
 

@@ -22,13 +22,6 @@ def test_programmes_start_disabled_with_the_approved_rules():
     programmes = APIClient().get(PUBLIC).json()["programmes"]
 
     assert programmes == {
-        "membership": {
-            "enabled": False,
-            "monthly_price": "4.99",
-            "yearly_price": "49.00",
-            "trial_days": 30,
-            "reminder_days": 3,
-        },
         "points": {
             "enabled": False,
             "percent": "1.00",
@@ -42,9 +35,6 @@ def test_admin_edits_every_rule(admin_api, published_events):
     response = admin_api.patch(
         SETTINGS,
         {
-            "membership_enabled": True,
-            "membership_monthly_price": "5.50",
-            "membership_yearly_price": "55.00",
             "points_enabled": True,
             "points_percent": "5",
             "points_validity_months": 6,
@@ -54,8 +44,7 @@ def test_admin_edits_every_rule(admin_api, published_events):
     )
 
     body = response.json()
-    assert body["membership"]["enabled"] is True
-    assert body["membership"]["monthly_price"] == "5.50"
+    assert "membership" not in body
     assert body["points"]["percent"] == "5.00"
     assert body["points"]["validity_months"] == 6
     assert body["app_links"]["play_store"].endswith("cd.celebobo")
@@ -75,7 +64,6 @@ def test_public_settings_follow_the_change(admin_api, django_capture_on_commit_c
     [
         {"points_percent": "0"},
         {"points_validity_months": 0},
-        {"membership_monthly_price": "0"},
         {"app_store_url": "pas-une-adresse"},
     ],
 )
@@ -88,3 +76,11 @@ def test_only_admins_manage():
     api.force_authenticate(ManagerFactory.create())
 
     assert api.get(SETTINGS).status_code == 403
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/api/v1/me/membership/", "/api/v1/bo/membership/requests/", "/api/v1/bo/memberships/"],
+)
+def test_the_paid_membership_is_gone(admin_api, path):
+    assert admin_api.get(path).status_code == 404

@@ -81,11 +81,6 @@ class NoWallet:
         return None
 
 
-class NoMembers:
-    def is_member(self, user_id: int) -> bool:
-        return False
-
-
 class NoOrderThreads:
     def open_for_order(self, order: Order) -> int | None:
         return None

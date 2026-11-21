@@ -1,8 +1,6 @@
 from collections.abc import Callable, Iterable, Sequence
 from datetime import datetime
 
-from django.utils import timezone
-
 from apps.messaging.domain.enums import NotificationKind
 from apps.messaging.domain.notifications import RenderedNotification, preview, render
 from apps.messaging.repositories import NotificationRepository
@@ -330,42 +328,3 @@ class NotificationFanout:
             ),
             conversation_id=conversation_id,
         )
-
-    def membership_requested(self, *, client_name: str, plan: str) -> None:
-        self._notifications.notify(
-            self._directory.staff_ids(),
-            render(
-                NotificationKind.MEMBERSHIP_REQUESTED,
-                client=client_name,
-                plan=FORMULA_LABELS.get(plan, plan),
-            ),
-        )
-
-    def membership_started(self, *, user_id: int, plan: str, ends_at: datetime) -> None:
-        self._notifications.notify(
-            [user_id],
-            render(
-                NotificationKind.MEMBERSHIP_STARTED,
-                plan=MEMBERSHIP_LABELS.get(plan, plan),
-                ends_on=_day(ends_at),
-            ),
-        )
-
-    def membership_rejected(self, *, user_id: int, note: str) -> None:
-        self._notifications.notify(
-            [user_id], render(NotificationKind.MEMBERSHIP_REJECTED, note=note)
-        )
-
-    def membership_ending(self, *, user_id: int, ends_at: datetime) -> None:
-        self._notifications.notify(
-            [user_id], render(NotificationKind.MEMBERSHIP_ENDING, ends_on=_day(ends_at))
-        )
-
-
-# "votre abonnement mensuel" for the client, "la formule mensuelle" for staff
-MEMBERSHIP_LABELS = {"trial": "d'essai", "monthly": "mensuel", "yearly": "annuel"}
-FORMULA_LABELS = {"trial": "d'essai", "monthly": "mensuelle", "yearly": "annuelle"}
-
-
-def _day(moment: datetime) -> str:
-    return timezone.localtime(moment).strftime("%d/%m/%Y")
