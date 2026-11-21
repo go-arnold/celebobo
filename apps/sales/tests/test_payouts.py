@@ -1,8 +1,10 @@
+import importlib
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
 import pytest
+from django.apps import apps as registry
 from django.conf import settings
 from django.utils import timezone
 
@@ -303,6 +305,36 @@ class TestStatements:
         assert reversal.statement_id is None
         assert entries_status(as_user(reseller)) == {"cancelled"}
 
+    def test_a_refund_of_a_paid_sale_joins_the_prepared_statement(
+        self, as_user, admin, manager, reseller, record_sale
+    ):
+        sale = record_sale(reseller, sold_at=days_ago(40).isoformat())
+        amount = earned(sale["id"])
+        prepare(PayoutCalendar().latest(timezone.localdate() - timedelta(days=20)))
+        assert pay(as_user(admin), PayoutStatement.objects.get().pk).status_code == 201
+        ledger(reseller, "100.00")
+        prepare()
+
+        refund(as_user(manager), sale["id"], "refund-000007")
+
+        # the statement follows what is due, so it can still be paid this time
+        statement = PayoutStatement.objects.get(status="prepared")
+        assert statement.total == Decimal("100.00") - amount
+        assert pay(as_user(admin), statement.pk, key="payout-000002").status_code == 201
+        assert Decimal(summary(as_user(manager), reseller)["due"]) == 0
+
+    def test_overlapping_runs_prepare_each_reseller_once(self, reseller, monkeypatch):
+        ledger(reseller, "20.00")
+        other = ResellerFactory.create()
+        ledger(other, "20.00")
+        prepare()
+        PayoutStatement.objects.filter(reseller=other).delete()
+        # a run that missed the other run's statement: the insert fails and the loop goes on
+        monkeypatch.setattr(StatementRepository, "exists_for", lambda *_: False)
+
+        assert prepare() == 1
+        assert PayoutStatement.objects.filter(status="prepared").count() == 2
+
     def test_reseller_sees_lines_of_own_statements_only(self, as_user, manager, reseller):
         ledger(reseller, "7.00")
         other = ResellerFactory.create()
@@ -471,3 +503,36 @@ def test_resellers_are_notified_of_statements_and_payments(as_user, admin, resel
     assert prepared.link == f"/admin/commissions?releve={statement.pk}"
     assert paid.recipient_id == reseller.pk
     assert paid.body == f"Celebobo vous a versé 12.50 $ pour votre relevé du {day}."
+
+
+class TestTakeOver:
+    """Resellers paid before statements existed (sales 0005)."""
+
+    migration = importlib.import_module(
+        "apps.sales.migrations.0005_commission_validation_statements"
+    )
+
+    def history(self, reseller, admin, earned: str, paid: str) -> None:
+        ledger(reseller, earned, validated_days_ago=60)
+        Payout.objects.create(
+            reseller=reseller, amount=Decimal(paid), paid_at=days_ago(30), paid_by=admin
+        )
+        self.migration.take_over_paid_history(registry, None)
+
+    def test_only_what_was_still_due_goes_on_the_next_statement(self, as_user, admin, reseller):
+        self.history(reseller, admin, "30.00", "10.00")
+
+        prepare()
+
+        statement = PayoutStatement.objects.get(status="prepared")
+        assert statement.total == Decimal("20.00")
+        assert pay(as_user(admin), statement.pk).status_code == 201
+        taken_over = PayoutStatement.objects.get(status="paid", payout__isnull=True)
+        assert taken_over.total == Decimal("10.00")
+        assert sum(e.amount for e in taken_over.commission_entries.all()) == Decimal("10.00")
+
+    def test_a_reseller_paid_in_full_has_nothing_left(self, admin, reseller):
+        self.history(reseller, admin, "10.00", "10.00")
+
+        assert prepare() == 0
+        assert not CommissionEntry.objects.filter(statement__isnull=True).exists()

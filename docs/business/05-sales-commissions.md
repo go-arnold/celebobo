@@ -199,8 +199,15 @@ A periodic task (`sales.prepare_payouts`, Celery beat, every hour) prepares, **o
 - One statement per reseller and date: the hourly runs of the same day prepare it once.
 - A statement still **unpaid** on the next payout date is **replaced** (`cancelled`) by the new
   statement, which takes its lines back.
-- When a sale or order on a **prepared** statement is refunded, returned or edited, the new entries
-  join that statement and its totals follow; a statement left with nothing to pay is cancelled.
+- When any sale or order of the reseller is refunded, returned, edited or deleted, **even one
+  already paid**, every unsettled line validated before the payout date joins the prepared
+  statement and its totals follow, so the statement always equals what is due; a statement left
+  with nothing to pay is cancelled.
+- Overlapping runs of the task skip a statement another run has just prepared.
+- **Take-over** (migration `sales/0005`): resellers already paid with the former free-amount payouts
+  get one `paid` statement that settles their whole history at what they were paid; what was still
+  due (earned − paid) is carried over as a single line « Reprise : solde dû au passage aux relevés »
+  of their next statement.
 - The reseller is notified (« Relevé de paiement du … ») and their commissions page refreshes in
   real time.
 

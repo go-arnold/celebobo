@@ -74,11 +74,12 @@ class StatementService:
         self._statements.settle(statement, entries, credits)
         return statement
 
-    # a sale or an order of a prepared statement changed (refund, return, edit): its new entries
-    # join the statement, whose totals follow; a statement left with nothing to pay is dropped
+    # a sale or an order changed (refund, return, edit), even one already paid: the new lines
+    # join the prepared statement, whose totals follow; a statement left with nothing to pay is
+    # dropped
     def refresh(self, reseller_id: int) -> None:
         for statement in self._statements.prepared(reseller_id):
-            self._statements.attach_reversals(statement)
+            self._statements.attach_unsettled(statement, start_of(statement.payout_date))
             commissions, fees = self._statements.totals(statement)
             if commissions + fees <= ZERO:
                 self._cancel(statement, self._clock())

@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from apps.accounts.domain.read_models import SellerProfile
 from apps.sales.domain.commands import (
@@ -331,18 +331,22 @@ class CommissionFacade:
             return 0
         prepared = 0
         for reseller_id in self._statements.reseller_ids():
-            with transaction.atomic():
-                statement = self._statements.prepare(reseller_id, payout_date)
-                if statement is None:
-                    continue
-                self._publisher.publish(
-                    PayoutStatementPrepared(
-                        statement_id=statement.pk,
-                        reseller_id=reseller_id,
-                        total=statement.total,
-                        payout_date=payout_date,
+            try:
+                with transaction.atomic():
+                    statement = self._statements.prepare(reseller_id, payout_date)
+                    if statement is None:
+                        continue
+                    self._publisher.publish(
+                        PayoutStatementPrepared(
+                            statement_id=statement.pk,
+                            reseller_id=reseller_id,
+                            total=statement.total,
+                            payout_date=payout_date,
+                        )
                     )
-                )
+            except IntegrityError:
+                # an overlapping run prepared this reseller's statement first
+                continue
             prepared += 1
         return prepared
 

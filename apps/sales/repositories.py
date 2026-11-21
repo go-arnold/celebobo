@@ -154,23 +154,17 @@ class StatementRepository:
         CommissionEntry.objects.filter(statement=statement).update(statement=None)
         DeliveryCredit.objects.filter(statement=statement).update(statement=None)
 
-    # later entries of a sale or an order that waits in a prepared statement (a reversal, a
-    # rebased earning) join that statement
-    def attach_reversals(self, statement: PayoutStatement) -> None:
-        sale_ids = CommissionEntry.objects.filter(
-            statement=statement, kind=CommissionKind.EARNED.value, sale__isnull=False
-        ).values("sale_id")
-        CommissionEntry.objects.filter(
-            statement__isnull=True,
-            reseller_id=statement.reseller_id,
-            sale_id__in=sale_ids,
-        ).update(statement=statement)
-        order_ids = DeliveryCredit.objects.filter(statement=statement, order__isnull=False).values(
-            "order_id"
-        )
-        DeliveryCredit.objects.filter(
-            statement__isnull=True, reseller_id=statement.reseller_id, order_id__in=order_ids
-        ).update(statement=statement)
+    # every line validated before the cutoff and not settled yet joins the prepared statement: a
+    # reversal of its own sales, a rebased earning, but also a refund of a sale already paid, so
+    # the statement always matches what is due
+    def attach_unsettled(self, statement: PayoutStatement, cutoff: datetime) -> None:
+        lines = {
+            "reseller_id": statement.reseller_id,
+            "statement__isnull": True,
+            "available_at__lt": cutoff,
+        }
+        CommissionEntry.objects.filter(**lines).update(statement=statement)
+        DeliveryCredit.objects.filter(**lines).update(statement=statement)
 
     def totals(self, statement: PayoutStatement) -> tuple[Decimal, Decimal]:
         return (
