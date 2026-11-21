@@ -56,7 +56,27 @@ How it works:
 Settings (`/bo/loyalty/settings/`): `points_enabled` (off by default), `points_percent` (0.01–50,
 default 1.00), `points_validity_months` (1–60, default 12). The cashback settings for members only,
 the maximum share of the order and the minimum balance are gone. `GET /settings/public/` returns
-them under `programmes.points` (`enabled`, `percent`, `validity_months`).
+them under `programmes.points` (`enabled`, `percent`, `validity_months`, `referral_percent`,
+`referral_months`).
+
+## Referral points
+
+Resellers' share of what their invited clients buy (reseller policy, §3.3). They are points like any
+other: same balance, same "Mes points" page (`GET /me/points/`, `kind` `referral` and
+`referral_reversal`), spent the same way on the reseller's own purchases, never paid in cash and never
+used for delivery.
+
+| Rule | Default |
+|---|---|
+| Who | The reseller who invited the client (`invited_by`), while that reseller is still an active reseller. Points must be on (`points_enabled`) |
+| Window | Orders the client **places** within 12 months (`referral_months`) of joining the reseller (`invited_at`: signing up with the code, or adding the code to the profile later). Clients invited before this rule count from their sign-up date |
+| Rate | 0.3 % (`referral_percent`) of the items' price, delivery excluded, **rounded to the nearest cent** as in the policy's examples ($149 → 0.45 point, $389 → 1.17 points). Whether the client orders through their reseller or alone on the site |
+| Non-real money | **Nothing** on an order that used points or a coupon (owner rule: any non-real money cancels the referral on the whole order). Sale prices are real money |
+| Credit | On delivery, pending until the return period is over (like the client's own earning), once per order. The client still earns their own 1 % |
+| Returns | A cancelled or returned order takes back what is left of the referral; returning some units of a line takes back the share matching the real money returned (rounded down) |
+| Validity | Referral points follow the 12-month rule of the reseller's balance, counted from the reseller's **own** latest purchase (or own credit); referral credits restart nothing. A reseller who never bought counts from the latest referral credit |
+
+Settings: `referral_percent` (0.01–10, default 0.30), `referral_months` (1–60, default 12).
 
 ## Mobile app
 
@@ -65,5 +85,5 @@ sent by SMS.
 
 ## Status
 
-Settings and points are live; points stay hidden until an admin turns them on. The paid membership
-(Celebobo Plus) is removed. Referral points for resellers (0.3 %) and Cagnotte campaigns come later.
+Settings and points are live, referral points with them; points stay hidden until an admin turns
+them on. The paid membership (Celebobo Plus) is removed. Cagnotte campaigns come later.

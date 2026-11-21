@@ -148,3 +148,11 @@ class UserRow:
     email_verified: bool
     date_joined: datetime
     last_login: datetime | None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Referral:
+    """The active reseller who invited a client, and since when."""
+
+    reseller_id: int
+    since: datetime

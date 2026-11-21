@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from apps.accounts.domain.commands import RegisterUser
 from apps.accounts.domain.errors import EmailAlreadyUsed, PhoneAlreadyUsed
 from apps.accounts.domain.normalization import clean_text, normalize_email, normalize_phone
@@ -34,5 +36,6 @@ class RegistrationService:
             last_name=last_name,
             phone_number=phone,
             invited_by=inviter,
+            invited_at=timezone.now() if inviter else None,
             role=Role.CLIENT.value,
         )

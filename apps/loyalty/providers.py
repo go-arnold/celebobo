@@ -1,9 +1,14 @@
 from django.utils import timezone
 
-from apps.loyalty.adapters.gateways import ContentReturnPolicy, LoyaltyWallet, OrdersLedger
+from apps.loyalty.adapters.gateways import (
+    AccountsReferrals,
+    ContentReturnPolicy,
+    LoyaltyWallet,
+    OrdersLedger,
+)
 from apps.loyalty.facades import LoyaltyFacade, PointsFacade
 from apps.loyalty.repositories import LoyaltySettingsRepository, PointsRepository
-from apps.loyalty.services.contracts import OrderLedger, ReturnPolicy
+from apps.loyalty.services.contracts import OrderLedger, Referrals, ReturnPolicy
 from apps.loyalty.services.points import PointsService
 from apps.loyalty.services.settings import LoyaltySettingsService
 from apps.orders.services.contracts import Wallet
@@ -15,6 +20,7 @@ def register(container: Container) -> None:
     container.register(Wallet, lambda _: LoyaltyWallet(), replace=True)
     container.register(OrderLedger, lambda _: OrdersLedger())
     container.register(ReturnPolicy, lambda _: ContentReturnPolicy())
+    container.register(Referrals, lambda _: AccountsReferrals())
     container.register(PointsFacade, _points_facade, lifetime=Lifetime.TRANSIENT)
     container.register(LoyaltyFacade, _loyalty_facade, lifetime=Lifetime.TRANSIENT)
 
@@ -33,6 +39,7 @@ def _points_facade(container: Container) -> PointsFacade:
             LoyaltySettingsRepository(),
             container.resolve(OrderLedger),
             container.resolve(ReturnPolicy),
+            referrals=container.resolve(Referrals),
             clock=timezone.now,
         )
     )

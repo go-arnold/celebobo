@@ -1,7 +1,7 @@
 import calendar
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import ROUND_DOWN, Decimal
+from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 from enum import StrEnum
 
 CENT = Decimal("0.01")
@@ -16,9 +16,14 @@ class EntryKind(StrEnum):
     REFUND = "refund"
     REVERSAL = "reversal"
     EXPIRY = "expiry"
+    # 0.3 % of an invited client's invoice, for the reseller who invited them
+    REFERRAL = "referral"
+    REFERRAL_REVERSAL = "referral_reversal"
 
 
-CREDITS = (EntryKind.EARN, EntryKind.REFUND)
+CREDITS = (EntryKind.EARN, EntryKind.REFUND, EntryKind.REFERRAL)
+# credited on delivery, pending until the return period is over
+EARNINGS = (EntryKind.EARN, EntryKind.REFERRAL)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -26,6 +31,19 @@ class Purchase:
     client_id: int
     base: Decimal
     points_used: Decimal
+    discount: Decimal = ZERO
+    placed_at: datetime | None = None
+
+    # paid only in cash or Mobile Money: no points, no coupon (owner rule on non-real money)
+    @property
+    def real_money_only(self) -> bool:
+        return self.points_used == 0 and self.discount == 0
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Referral:
+    reseller_id: int
+    since: datetime
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -76,3 +94,8 @@ def add_months(moment: datetime, months: int) -> datetime:
     year, month = moment.year + month // 12, month % 12 + 1
     day = min(moment.day, calendar.monthrange(year, month)[1])
     return moment.replace(year=year, month=month, day=day)
+
+
+# referral points round to the nearest cent, as in the reseller policy's examples
+def referral_share(base: Decimal, percent: Decimal) -> Decimal:
+    return (base * percent / 100).quantize(CENT, rounding=ROUND_HALF_UP)
