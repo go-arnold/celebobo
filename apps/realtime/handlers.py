@@ -30,6 +30,7 @@ from apps.resellers.domain.events import ApplicationSubmitted
 from apps.sales.domain.events import (
     CommissionChanged,
     PayoutRecorded,
+    PayoutStatementPrepared,
     SaleDeleted,
     SaleRecorded,
     SaleRefunded,
@@ -157,6 +158,14 @@ def push_payout(event: PayoutRecorded) -> None:
         event.reseller_id,
         payout_id=event.payout_id,
         amount=event.amount,
+    )
+
+
+# a statement moves validated commissions into "to be paid": the reseller's page refreshes
+@event_bus.on(PayoutStatementPrepared)
+def push_payout_statement(event: PayoutStatementPrepared) -> None:
+    _relay().reseller_event(
+        ServerEvent.COMMISSION_UPDATED, event.reseller_id, statement_id=event.statement_id
     )
 
 

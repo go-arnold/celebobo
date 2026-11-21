@@ -1,12 +1,14 @@
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from apps.catalog.domain.enums import ProductOrigin
 from apps.sales.domain.enums import CommissionKind, CommissionRule
+from apps.sales.domain.payouts import VALIDATION_DAYS
 from apps.sales.domain.rules import ZERO, CommissionLine, line_commission, proportional_reversal
 from apps.sales.models import CommissionEntry, Sale
 from apps.sales.repositories import CommissionRepository
-from apps.sales.services.contracts import Sellers
+from apps.sales.services.contracts import OrderBook, Sellers
 from core.domain.actor import Role
 
 
@@ -17,9 +19,16 @@ class CommissionChange:
 
 
 class CommissionService:
-    def __init__(self, commissions: CommissionRepository, sellers: Sellers) -> None:
+    def __init__(
+        self,
+        commissions: CommissionRepository,
+        sellers: Sellers,
+        *,
+        books: OrderBook | None = None,
+    ) -> None:
         self._commissions = commissions
         self._sellers = sellers
+        self._books = books
 
     # decided once, when the sale is recorded or converted (kept on the sale as `commissionable`):
     # a reseller seller, not buying for themselves, and no points or coupon on the order
@@ -97,9 +106,6 @@ class CommissionService:
             changes.append(earned)
         return changes
 
-    def balance(self, reseller_id: int) -> Decimal:
-        return self._commissions.balance(reseller_id)
-
     def _entry(
         self,
         sale: Sale,
@@ -118,7 +124,17 @@ class CommissionService:
             base_amount=base,
             amount=amount,
             note=note,
+            available_at=self._available_at(sale),
         )
+
+    # pending through the trial period after delivery (the sale date for a manual sale); later
+    # entries of the sale (reversals, a rebased earning) keep the date of its first earning
+    def _available_at(self, sale: Sale) -> datetime:
+        if known := self._commissions.available_at(sale):
+            return known
+        delivery = self._books.delivery(sale.order_id) if self._books and sale.order_id else None
+        start = delivery.delivered_at if delivery and delivery.delivered_at else sale.sold_at
+        return start + timedelta(days=VALIDATION_DAYS)
 
 
 def _rule(earned: CommissionEntry | None) -> CommissionRule:

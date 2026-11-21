@@ -24,6 +24,7 @@ from apps.orders.domain.events import (
     RefundDue,
     ResellerRated,
 )
+from apps.sales.domain.events import PayoutRecorded, PayoutStatementPrepared
 from core.container import container
 from core.events.bus import event_bus
 
@@ -80,6 +81,16 @@ def notify_delivery_attempt(event: DeliveryAttemptFailed) -> None:
 @event_bus.on(ResellerRated, background=True)
 def notify_reseller_rated(event: ResellerRated) -> None:
     container.resolve(NotificationRouter).reseller_rated(event)
+
+
+@event_bus.on(PayoutStatementPrepared, background=True)
+def notify_payout_statement(event: PayoutStatementPrepared) -> None:
+    container.resolve(NotificationRouter).payout_statement_prepared(event)
+
+
+@event_bus.on(PayoutRecorded, background=True)
+def notify_payout_paid(event: PayoutRecorded) -> None:
+    container.resolve(NotificationRouter).payout_recorded(event)
 
 
 @event_bus.on(DeliveryCodeLocked, background=True)

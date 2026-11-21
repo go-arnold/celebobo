@@ -142,6 +142,19 @@ TEMPLATES: Mapping[NotificationKind, NotificationTemplate] = MappingProxyType(
             link="/admin/commandes/{order_id}",
             topic=STATUS_CHANGED_TOPIC,
         ),
+        NotificationKind.PAYOUT_STATEMENT: NotificationTemplate(
+            title="Relevé de paiement du {date}",
+            body="Votre relevé du {date} est prêt : {total} $ vont vous être versés par Mobile "
+            "Money. Le détail est dans vos commissions.",
+            link="/admin/commissions?releve={statement_id}",
+            topic=STATUS_CHANGED_TOPIC,
+        ),
+        NotificationKind.PAYOUT_PAID: NotificationTemplate(
+            title="Paiement reçu : {amount} $",
+            body="Celebobo vous a versé {amount} $ pour votre relevé du {date}.",
+            link="/admin/commissions?releve={statement_id}",
+            topic=STATUS_CHANGED_TOPIC,
+        ),
     }
 )
 
