@@ -121,5 +121,4 @@ Two journals, kept **365 days**:
 | Purge audit entries older than the retention period | daily |
 | Delete orphan uploads | daily |
 | Announce deals that start or end | every minute |
-| Remind members whose Plus membership ends soon | hourly |
 | Expire the points of clients with no order in the validity period (12 months) | daily |

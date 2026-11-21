@@ -2,12 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Protocol
 
-from apps.loyalty.domain.membership import Requester
 from apps.loyalty.domain.points import Purchase
-
-
-class People(Protocol):
-    def requester(self, user_id: int) -> Requester: ...
 
 
 class OrderLedger(Protocol):

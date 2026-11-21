@@ -241,7 +241,6 @@ class QuoteOutput(serializers.Serializer[Any]):
     delivery_estimate = serializers.CharField()
     coupon_code = serializers.CharField(allow_null=True)
     coupon_error = serializers.CharField(allow_null=True)
-    member_free_shipping = serializers.BooleanField()
     points = serializers.DecimalField(max_digits=10, decimal_places=2)
     points_available = serializers.DecimalField(max_digits=10, decimal_places=2)
     delivery_method = serializers.CharField()

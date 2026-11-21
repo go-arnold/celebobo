@@ -30,7 +30,6 @@ class QuoteView:
     delivery_estimate: str = ""
     coupon_code: str | None = None
     coupon_error: str | None = None
-    member_free_shipping: bool = False
     points: Decimal = Decimal("0.00")
     points_available: Decimal = Decimal("0.00")
     delivery_method: DeliveryMethod = DeliveryMethod.DELIVERY
@@ -291,7 +290,6 @@ class ShippingZoneView:
     is_default: bool
     is_active: bool
     position: int
-    member_free_shipping: bool
     pricing: ZonePricing = ZonePricing.FLAT
     pickup_address: str = ""
 

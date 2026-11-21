@@ -2,35 +2,13 @@ from datetime import datetime
 from decimal import Decimal
 
 from django.db.models import Count, Sum
-from django.utils import timezone
 
-from apps.accounts.selectors import ProfileSelector
 from apps.content.facades import SiteContentFacade
-from apps.loyalty.domain.membership import Requester
 from apps.loyalty.domain.points import Purchase
 from apps.loyalty.facades import PointsFacade
-from apps.loyalty.repositories import MembershipRepository
 from apps.orders.domain.enums import OrderStatus
 from apps.orders.models import Order
-from core.authz.catalog import permission_catalog
 from core.container import container
-
-
-class AccountsPeople:
-    def requester(self, user_id: int) -> Requester:
-        profile = ProfileSelector(permission_catalog).profile(user_id)
-        name = f"{profile.first_name} {profile.last_name}".strip() or profile.email
-        return Requester(
-            id=profile.id,
-            name=name,
-            email_verified=profile.email_verified,
-            phone=profile.phone_number,
-        )
-
-
-class LoyaltyMembers:
-    def is_member(self, user_id: int) -> bool:
-        return MembershipRepository().active(user_id, timezone.now())
 
 
 class OrdersLedger:

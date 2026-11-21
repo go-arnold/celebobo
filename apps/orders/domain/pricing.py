@@ -34,7 +34,6 @@ class ShippingRules:
     flat_fee: Decimal
     zone: str = ""
     delivery_estimate: str = ""
-    member_free: bool = False
     pricing: ZonePricing = ZonePricing.FLAT
     pickup_address: str = ""
 
@@ -77,18 +76,16 @@ def quote(
     lines: Sequence[QuoteLine],
     rules: ShippingRules,
     coupon: CouponTerms | None = None,
-    *,
-    member: bool = False,
 ) -> Quote:
     subtotal = sum((line.total for line in lines), ZERO)
     discount = discount_for(coupon, subtotal) if coupon else ZERO
     # pickup is free and a quoted zone has no fee until the client accepts the reseller's quote
     flat = rules.pricing is ZonePricing.FLAT
-    free = not flat or member or (coupon is not None and coupon.free_shipping)
+    free = not flat or (coupon is not None and coupon.free_shipping)
     shipping = ZERO if free else _shipping_fee(lines, subtotal, rules)
     remaining = (
         max(rules.free_threshold - subtotal, ZERO)
-        if flat and rules.free_threshold is not None and not member
+        if flat and rules.free_threshold is not None
         else None
     )
     return Quote(
