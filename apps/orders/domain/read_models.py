@@ -104,6 +104,16 @@ class AddressSnapshot:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class SuggestedReseller:
+    """The reseller suggested to staff assigning an order: the one who invited the client."""
+
+    id: int
+    name: str
+    reason: str = "invited_client"
+    invited_at: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class OrderSummary:
     id: int
     number: str
@@ -113,9 +123,12 @@ class OrderSummary:
     items_count: int
     preview_name: str
     preview_image: str
+    client_id: int
     client_name: str
     reseller_name: str | None
     refund_status: str | None = None
+    # staff who can assign only: the active reseller who invited the client
+    suggested_reseller: SuggestedReseller | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

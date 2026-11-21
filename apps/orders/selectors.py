@@ -290,6 +290,7 @@ def _summary(order: Order, preview: OrderItem | None, *, staff: bool) -> OrderSu
         items_count=getattr(order, "items_count", 0),
         preview_name=preview.product_name if preview else "",
         preview_image=preview.product_image if preview else "",
+        client_id=order.client_id,
         client_name=_client_name(order, staff=staff),
         reseller_name=_display_name(reseller) if reseller else None,
         refund_status=_refund_status(order),

@@ -11,6 +11,7 @@ from apps.orders.api.v1.serializers import (
     AssignableResellerOutput,
     AssignableSearchInput,
     AssignInput,
+    BackofficeOrderSummaryOutput,
     CancelInput,
     CartContextInput,
     CartItemInput,
@@ -243,7 +244,7 @@ class DispatchViewSet(UseCaseViewSet):
     }
     dispatch_orders = Inject(DispatchFacade)
 
-    @extend_schema(parameters=[OrderFiltersInput], responses=page_of(OrderSummaryOutput))
+    @extend_schema(parameters=[OrderFiltersInput], responses=page_of(BackofficeOrderSummaryOutput))
     def list(self, request: Request) -> Response:
         filters = self.parse(OrderFiltersInput, into=OrderFilters, data=request.query_params)
         page = page_request(request, default_size=10, max_size=100)
@@ -254,7 +255,7 @@ class DispatchViewSet(UseCaseViewSet):
             request,
             page,
             total=result.total,
-            results=OrderSummaryOutput(result.orders, many=True).data,
+            results=BackofficeOrderSummaryOutput(result.orders, many=True).data,
             meta={"counts": result.counts},
         )
 
