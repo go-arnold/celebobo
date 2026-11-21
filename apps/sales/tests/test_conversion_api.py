@@ -88,6 +88,15 @@ class TestConversion:
         assert CommissionEntry.objects.get().amount == Decimal("24.00")
         assert any(isinstance(event, OrderConverted) for event in published_events.events)
 
+    def test_snapshots_the_product_origin(self, as_user, reseller, phone, confirmed):
+        Product.objects.filter(pk=phone.pk).update(origin="partner", partner_gain=Decimal("9.00"))
+
+        convert(as_user(reseller), confirmed)
+        Product.objects.filter(pk=phone.pk).update(origin="celebobo", partner_gain=None)
+
+        sale = Sale.objects.get()
+        assert (sale.origin, sale.partner_gain) == ("partner", Decimal("9.00"))
+
     def test_price_overrides_and_payment_method(self, as_user, manager, confirmed):
         item = confirmed.items.get()
 

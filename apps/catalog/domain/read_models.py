@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from apps.catalog.domain.enums import Badge, CategoryIcon
+from apps.catalog.domain.enums import Badge, CategoryIcon, ProductOrigin
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -193,6 +193,9 @@ class PricedLine:
     shipping_fee: Decimal | None
     cost_price: Decimal | None = None
     deal_id: int | None = None
+    # for the commission rules: snapshot onto the sale with the cost
+    origin: ProductOrigin = ProductOrigin.CELEBOBO
+    partner_gain: Decimal | None = None
 
     @property
     def total(self) -> Decimal:

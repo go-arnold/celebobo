@@ -56,6 +56,14 @@ class InvalidPricing(ValidationFailed):
         super().__init__(errors=errors)
 
 
+class InvalidOrigin(ValidationFailed):
+    default_code = "invalid_product_origin"
+    default_detail = "L'origine du produit et le gain Celebobo sont incohérents."
+
+    def __init__(self, errors: dict[str, list[str]]) -> None:
+        super().__init__(errors=errors)
+
+
 class SellByInPast(ValidationFailed):
     default_code = "sell_by_in_past"
     default_detail = "La date limite de vente ne peut pas être passée."

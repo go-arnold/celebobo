@@ -31,6 +31,8 @@ Managed by staff (`products.manage`) at `/bo/products/`. Resellers can read the 
 | `price` | > 0. |
 | `sale_price` (promotion) | Optional; must be > 0 and **lower than** `price` (`invalid_pricing`). The shop shows the discount %. Bulk "discount" sets it from a percentage (max 90 %). |
 | `cost_price` (purchase price) | Optional, ≥ 0. **Never shown to clients.** Used for profit and margin. |
+| `origin` | `celebobo` (default) or `partner`. Managers only (`products.origin`), see below. |
+| `partner_gain` ("Gain Celebobo par unité ($)") | Required and > 0 when `origin` is `partner`, empty otherwise (`invalid_product_origin`). Managers only. |
 | Badge | none, `new` ("Nouveauté") or `best_seller` ("Best-seller"). During its first **20 days** a product always displays `new`, whatever badge was chosen. |
 | Free shipping / own shipping fee | Overrides the zone fee for this product (see §4). |
 | Stock threshold | Below or at this level the product is "low stock" (default 5). |
@@ -45,6 +47,22 @@ Managed by staff (`products.manage`) at `/bo/products/`. Resellers can read the 
   ready to be edited before publishing.
 - **Bulk actions** on a selection: activate, deactivate, trash, restore, change category, set a
   discount %, clear the discount.
+
+### Origin (Celebobo / partner)
+
+A **partner product** is supplied by a partner but **sold by Celebobo itself** like any other
+product (same checkout, stock, invoices). Only the reseller commission differs (see
+[05-sales-commissions.md](05-sales-commissions.md)): it is computed from **Celebobo's gain per
+unit** (`partner_gain`, in dollars) instead of the margin.
+
+- Only users with `products.origin` (managers and admins) can set **or see** `origin` and
+  `partner_gain`. The back-office product list and detail leave both fields out for resellers;
+  the shop API never shows them; a write that contains them without the permission is refused
+  (`forbidden`).
+- Switching a product back to `celebobo` clears its gain. Duplicating a product copies both fields.
+- Every sale **snapshots** the product's origin and gain (with the purchase price) when it is
+  recorded or converted from an order: editing the product later never changes past sales or
+  their commissions.
 
 ### Variants
 

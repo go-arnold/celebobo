@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 
-from apps.catalog.domain.enums import StockReason
+from apps.catalog.domain.enums import ProductOrigin, StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
 from apps.orders.domain.enums import PaymentMethod
 from apps.sales.domain.commands import ConvertOrder, EditSale, RecordSale, RefundSale
@@ -77,6 +77,8 @@ class SaleService:
             quantity=command.quantity,
             unit_price=command.unit_price,
             unit_cost=line.cost_price,
+            origin=line.origin.value,
+            partner_gain=line.partner_gain,
             payment_method=command.payment_method.value,
             recorded_by_id=actor.user_id,
             sold_at=sold_at,
@@ -132,6 +134,8 @@ class SaleService:
                 quantity=item.quantity,
                 unit_price=overrides.get(item.id, item.unit_price),
                 unit_cost=cost.cost_price if cost else None,
+                origin=cost.origin.value if cost else ProductOrigin.CELEBOBO.value,
+                partner_gain=cost.partner_gain if cost else None,
                 payment_method=(command.payment_method or order.payment_method).value,
                 order_id=order.id,
                 order_item_id=item.id,

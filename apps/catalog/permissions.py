@@ -11,8 +11,15 @@ PRODUCTS_MANAGE = "products.manage"
 STOCK_ADJUST = "stock.adjust"
 CATEGORIES_MANAGE = "categories.manage"
 REVIEWS_MODERATE = "reviews.moderate"
+# the product's origin (Celebobo / partner) and Celebobo's gain on partner products
+PRODUCTS_ORIGIN = "products.origin"
 
 permission_catalog.grant(Role.RESELLER, PRODUCTS_VIEW)
 permission_catalog.grant(
-    Role.MANAGER, PRODUCTS_MANAGE, STOCK_ADJUST, CATEGORIES_MANAGE, REVIEWS_MODERATE
+    Role.MANAGER,
+    PRODUCTS_MANAGE,
+    STOCK_ADJUST,
+    CATEGORIES_MANAGE,
+    REVIEWS_MODERATE,
+    PRODUCTS_ORIGIN,
 )

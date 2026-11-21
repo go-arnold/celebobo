@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 
+from apps.catalog.domain.enums import ProductOrigin
 from apps.orders.domain.enums import PaymentMethod
 from apps.sales.domain.enums import CommissionKind, RefundKind, SaleStatus
 
@@ -10,6 +11,7 @@ PAYMENT_CHOICES = [(item.value, item.label) for item in PaymentMethod]
 STATUS_CHOICES = [(item.value, item.value) for item in SaleStatus]
 REFUND_CHOICES = [(item.value, item.value) for item in RefundKind]
 COMMISSION_CHOICES = [(item.value, item.value) for item in CommissionKind]
+ORIGIN_CHOICES = [(item.value, item.label) for item in ProductOrigin]
 DIGITS = 10
 PLACES = 2
 
@@ -40,6 +42,14 @@ class Sale(models.Model):
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=DIGITS, decimal_places=PLACES)
     unit_cost = models.DecimalField(max_digits=DIGITS, decimal_places=PLACES, null=True, blank=True)
+    # the product's origin and Celebobo's gain per unit when sold, like the cost: commissions
+    # are computed from these, so later product edits never change past sales
+    origin = models.CharField(
+        max_length=10, choices=ORIGIN_CHOICES, default=ProductOrigin.CELEBOBO.value
+    )
+    partner_gain = models.DecimalField(
+        max_digits=DIGITS, decimal_places=PLACES, null=True, blank=True
+    )
     refunded_amount = models.DecimalField(
         max_digits=DIGITS, decimal_places=PLACES, default=Decimal(0)
     )

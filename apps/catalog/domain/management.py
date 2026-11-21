@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 
-from apps.catalog.domain.enums import Badge, CategoryIcon, ReviewStatus, StockReason
+from apps.catalog.domain.enums import Badge, CategoryIcon, ProductOrigin, ReviewStatus, StockReason
 from core.domain.values import UNSET, Maybe
 
 
@@ -57,6 +57,8 @@ class ProductDraft:
     brand_id: int | None = None
     sale_price: Decimal | None = None
     cost_price: Decimal | None = None
+    origin: ProductOrigin = ProductOrigin.CELEBOBO
+    partner_gain: Decimal | None = None
     long_description: str = ""
     seo_title: str = ""
     seo_description: str = ""
@@ -85,6 +87,8 @@ class ProductChanges:
     price: Maybe[Decimal] = UNSET
     sale_price: Maybe[Decimal | None] = UNSET
     cost_price: Maybe[Decimal | None] = UNSET
+    origin: Maybe[ProductOrigin] = UNSET
+    partner_gain: Maybe[Decimal | None] = UNSET
     long_description: Maybe[str] = UNSET
     seo_title: Maybe[str] = UNSET
     seo_description: Maybe[str] = UNSET
