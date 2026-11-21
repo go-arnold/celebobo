@@ -59,7 +59,9 @@ class TestRegistration:
         response = api.post(REGISTER, {**PAYLOAD, "referral_code": "4821"})
 
         assert response.status_code == 201
-        assert User.objects.get(email="aline@celebobo.test").invited_by == reseller
+        invited = User.objects.get(email="aline@celebobo.test")
+        assert invited.invited_by == reseller
+        assert invited.invited_at is not None
 
     @pytest.mark.parametrize(
         ("overrides", "field", "code"),

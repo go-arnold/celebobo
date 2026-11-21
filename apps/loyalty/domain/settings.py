@@ -9,6 +9,8 @@ class PointsTerms:
     enabled: bool
     percent: Decimal
     validity_months: int
+    referral_percent: Decimal
+    referral_months: int
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -28,5 +30,7 @@ class LoyaltySettingsChanges:
     points_enabled: Maybe[bool] = UNSET
     points_percent: Maybe[Decimal] = UNSET
     points_validity_months: Maybe[int] = UNSET
+    referral_percent: Maybe[Decimal] = UNSET
+    referral_months: Maybe[int] = UNSET
     app_store_url: Maybe[str] = UNSET
     play_store_url: Maybe[str] = UNSET

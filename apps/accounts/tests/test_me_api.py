@@ -73,6 +73,9 @@ class TestProfile:
         second = api.patch(ME, {"referral_code": ResellerFactory.create().referral_code})
 
         assert first.json()["invited_by_code"] == "4821"
+        client_user.refresh_from_db()
+        # referral points run for 12 months from the moment the client joined the reseller
+        assert client_user.invited_at is not None
         assert published_events.single(ReferralAttached).reseller_id == reseller.pk
         assert second.status_code == 422
         assert second.json()["code"] == "referral_already_set"

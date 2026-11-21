@@ -21,6 +21,7 @@ from apps.accounts.domain.read_models import (
     InviterRef,
     ManagerRef,
     Profile,
+    Referral,
     ReferralCheck,
     ResellerAccount,
     ResellerCounts,
@@ -78,6 +79,23 @@ class AddressSelector:
 
 
 class ReferralSelector:
+    # the reseller who invited the client, while that reseller is still active
+    def referral(self, client_id: int) -> Referral | None:
+        row = (
+            User.objects.filter(
+                pk=client_id,
+                invited_by__isnull=False,
+                invited_at__isnull=False,
+                invited_by__is_active=True,
+                invited_by__role=Role.RESELLER.value,
+            )
+            .values("invited_by_id", "invited_at")
+            .first()
+        )
+        if row is None or row["invited_at"] is None:
+            return None
+        return Referral(reseller_id=row["invited_by_id"], since=row["invited_at"])
+
     def check(self, code: str) -> ReferralCheck:
         reseller = (
             User.objects.filter(referral_code=code, role=Role.RESELLER.value, is_active=True)

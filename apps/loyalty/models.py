@@ -22,6 +22,11 @@ class LoyaltySettings(models.Model):
     points_validity_months = models.PositiveSmallIntegerField(default=12)
     # when the programme was switched off: clients keep using their points for 3 months
     points_disabled_at = models.DateTimeField(null=True, blank=True, editable=False)
+    # referral points: share of an invited client's invoices, for this many months after joining
+    referral_percent = models.DecimalField(
+        "points de parrainage (%)", max_digits=5, decimal_places=2, default=Decimal("0.30")
+    )
+    referral_months = models.PositiveSmallIntegerField("durée du parrainage (mois)", default=12)
     app_store_url = models.URLField(max_length=300, blank=True)
     play_store_url = models.URLField(max_length=300, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -42,7 +47,7 @@ class PointsEntry(models.Model):
     order = models.ForeignKey(
         "orders.Order", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
-    kind = models.CharField(max_length=10, choices=ENTRY_KIND_CHOICES)
+    kind = models.CharField(max_length=20, choices=ENTRY_KIND_CHOICES)
     amount = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     remaining = models.DecimalField(
         max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
@@ -56,11 +61,11 @@ class PointsEntry(models.Model):
         ordering = ("created_at", "pk")
         indexes = (models.Index(fields=("user", "available_at"), name="loyalty_points_user"),)
         constraints = (
-            # an order earns and spends once; reversals and refunds can come in parts (line
-            # returns), bounded by what was earned and spent
+            # an order earns, spends and pays its referral once; reversals and refunds can come
+            # in parts (line returns), bounded by what was earned and spent
             models.UniqueConstraint(
                 fields=("order", "kind"),
-                condition=models.Q(order__isnull=False, kind__in=("earn", "spend")),
+                condition=models.Q(order__isnull=False, kind__in=("earn", "spend", "referral")),
                 name="loyalty_points_once_per_order",
             ),
         )

@@ -9,7 +9,8 @@
 - The password must pass Django's validators: at least 8 characters, not too similar to the
   name/email, not a common password, not only digits (`weak_password`).
 - A **referral code** must belong to an active reseller (`unknown_referral_code`). The new client is
-  then permanently linked to that reseller (an "invitee").
+  then permanently linked to that reseller (an "invitee"); `invited_at` records when, since referral
+  points run for 12 months from then (§12, *Referral points*).
 - Every self-registered account is a **client**.
 - **Email verification is mandatory**: a link to `/verifier-email/{key}` is emailed; logging in
   before confirming the address is refused. The link can be re-sent (`POST /auth/email/resend/`).
@@ -33,7 +34,7 @@
 - **Avatar**: uploaded through the media flow (§10), then referenced by `avatar_upload_id`. Only the
   user's own avatar upload is accepted (`invalid_avatar`).
 - **Referral code** can be added **once**, if the account has none yet (`referral_already_set`),
-  and never one's own code (`self_referral`).
+  and never one's own code (`self_referral`). The 12 months of referral points start then.
 - The email cannot be changed by the user (an admin can, see below).
 
 ## Address book

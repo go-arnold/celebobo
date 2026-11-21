@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from django.utils import timezone
+
 from apps.accounts.domain.commands import UpdateProfile
 from apps.accounts.domain.errors import (
     InvalidAvatar,
@@ -46,7 +48,7 @@ class ProfileService:
 
         if "referral_code" in changes:
             attached_reseller_id = self._attach_referral(user, changes.pop("referral_code"))
-            updated.append("invited_by")
+            updated.extend(("invited_by", "invited_at"))
         for name in ("first_name", "last_name"):
             if name in changes:
                 setattr(user, name, clean_text(changes[name]))
@@ -109,6 +111,7 @@ class ProfileService:
         if reseller.pk == user.pk:
             raise SelfReferral
         user.invited_by = reseller
+        user.invited_at = timezone.now()
         return reseller.pk
 
     def _available_phone(self, user: User, phone: str | None) -> str | None:

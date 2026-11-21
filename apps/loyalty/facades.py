@@ -60,6 +60,7 @@ class PointsFacade:
     def delivered(self, order_id: int, delivered_at: datetime) -> None:
         with transaction.atomic():
             self._points.earn(order_id, delivered_at)
+            self._points.refer(order_id, delivered_at)
 
     def undone(self, order_id: int) -> None:
         with transaction.atomic():

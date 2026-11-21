@@ -53,6 +53,8 @@ class User(AbstractUser):
         blank=True,
         related_name="invitees",
     )
+    # when the client joined the reseller: referral points run for 12 months from then
+    invited_at = models.DateTimeField("invité le", null=True, blank=True)
     availability = models.CharField(
         "disponibilité",
         max_length=8,
