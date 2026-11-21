@@ -294,6 +294,7 @@ def _summary(order: Order, preview: OrderItem | None, *, staff: bool) -> OrderSu
         client_name=_client_name(order, staff=staff),
         reseller_name=_display_name(reseller) if reseller else None,
         refund_status=_refund_status(order),
+        reseller_id=order.assigned_reseller_id,
     )
 
 

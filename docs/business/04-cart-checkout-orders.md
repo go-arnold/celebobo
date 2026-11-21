@@ -147,7 +147,8 @@ Anything else is refused (`invalid_transition`). Every change is written to the 
 - **Suggested reseller**: the back-office order (list and detail) carries `suggested_reseller`
   (`id`, `name`, `reason: "invited_client"`, `invited_at`) — the reseller who **invited the client**
   with their referral code, whenever that was (no 12-month limit, unlike referral points), as long as
-  that account is still an **active reseller**; otherwise `null`. The assignment screen shows it
+  that account is still an **active reseller** and the order is not already assigned to them;
+  otherwise `null`. The assignment screen shows it
   first ("Invité par … — suggéré", with the invitation date), preselected and assignable in one
   click; staff remain free to pick any other reseller. Only staff who can assign get it: it is
   always `null` for resellers and absent from the client's own order pages. The list looks the

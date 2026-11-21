@@ -127,6 +127,8 @@ class OrderSummary:
     client_name: str
     reseller_name: str | None
     refund_status: str | None = None
+    # internal, like client_id: the assigned reseller, to leave out a suggestion already followed
+    reseller_id: int | None = None
     # staff who can assign only: the active reseller who invited the client
     suggested_reseller: SuggestedReseller | None = None
 

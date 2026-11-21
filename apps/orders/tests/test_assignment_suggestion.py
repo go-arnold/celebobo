@@ -92,6 +92,16 @@ class TestSuggestedReseller:
         assert body["reseller"]["id"] == other.pk
         assert body["suggested_reseller"]["id"] == reseller.pk
 
+    def test_no_suggestion_once_the_inviter_is_assigned(
+        self, as_user, manager, reseller, shopper, order
+    ):
+        invite(shopper, reseller)
+
+        body = as_user(manager).post(f"{BO}{order.pk}/assign/", {"reseller_id": reseller.pk}).json()
+
+        assert body["suggested_reseller"] is None
+        assert suggestion_in_list(as_user(manager)) is None
+
 
 class TestSuggestionPrivacy:
     def test_resellers_never_get_it(self, as_user, manager, reseller, shopper, order):
