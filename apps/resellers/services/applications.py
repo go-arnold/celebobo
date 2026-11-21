@@ -60,7 +60,6 @@ class ApplicationService:
                 first_name=application.first_name,
                 last_name=application.last_name,
                 phone_number=application.phone_number or None,
-                commission_rate=command.commission_rate,
                 manager_id=command.manager_id,
             ),
         )

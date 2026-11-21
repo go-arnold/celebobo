@@ -5,12 +5,13 @@ from django.db import models
 
 from apps.catalog.domain.enums import ProductOrigin
 from apps.orders.domain.enums import PaymentMethod
-from apps.sales.domain.enums import CommissionKind, RefundKind, SaleStatus
+from apps.sales.domain.enums import CommissionKind, CommissionRule, RefundKind, SaleStatus
 
 PAYMENT_CHOICES = [(item.value, item.label) for item in PaymentMethod]
 STATUS_CHOICES = [(item.value, item.value) for item in SaleStatus]
 REFUND_CHOICES = [(item.value, item.value) for item in RefundKind]
 COMMISSION_CHOICES = [(item.value, item.value) for item in CommissionKind]
+RULE_CHOICES = [(item.value, item.value) for item in CommissionRule]
 ORIGIN_CHOICES = [(item.value, item.label) for item in ProductOrigin]
 DIGITS = 10
 PLACES = 2
@@ -53,6 +54,9 @@ class Sale(models.Model):
     refunded_amount = models.DecimalField(
         max_digits=DIGITS, decimal_places=PLACES, default=Decimal(0)
     )
+    # decided when the sale is recorded or converted: a reseller seller, not their own purchase,
+    # and (from an order) paid in real money only; a price edit recomputes only these sales
+    commissionable = models.BooleanField(default=False)
     # units of an order-linked sale given back through a line return of the order
     returned_quantity = models.PositiveIntegerField(default=0)
     payment_method = models.CharField(max_length=16, choices=PAYMENT_CHOICES)
@@ -138,7 +142,8 @@ class CommissionEntry(models.Model):
         Sale, null=True, blank=True, on_delete=models.SET_NULL, related_name="commissions"
     )
     kind = models.CharField(max_length=10, choices=COMMISSION_CHOICES)
-    rate = models.DecimalField(max_digits=4, decimal_places=3)
+    # the cap that set the earned amount; reversals repeat the rule of what they reverse
+    rule = models.CharField(max_length=16, choices=RULE_CHOICES)
     base_amount = models.DecimalField(max_digits=DIGITS, decimal_places=PLACES)
     amount = models.DecimalField(max_digits=DIGITS, decimal_places=PLACES)
     note = models.CharField(max_length=255, blank=True)

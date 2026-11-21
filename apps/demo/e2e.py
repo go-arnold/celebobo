@@ -189,7 +189,6 @@ class E2eSeeder:
                 first_name=account.first_name,
                 last_name=account.last_name,
                 phone_number=account.phone,
-                commission_rate=Decimal("0.080"),
                 manager_id=manager.pk,
             ),
         )

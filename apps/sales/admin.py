@@ -25,8 +25,8 @@ class SaleAdmin(ExportMixin, admin.ModelAdmin[Sale]):
 
 @admin.register(CommissionEntry)
 class CommissionEntryAdmin(admin.ModelAdmin[CommissionEntry]):
-    list_display = ("reseller", "kind", "amount", "rate", "sale", "created_at")
-    list_filter = ("kind",)
+    list_display = ("reseller", "kind", "amount", "rule", "sale", "created_at")
+    list_filter = ("kind", "rule")
     raw_id_fields = ("reseller", "sale")
 
     def has_change_permission(self, request: object, obj: CommissionEntry | None = None) -> bool:

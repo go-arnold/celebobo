@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from apps.orders.domain.enums import PaymentMethod
-from apps.sales.domain.enums import CommissionKind, RefundKind, SaleStatus
+from apps.sales.domain.enums import CommissionKind, CommissionRule, RefundKind, SaleStatus
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -75,7 +75,7 @@ class CommissionEntryView:
     id: int
     kind: CommissionKind
     sale_id: int | None
-    rate: Decimal
+    rule: CommissionRule
     base_amount: Decimal
     amount: Decimal
     created_at: datetime
@@ -84,7 +84,6 @@ class CommissionEntryView:
 @dataclass(frozen=True, slots=True, kw_only=True)
 class CommissionSummary:
     reseller: PersonRef
-    rate: Decimal
     earned_this_month: Decimal
     earned_total: Decimal
     paid_total: Decimal

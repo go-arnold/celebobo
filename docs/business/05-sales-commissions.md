@@ -20,7 +20,9 @@ Both require an `Idempotency-Key` header.
 | Seller | A **reseller always records sales as themselves**. Staff may attribute the sale to any reseller or staff member (`invalid_seller`); without a seller the sale is theirs. |
 
 On recording:
-- the **cost price** of the product at that moment is copied into the sale (for profit);
+- the **cost price**, the product's **origin** (Celebobo / partner) and, for a partner product,
+  **Celebobo's gain per unit** at that moment are copied into the sale (for profit and commission:
+  editing the product later changes nothing for past sales);
 - stock is **taken** (reason `sale`) and the product's sales counter increases;
 - if the seller is a **reseller**, a commission is earned (below);
 - dashboards and analytics update in real time.
@@ -79,22 +81,57 @@ directly (not from an order) the stock comes back (reason `correction`); the sal
 
 ## Commissions
 
-Each reseller has a **commission rate** (default **7 %**, between 0 and 50 %), set by staff.
+Every reseller earns by the **same rules**; there is no per-reseller rate any more (it was removed
+with the rules below).
 
-- **Earned**: when a sale is recorded or converted with a **reseller** as seller:
-  `commission = sale total × reseller's rate at that moment`, rounded to the cent.
-  Sales by managers or admins earn no commission.
-- **Reversed**: on refund/return, proportionally to the refunded amount (never more than what was earned).
-- **Voided**: when a sale is deleted, or before being recomputed after a price edit (the original rate is kept).
-- Changing a reseller's rate affects **future** sales only.
+### Rules decided on 16 Nov 2026
 
-Every movement is a ledger entry (earned / reversed, rate, base amount, amount, note).
+These rules were set by the owner and **replace** the earlier per-reseller rate (7 % by default) and
+the figures of the v0.9 policy documents. The shares are constants of the code
+(`apps/sales/domain/rules.py`), not settings.
+
+Each **sale line** earns, on the **amount paid** for it (unit price × quantity, in real money):
+
+| Product | Commission |
+|---|---|
+| **Celebobo** product | the **smaller** of **10 %** of the amount paid and **50 %** of the line's **gross margin** (amount paid − unit cost × quantity). A margin of 0 or less earns **nothing**. |
+| Celebobo product **without a purchase price** | **10 %** of the amount paid (the margin cannot be known, so only the 10 % applies). |
+| **Partner** product | the **smaller** of **10 %** of the amount paid and **20 %** of **Celebobo's gain** (gain per unit × quantity). |
+
+- Each amount is **rounded to the cent** (half up) before the smaller one is taken.
+- The cost, origin and gain are the ones **copied into the sale** when it was recorded or converted.
+- **Nothing at all** on an order that used **any non-real money**: points (`points` > 0) or a
+  coupon / promotion (`discount` > 0). This applies to the **whole order**, every line, not just
+  the share paid that way. Sale prices and daily deals are real money and earn normally.
+- **Nothing** on a reseller's **own purchases** (the buyer is the reseller selling).
+- Sales **recorded directly** with a reseller as seller follow the same line rules (there are no
+  points or coupons on them). Staff can record such a sale for a reseller.
+- Sales by managers or admins (as seller) earn no commission.
+
+Whether a sale earns at all (reseller seller, not their own purchase, real money only) is decided
+**once**, when it is recorded or converted, and kept on the sale (`commissionable`).
+
+### Ledger
+
+- **Earned**: when a commissionable sale is recorded or converted, if the rules give more than 0.
+- **Reversed**: on refund/return, in proportion to the refunded amount: earned × refunded ÷ sale
+  total (never more than what is left).
+- **Voided**: when a sale is deleted, or before being recomputed after a **price edit**: the new
+  price is run through the same rules (with the sale's copied cost, origin and gain), so an edit can
+  lower, raise, cancel or start the commission.
+
+Every movement is a ledger entry: earned / reversed, **rule**, base amount, amount, note. The
+`rule` says which cap set the amount: `paid` (10 % of the amount paid), `margin` (50 % of the
+margin), `partner_gain` (20 % of Celebobo's gain), `unknown_cost` (10 %, no purchase price); a
+reversal repeats the rule of what it reverses. Entries written before 16 Nov 2026 have
+`legacy_rate` (earned with the reseller's own rate, which is no longer stored: on an earned entry
+the rate is amount ÷ base).
 
 **Balance due** = Σ ledger entries − Σ payouts.
 
 | View | Who | Content |
 |---|---|---|
-| `/bo/commissions/overview/` | staff | Per reseller: rate, earned this month, earned total, paid total, due |
+| `/bo/commissions/overview/` | staff | Per reseller: earned this month, earned total, paid total, due |
 | `/bo/commissions/summary/` | reseller (own) / staff (`?reseller_id=`) | Same figures for one reseller |
 | `/bo/commissions/series/` | same | Earned and paid per month |
 | `/bo/commissions/` | same | Ledger entries |

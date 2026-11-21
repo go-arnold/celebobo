@@ -1,7 +1,11 @@
+import hashlib
+import importlib
 from datetime import date
 
 import pytest
+from django.apps import apps as registry
 
+from apps.content.models import Page
 from apps.content.policies import policies
 
 pytestmark = pytest.mark.django_db
@@ -50,3 +54,41 @@ def test_staff_update_a_policy_and_its_version(api, as_user, manager):
 
     assert updated.status_code == 200, updated.json()
     assert (updated.json()["version"], updated.json()["effective_on"]) == ("1.0", "2027-01-01")
+
+
+def test_the_reseller_policy_follows_the_commission_rules(api):
+    reseller = api.get("/api/v1/pages/politique-revendeurs/").json()
+
+    assert reseller["version"] == "0.9.2"
+    assert "50 % de la marge brute" in reseller["body"]
+    assert "25 %" not in reseller["body"]
+    assert "ni prime ni point de parrainage" in reseller["body"]
+
+
+class TestResellerPolicyUpdate:
+    migration = importlib.import_module("apps.content.migrations.0007_reseller_policy_0_9_2")
+
+    def page(self, body):
+        page = Page.objects.get(slug="politique-revendeurs")
+        Page.objects.filter(pk=page.pk).update(body=body, version="0.9.1")
+        return page
+
+    def test_the_untouched_0_9_1_text_is_replaced(self, monkeypatch):
+        page = self.page("ancien texte")
+        monkeypatch.setattr(
+            self.migration, "LOADED_0_9_1", hashlib.sha256(b"ancien texte").hexdigest()
+        )
+
+        self.migration.update_reseller_policy(registry, None)
+
+        page.refresh_from_db()
+        assert page.version == "0.9.2"
+        assert "50 % de la marge brute" in page.body
+
+    def test_a_page_edited_in_the_back_office_is_left_alone(self):
+        page = self.page("texte modifié par l'équipe")
+
+        self.migration.update_reseller_policy(registry, None)
+
+        page.refresh_from_db()
+        assert (page.version, page.body) == ("0.9.1", "texte modifié par l'équipe")

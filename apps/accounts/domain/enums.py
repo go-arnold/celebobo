@@ -1,4 +1,3 @@
-from decimal import Decimal
 from enum import StrEnum
 from types import MappingProxyType
 
@@ -16,7 +15,6 @@ ROLE_LABELS = MappingProxyType(
 )
 
 STAFF_ROLES = frozenset({Role.MANAGER, Role.ADMIN})
-MAX_COMMISSION_RATE = Decimal("0.500")
 
 
 class Availability(StrEnum):
@@ -59,4 +57,3 @@ class ResellerOrdering(StrEnum):
     NEWEST = "-joined"
     OLDEST = "joined"
     MOST_INVITED = "-invited"
-    HIGHEST_RATE = "-rate"

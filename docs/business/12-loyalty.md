@@ -50,8 +50,8 @@ How it works:
 - When an admin turns points off (`points_disabled_at` is stamped), nothing new is earned but
   clients **keep using their balance for 3 months** (`closes_at`, loyalty policy); after that the
   balance can no longer be used. Turning points back on ends the closing period.
-- Like coupons, points lower what the client pays but not the sales recorded for resellers'
-  commissions; they are **non-real money** (§4, *Line amounts*).
+- Like coupons, points are **non-real money** (§4, *Line amounts*): an order that used any points
+  earns its reseller **no commission at all** (§5, rules of 16 Nov 2026).
 
 Settings (`/bo/loyalty/settings/`): `points_enabled` (off by default), `points_percent` (0.01–50,
 default 1.00), `points_validity_months` (1–60, default 12). The cashback settings for members only,

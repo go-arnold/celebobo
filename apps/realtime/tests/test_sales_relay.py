@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 import pytest
 from rest_framework.test import APIClient
 
@@ -17,7 +15,7 @@ pytestmark = pytest.mark.django_db(transaction=True)
 
 
 def test_sales_commissions_and_payouts_are_pushed(broadcaster):
-    reseller = ResellerFactory.create(commission_rate=Decimal("0.100"))
+    reseller = ResellerFactory.create()
     product = ProductFactory.create(stock=5)
 
     authenticated(reseller).post(

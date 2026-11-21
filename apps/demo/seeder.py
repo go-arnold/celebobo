@@ -408,9 +408,6 @@ class DemoSeeder:
                 first_name=person.first_name,
                 last_name=person.last_name,
                 phone_number=person.phone,
-                commission_rate=self._random.choice(
-                    (Decimal("0.070"), Decimal("0.080"), Decimal("0.100"))
-                ),
                 manager_id=self._random.choice(managers).pk,
             ),
         )

@@ -17,9 +17,7 @@ SALES = "/api/v1/bo/sales/"
 
 @pytest.fixture
 def reseller(db) -> User:
-    return ResellerFactory.create(
-        first_name="Patrick", last_name="Kabasele", commission_rate=Decimal("0.100")
-    )
+    return ResellerFactory.create(first_name="Patrick", last_name="Kabasele")
 
 
 @pytest.fixture

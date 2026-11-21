@@ -21,8 +21,13 @@ Unpublished pages and FAQ entries are visible only in the back-office.
 **Policies.** The five policies are pages, loaded once by a migration from `apps/content/policies/*.md`
 (a page that already exists is never overwritten), then edited in the back-office:
 `politique-de-confidentialite` (0.9.2), `politique-de-livraison` (0.9.2), `garantie-et-retours`,
-`programme-de-fidelite`, `politique-revendeurs` (0.9.1). The site footer links to them. When a policy
+`programme-de-fidelite`, `politique-revendeurs` (0.9.2). The site footer links to them. When a policy
 changes, staff update its text, version and effective date together.
+
+The reseller policy went from 0.9.1 to 0.9.2 to match the commission rules (50 % of the margin, nothing on
+an order paid even partly with points or a coupon; see 05-sales-commissions). Migration
+`content/0007_reseller_policy_0_9_2` replaces the page only if it still holds the untouched 0.9.1 text;
+a page edited in the back-office is left for staff to update.
 
 ## Site settings (`settings.manage`, admin)
 

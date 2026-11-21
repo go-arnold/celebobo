@@ -48,13 +48,13 @@ class CommissionRepository:
         total = CommissionEntry.objects.filter(sale=sale).aggregate(total=Sum("amount"))["total"]
         return Decimal(total or 0)
 
-    def earned_rate(self, sale: Sale) -> Decimal | None:
-        entry = (
+    # the commission currently earned: a price edit voids it and earns a new one
+    def last_earned(self, sale: Sale) -> CommissionEntry | None:
+        return (
             CommissionEntry.objects.filter(sale=sale, kind=CommissionKind.EARNED.value)
-            .order_by("pk")
+            .order_by("-pk")
             .first()
         )
-        return entry.rate if entry else None
 
     def balance(self, reseller_id: int) -> Decimal:
         earned = CommissionEntry.objects.filter(reseller_id=reseller_id).aggregate(

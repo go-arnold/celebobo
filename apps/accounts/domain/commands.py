@@ -1,6 +1,5 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from decimal import Decimal
 
 from apps.accounts.domain.enums import (
     AddressLabel,
@@ -79,13 +78,11 @@ class OnboardReseller:
     first_name: str
     last_name: str
     phone_number: str | None = None
-    commission_rate: Decimal | None = None
     manager_id: int | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ResellerChanges:
-    commission_rate: Maybe[Decimal] = UNSET
     manager_id: Maybe[int | None] = UNSET
 
 

@@ -85,7 +85,7 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `shipping.manage` | Shipping zones | | | | ✓ | ✓ |
 | `coupons.manage` | Coupons | | | | ✓ | ✓ |
 | `presence.view` | Who is online | | | | ✓ | ✓ |
-| `resellers.view` / `resellers.manage` | Reseller list, rate, manager, activation | | | | ✓ | ✓ |
+| `resellers.view` / `resellers.manage` | Reseller list, manager, activation | | | | ✓ | ✓ |
 | `reseller_applications.review` | Approve / reject applications | | | | ✓ | ✓ |
 | `sales.view.all` / `sales.edit.all` | Every sale | | | | ✓ | ✓ |
 | `sales.refund` | Refund or return a sale | | | | ✓ | ✓ |

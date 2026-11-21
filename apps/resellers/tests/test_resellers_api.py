@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 import pytest
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -45,7 +43,7 @@ class TestDirectory:
         (row,) = body["results"]
         assert row["name"] == "Patrick Kabasele"
         assert row["referral_code"] == "4821"
-        assert row["commission_rate"] == "0.100"
+        assert "commission_rate" not in row
         assert row["invited_count"] == 1
         assert row["is_active"] is True
         assert row["performance"] == {
@@ -98,7 +96,7 @@ class TestDirectory:
 
 
 class TestManagement:
-    def test_updates_rate_and_manager(self, as_user, manager, reseller, published_events):
+    def test_updates_the_manager(self, as_user, manager, reseller, published_events):
         response = as_user(manager).patch(
             f"{BO}{reseller.pk}/",
             {"commission_rate": "0.150", "manager_id": manager.pk},
@@ -106,10 +104,10 @@ class TestManagement:
         )
 
         assert response.status_code == 200
-        assert response.json()["commission_rate"] == "0.150"
+        assert "commission_rate" not in response.json()
         assert response.json()["manager"] == {"id": manager.pk, "name": "Joël Mpiana"}
         updated = next(e for e in published_events.events if isinstance(e, ResellerUpdated))
-        assert set(updated.fields) == {"commission_rate", "manager_id"}
+        assert set(updated.fields) == {"manager_id"}
 
     def test_clearing_the_manager_and_validation(self, as_user, manager, reseller, shopper):
         reseller.manager = manager
@@ -118,11 +116,9 @@ class TestManagement:
 
         cleared = api.patch(f"{BO}{reseller.pk}/", {"manager_id": None}, format="json")
         bad_manager = api.patch(f"{BO}{reseller.pk}/", {"manager_id": shopper.pk}, format="json")
-        bad_rate = api.patch(f"{BO}{reseller.pk}/", {"commission_rate": "0.9"}, format="json")
 
         assert cleared.json()["manager"] is None
         assert bad_manager.status_code == 400
-        assert bad_rate.status_code == 400
 
     def test_deactivation_revokes_sessions(self, as_user, manager, reseller, published_events):
         RefreshToken.for_user(reseller)
@@ -166,11 +162,11 @@ class TestManagement:
         assert rows[invited.pk]["orders_count"] == 1
         assert rows[invited.pk]["orders_total"] == "122.98"
 
-    def test_commission_changes_need_manager_rights(self, as_user, reseller):
+    def test_changes_need_manager_rights(self, as_user, manager, reseller):
         response = as_user(reseller).patch(
-            f"{BO}{reseller.pk}/", {"commission_rate": "0.500"}, format="json"
+            f"{BO}{reseller.pk}/", {"manager_id": manager.pk}, format="json"
         )
 
         assert response.status_code == 403
         reseller.refresh_from_db()
-        assert reseller.commission_rate == Decimal("0.100")
+        assert reseller.manager_id is None
