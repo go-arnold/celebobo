@@ -1,10 +1,10 @@
 from celery import shared_task
 
-from apps.loyalty.facades import CashbackFacade, MembershipFacade
+from apps.loyalty.facades import MembershipFacade, PointsFacade
 from core.container import container
 
 REMIND_TASK = "loyalty.remind_memberships"
-EXPIRE_TASK = "loyalty.expire_cashback"
+EXPIRE_TASK = "loyalty.expire_points"
 
 
 @shared_task(name=REMIND_TASK)
@@ -13,5 +13,5 @@ def remind_memberships() -> None:
 
 
 @shared_task(name=EXPIRE_TASK)
-def expire_cashback() -> None:
-    container.resolve(CashbackFacade).expire()
+def expire_points() -> None:
+    container.resolve(PointsFacade).expire()

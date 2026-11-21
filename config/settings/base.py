@@ -408,8 +408,8 @@ CELERY_BEAT_SCHEDULE = {
         "task": "messaging.close_expired_threads",
         "schedule": 60 * 60,
     },
-    "expire-cashback": {
-        "task": "loyalty.expire_cashback",
+    "expire-points": {
+        "task": "loyalty.expire_points",
         "schedule": 24 * 60 * 60,
     },
     "remind-memberships": {

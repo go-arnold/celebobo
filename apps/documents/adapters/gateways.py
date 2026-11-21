@@ -30,6 +30,8 @@ from apps.catalog.selectors import (
 from apps.documents.conf import document_settings
 from apps.documents.domain.tables import RenderedFile
 from apps.documents.models import DeliveryReceipt
+from apps.loyalty.domain.points import InvoiceStatement
+from apps.loyalty.facades import PointsFacade
 from apps.orders.domain.read_models import OrderDetail
 from apps.orders.selectors import OrderSelector
 from apps.sales.domain.commands import SaleFilters
@@ -142,3 +144,8 @@ class EmailReceiptMailer:
             },
             attachments=[(pdf.filename, pdf.content, pdf.content_type)],
         )
+
+
+class LoyaltyPointsStatements:
+    def statement(self, client_id: int, order_id: int) -> InvoiceStatement | None:
+        return container.resolve(PointsFacade).invoice_statement(client_id, order_id)

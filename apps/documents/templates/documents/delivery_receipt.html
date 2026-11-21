@@ -33,7 +33,7 @@
   <tfoot>
     <tr><td colspan="3" class="num">Sous-total</td><td class="num">{{ receipt.subtotal }} $</td></tr>
     {% if receipt.discount != "0.00" %}<tr><td colspan="3" class="num">Remise</td><td class="num">-{{ receipt.discount }} $</td></tr>{% endif %}
-    {% if receipt.cashback != "0.00" %}<tr><td colspan="3" class="num">Cagnotte</td><td class="num">-{{ receipt.cashback }} $</td></tr>{% endif %}
+    {% with used=receipt.points|default:receipt.cashback|default:"0.00" %}{% if used != "0.00" %}<tr><td colspan="3" class="num">Points de fidélité</td><td class="num">-{{ used }} $</td></tr>{% endif %}{% endwith %}
     <tr><td colspan="3" class="num">Livraison</td><td class="num">{{ receipt.shipping_fee }} $</td></tr>
     <tr class="totals"><td colspan="3" class="num">Total payé</td><td class="num">{{ receipt.total }} $</td></tr>
   </tfoot>

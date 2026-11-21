@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 from django_stubs_ext import StrPromise
@@ -63,7 +64,10 @@ class QuoteInput(serializers.Serializer[Any]):
 class QuoteRequestInput(QuoteInput):
     city = serializers.CharField(max_length=120, required=False, allow_blank=True)
     coupon_code = serializers.CharField(max_length=40, required=False, allow_blank=True)
-    use_cashback = serializers.BooleanField(required=False, default=False)
+    # how many points the client wants to use (1 point = $1), up to their balance and the items
+    points = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=Decimal(0), required=False, default=Decimal(0)
+    )
     pickup = serializers.BooleanField(required=False, default=False)
 
 
@@ -89,7 +93,9 @@ class PlaceOrderInput(QuoteInput):
     )
     address = DeliveryAddressInput(required=False, allow_null=True)
     note = serializers.CharField(max_length=1000, required=False, allow_blank=True, default="")
-    use_cashback = serializers.BooleanField(required=False, default=False)
+    points = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=Decimal(0), required=False, default=Decimal(0)
+    )
     pickup = serializers.BooleanField(required=False, default=False)
 
     def validate_payment_method(self, value: str) -> PaymentMethod:
@@ -236,8 +242,8 @@ class QuoteOutput(serializers.Serializer[Any]):
     coupon_code = serializers.CharField(allow_null=True)
     coupon_error = serializers.CharField(allow_null=True)
     member_free_shipping = serializers.BooleanField()
-    cashback = serializers.DecimalField(max_digits=10, decimal_places=2)
-    cashback_available = serializers.DecimalField(max_digits=10, decimal_places=2)
+    points = serializers.DecimalField(max_digits=10, decimal_places=2)
+    points_available = serializers.DecimalField(max_digits=10, decimal_places=2)
     delivery_method = serializers.CharField()
     pickup_address = serializers.CharField()
     shipping_quote_required = serializers.BooleanField()
@@ -284,9 +290,9 @@ class OrderLineOutput(serializers.Serializer[Any]):
     quantity = serializers.IntegerField()
     unit_price = serializers.DecimalField(max_digits=10, decimal_places=2)
     total = serializers.DecimalField(max_digits=10, decimal_places=2)
-    # the line's share of the order's coupon and cashback, and the real money paid for it
+    # the line's share of the order's coupon and points, and the real money paid for it
     discount = serializers.DecimalField(max_digits=10, decimal_places=2)
-    cashback = serializers.DecimalField(max_digits=10, decimal_places=2)
+    points = serializers.DecimalField(max_digits=10, decimal_places=2)
     amount_paid = serializers.DecimalField(max_digits=10, decimal_places=2)
     # units given back after delivery and the real money owed back for them
     returned_quantity = serializers.IntegerField()
@@ -332,8 +338,8 @@ class OrderDetailOutput(serializers.Serializer[Any]):
     pickup_address = serializers.CharField()
     delivery_estimate = serializers.CharField()
     awaiting_shipping_quote = serializers.BooleanField()
-    cashback = serializers.DecimalField(max_digits=10, decimal_places=2)
-    cashback_earned = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    points = serializers.DecimalField(max_digits=10, decimal_places=2)
+    points_earned = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
     cancel_reason = serializers.CharField()
     refund_due = serializers.DecimalField(max_digits=10, decimal_places=2)
     refunded_at = serializers.DateTimeField(allow_null=True)

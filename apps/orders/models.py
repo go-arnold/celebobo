@@ -108,8 +108,8 @@ class Order(models.Model):
     coupon_code = models.CharField(max_length=40, blank=True)
     shipping_zone = models.CharField(max_length=80, blank=True)
     shipping_fee = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
-    # paid from the client's cashback balance, deducted like a discount
-    cashback = models.DecimalField(
+    # paid from the client's points balance, deducted like a discount
+    points = models.DecimalField(
         max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
     )
     total = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
@@ -144,7 +144,7 @@ class Order(models.Model):
                 condition=models.Q(
                     total=models.F("subtotal")
                     - models.F("discount")
-                    - models.F("cashback")
+                    - models.F("points")
                     + models.F("shipping_fee")
                 ),
                 name="orders_order_total_consistent",
@@ -181,12 +181,12 @@ class OrderItem(models.Model):
     quantity = models.PositiveSmallIntegerField()
     unit_price = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     list_unit_price = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
-    # the order's coupon and cashback spread over its lines (non-real money), and what is left:
+    # the order's coupon and points spread over its lines (non-real money), and what is left:
     # the real money paid for this line, shipping excluded
     discount = models.DecimalField(
         max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
     )
-    cashback = models.DecimalField(
+    points = models.DecimalField(
         max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
     )
     amount_paid = models.DecimalField(
@@ -205,14 +205,14 @@ class OrderItem(models.Model):
                 name="orders_item_returned_within_quantity",
             ),
             models.CheckConstraint(
-                condition=models.Q(discount__gte=0, cashback__gte=0, amount_paid__gte=0),
+                condition=models.Q(discount__gte=0, points__gte=0, amount_paid__gte=0),
                 name="orders_item_amounts_positive",
             ),
             models.CheckConstraint(
                 condition=models.Q(
                     amount_paid=models.F("unit_price") * models.F("quantity")
                     - models.F("discount")
-                    - models.F("cashback")
+                    - models.F("points")
                 ),
                 name="orders_item_paid_consistent",
             ),
@@ -227,8 +227,8 @@ class OrderItem(models.Model):
 
     @property
     def non_cash(self) -> Decimal:
-        # paid with something other than money (coupon, cashback); commissions skip such lines
-        return self.discount + self.cashback
+        # paid with something other than money (coupon, points); commissions skip such lines
+        return self.discount + self.points
 
 
 class OrderLineReturn(models.Model):
@@ -240,7 +240,7 @@ class OrderLineReturn(models.Model):
     # real money owed back to the client, and the non-real money that went with these units
     amount_paid = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     discount = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
-    cashback = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
+    points = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     reason = models.CharField(max_length=500, blank=True)
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"

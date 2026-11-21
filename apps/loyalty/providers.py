@@ -7,17 +7,17 @@ from apps.loyalty.adapters.gateways import (
     LoyaltyWallet,
     OrdersLedger,
 )
-from apps.loyalty.facades import CashbackFacade, LoyaltyFacade, MembershipFacade
+from apps.loyalty.facades import LoyaltyFacade, MembershipFacade, PointsFacade
 from apps.loyalty.repositories import (
-    CashbackRepository,
     LoyaltySettingsRepository,
     MembershipRepository,
     MembershipRequestRepository,
+    PointsRepository,
 )
 from apps.loyalty.selectors import MembershipSelector
-from apps.loyalty.services.cashback import CashbackService
 from apps.loyalty.services.contracts import OrderLedger, People, ReturnPolicy
 from apps.loyalty.services.membership import MembershipService
+from apps.loyalty.services.points import PointsService
 from apps.loyalty.services.settings import LoyaltySettingsService
 from apps.orders.services.contracts import Members, Wallet
 from core.container import Container, Lifetime
@@ -30,7 +30,7 @@ def register(container: Container) -> None:
     container.register(Wallet, lambda _: LoyaltyWallet(), replace=True)
     container.register(OrderLedger, lambda _: OrdersLedger())
     container.register(ReturnPolicy, lambda _: ContentReturnPolicy())
-    container.register(CashbackFacade, _cashback_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(PointsFacade, _points_facade, lifetime=Lifetime.TRANSIENT)
     container.register(LoyaltyFacade, _loyalty_facade, lifetime=Lifetime.TRANSIENT)
     container.register(MembershipFacade, _membership_facade, lifetime=Lifetime.TRANSIENT)
 
@@ -59,10 +59,10 @@ def _membership_facade(container: Container) -> MembershipFacade:
     )
 
 
-def _cashback_facade(container: Container) -> CashbackFacade:
-    return CashbackFacade(
-        cashback=CashbackService(
-            CashbackRepository(),
+def _points_facade(container: Container) -> PointsFacade:
+    return PointsFacade(
+        points=PointsService(
+            PointsRepository(),
             LoyaltySettingsRepository(),
             MembershipRepository(),
             container.resolve(OrderLedger),

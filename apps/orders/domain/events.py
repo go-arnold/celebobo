@@ -49,10 +49,10 @@ class OrderLineReturned(DomainEvent):
     order_id: int
     item_id: int
     quantity: int
-    # the returned units' share of the line amounts: real money, coupon, cashback
+    # the returned units' share of the line amounts: real money, coupon, points
     amount_paid: Decimal
     discount: Decimal
-    cashback: Decimal
+    points: Decimal
 
 
 @domain_event

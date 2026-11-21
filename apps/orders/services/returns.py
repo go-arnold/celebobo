@@ -27,7 +27,7 @@ class LineReturnService:
         self._inventory = inventory
 
     # some units of one line come back after delivery: stock is released and the return keeps
-    # its share of the line amounts, which sales and cashback follow
+    # its share of the line amounts, which sales and points follow
     def return_line(
         self, order: Order, item_id: int, actor: Actor, command: ReturnLine
     ) -> LineReturned:
@@ -40,7 +40,7 @@ class LineReturnService:
         if not 1 <= command.quantity <= remaining:
             raise InvalidReturnQuantity(remaining)
         share = returned_amounts(
-            LineAmounts(discount=item.discount, cashback=item.cashback, paid=item.amount_paid),
+            LineAmounts(discount=item.discount, points=item.points, paid=item.amount_paid),
             quantity=item.quantity,
             returned=item.returned_quantity,
             returning=command.quantity,
@@ -52,7 +52,7 @@ class LineReturnService:
             quantity=command.quantity,
             amount_paid=share.paid,
             discount=share.discount,
-            cashback=share.cashback,
+            points=share.points,
             reason=" ".join(command.reason.split())[:500],
             actor_id=actor.user_id,
         )

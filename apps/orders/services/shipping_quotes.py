@@ -41,7 +41,7 @@ class ShippingQuoteService:
             raise InvalidShippingQuote
         order = self._load(order_id, for_update=True)
         order.shipping_fee = fee
-        order.total = order.subtotal - order.discount - order.cashback + fee
+        order.total = order.subtotal - order.discount - order.points + fee
         order.delivery_estimate = delivery_estimate or order.delivery_estimate
         order.awaiting_shipping_quote = False
         self._orders.save(

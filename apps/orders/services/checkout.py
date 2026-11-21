@@ -46,7 +46,7 @@ class CheckoutService:
                 user_id=client_id,
                 strict=True,
                 lock=True,
-                use_cashback=command.use_cashback,
+                points=command.points,
                 pickup=command.pickup,
             ),
         )
@@ -68,14 +68,14 @@ class CheckoutService:
             note=" ".join(command.note.split()),
             subtotal=quote.subtotal,
             discount=quote.discount,
-            cashback=quote.cashback,
+            points=quote.points,
             coupon_code=quote.coupon_code or "",
             shipping_zone=quote.shipping_zone,
             shipping_fee=quote.shipping_fee,
             total=quote.total,
         )
-        if quote.cashback:
-            self._wallet.spend(client_id, order.pk, quote.cashback)
+        if quote.points:
+            self._wallet.spend(client_id, order.pk, quote.points)
         if priced_quote.coupon is not None:
             self._coupons.redeem(
                 priced_quote.coupon, order, user_id=client_id, amount=quote.discount
@@ -83,7 +83,7 @@ class CheckoutService:
         amounts = line_amounts(
             [line.unit_price * line.quantity for line in priced],
             discount=quote.discount,
-            cashback=quote.cashback,
+            points=quote.points,
         )
         self._orders.add_items(
             order,
@@ -100,7 +100,7 @@ class CheckoutService:
                     "list_unit_price": line.unit_price,
                     "deal_id": line.deal_id,
                     "discount": share.discount,
-                    "cashback": share.cashback,
+                    "points": share.points,
                     "amount_paid": share.paid,
                 }
                 for line, share in zip(priced, amounts, strict=True)

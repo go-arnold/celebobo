@@ -32,7 +32,8 @@ class PlaceOrder:
     address: DeliveryAddress | None = None
     note: str = ""
     coupon_code: str | None = None
-    use_cashback: bool = False
+    # points the client chooses to use (1 point = $1)
+    points: Decimal = Decimal(0)
     # collected at the shop: the address only gives the contact details
     pickup: bool = False
 

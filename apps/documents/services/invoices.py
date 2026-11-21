@@ -4,7 +4,7 @@ from django.utils import timezone
 
 from apps.documents.domain.errors import InvoiceUnavailable
 from apps.documents.domain.tables import RenderedFile
-from apps.documents.services.contracts import PdfRenderer
+from apps.documents.services.contracts import PdfRenderer, PointsStatements
 from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.read_models import OrderDetail
 
@@ -12,16 +12,25 @@ INVOICE_TEMPLATE = "documents/invoice.html"
 
 
 class InvoiceBuilder:
-    def __init__(self, renderer: PdfRenderer, branding: Mapping[str, str]) -> None:
+    def __init__(
+        self, renderer: PdfRenderer, branding: Mapping[str, str], points: PointsStatements
+    ) -> None:
         self._renderer = renderer
         self._branding = branding
+        self._points = points
 
     def build(self, order: OrderDetail) -> RenderedFile:
         if order.summary.status is OrderStatus.CANCELLED:
             raise InvoiceUnavailable
         content = self._renderer.render(
             INVOICE_TEMPLATE,
-            {"order": order, "issued_at": timezone.localtime(), **self._branding},
+            {
+                "order": order,
+                "issued_at": timezone.localtime(),
+                # the client's points statement, printed on each invoice (loyalty policy)
+                "points": self._points.statement(order.client.id, order.summary.id),
+                **self._branding,
+            },
         )
         return RenderedFile(
             content=content,

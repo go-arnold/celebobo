@@ -4,8 +4,8 @@ from apps.loyalty.api.v1.views import (
     LoyaltySettingsViewSet,
     MemberAdminViewSet,
     MembershipRequestAdminViewSet,
-    MyCashbackViewSet,
     MyMembershipViewSet,
+    MyPointsViewSet,
 )
 
 urlpatterns = [
@@ -14,7 +14,7 @@ urlpatterns = [
         LoyaltySettingsViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
         name="bo-loyalty-settings",
     ),
-    path("me/cashback/", MyCashbackViewSet.as_view({"get": "retrieve"}), name="my-cashback"),
+    path("me/points/", MyPointsViewSet.as_view({"get": "retrieve"}), name="my-points"),
     path("me/membership/", MyMembershipViewSet.as_view({"get": "retrieve"}), name="my-membership"),
     path(
         "me/membership/trial/",

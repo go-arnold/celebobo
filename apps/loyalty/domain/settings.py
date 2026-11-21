@@ -14,12 +14,9 @@ class MembershipTerms:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class CashbackTerms:
+class PointsTerms:
     enabled: bool
-    members_only: bool
     percent: Decimal
-    max_share: int
-    min_balance: Decimal
     validity_months: int
 
 
@@ -32,7 +29,7 @@ class AppLinks:
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Programmes:
     membership: MembershipTerms
-    cashback: CashbackTerms
+    points: PointsTerms
     app_links: AppLinks
 
 
@@ -43,11 +40,8 @@ class LoyaltySettingsChanges:
     membership_yearly_price: Maybe[Decimal] = UNSET
     membership_trial_days: Maybe[int] = UNSET
     membership_reminder_days: Maybe[int] = UNSET
-    cashback_enabled: Maybe[bool] = UNSET
-    cashback_members_only: Maybe[bool] = UNSET
-    cashback_percent: Maybe[Decimal] = UNSET
-    cashback_max_share: Maybe[int] = UNSET
-    cashback_min_balance: Maybe[Decimal] = UNSET
-    cashback_validity_months: Maybe[int] = UNSET
+    points_enabled: Maybe[bool] = UNSET
+    points_percent: Maybe[Decimal] = UNSET
+    points_validity_months: Maybe[int] = UNSET
     app_store_url: Maybe[str] = UNSET
     play_store_url: Maybe[str] = UNSET

@@ -12,6 +12,7 @@ from apps.catalog.domain.backoffice import AdminProductRow
 from apps.catalog.domain.management import ProductChanges, ProductDraft
 from apps.documents.domain.tables import RenderedFile, Table
 from apps.documents.models import DeliveryReceipt
+from apps.loyalty.domain.points import InvoiceStatement
 from apps.orders.domain.read_models import OrderDetail
 from apps.sales.domain.commands import SaleFilters
 from apps.sales.domain.read_models import SaleView
@@ -81,3 +82,7 @@ class ReceiptMailer(Protocol):
 
 class QrCode(Protocol):
     def data_uri(self, content: str) -> str: ...
+
+
+class PointsStatements(Protocol):
+    def statement(self, client_id: int, order_id: int) -> InvoiceStatement | None: ...
