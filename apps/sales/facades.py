@@ -250,15 +250,11 @@ class CommissionFacade:
 
     def summary(self, actor: Actor, reseller_id: int | None) -> CommissionSummary:
         reseller = self._reseller(actor, reseller_id)
-        return self._selector.summary(
-            PersonRef(id=reseller.id, name=reseller.name), reseller.commission_rate
-        )
+        return self._selector.summary(PersonRef(id=reseller.id, name=reseller.name))
 
     def overview(self) -> list[CommissionSummary]:
         return [
-            self._selector.summary(
-                PersonRef(id=reseller.id, name=reseller.name), reseller.commission_rate
-            )
+            self._selector.summary(PersonRef(id=reseller.id, name=reseller.name))
             for reseller in self._sellers.resellers()
         ]
 

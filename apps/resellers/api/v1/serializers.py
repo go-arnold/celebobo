@@ -1,9 +1,8 @@
-from decimal import Decimal
 from typing import Any
 
 from rest_framework import serializers
 
-from apps.accounts.domain.enums import MAX_COMMISSION_RATE, ResellerOrdering
+from apps.accounts.domain.enums import ResellerOrdering
 from apps.resellers.domain.enums import ApplicationStatus
 from core.api.fields import MAX_INTEGER
 
@@ -12,10 +11,6 @@ PHONE_PATTERN = r"^\+?[\d\s().-]{7,20}$"
 
 def money(**options: Any) -> serializers.DecimalField:
     return serializers.DecimalField(max_digits=12, decimal_places=2, **options)
-
-
-def rate(**options: Any) -> serializers.DecimalField:
-    return serializers.DecimalField(max_digits=4, decimal_places=3, **options)
 
 
 class SubmitApplicationInput(serializers.Serializer[Any]):
@@ -40,9 +35,6 @@ class ApplicationFiltersInput(serializers.Serializer[Any]):
 
 
 class ApproveApplicationInput(serializers.Serializer[Any]):
-    commission_rate = rate(
-        min_value=Decimal(0), max_value=MAX_COMMISSION_RATE, required=False, allow_null=True
-    )
     manager_id = serializers.IntegerField(
         min_value=1, required=False, allow_null=True, max_value=MAX_INTEGER
     )
@@ -65,7 +57,6 @@ class ResellerFiltersInput(serializers.Serializer[Any]):
 
 
 class ResellerChangesInput(serializers.Serializer[Any]):
-    commission_rate = rate(min_value=Decimal(0), max_value=MAX_COMMISSION_RATE)
     manager_id = serializers.IntegerField(min_value=1, allow_null=True, max_value=MAX_INTEGER)
 
 
@@ -113,7 +104,6 @@ class ResellerOutput(serializers.Serializer[Any]):
     phone_number = serializers.CharField(source="account.phone_number", allow_null=True)
     avatar = serializers.CharField(source="account.avatar")
     referral_code = serializers.CharField(source="account.referral_code", allow_null=True)
-    commission_rate = rate(source="account.commission_rate")
     availability = serializers.CharField(source="account.availability.value")
     is_active = serializers.BooleanField(source="account.is_active")
     manager = ResellerPersonOutput(source="account.manager", allow_null=True)

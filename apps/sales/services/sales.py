@@ -82,6 +82,7 @@ class SaleService:
             payment_method=command.payment_method.value,
             recorded_by_id=actor.user_id,
             sold_at=sold_at,
+            commissionable=self._commissions.eligible(seller_id, command.buyer_id),
         )
         self._inventory.reserve(
             [
@@ -117,6 +118,10 @@ class SaleService:
         seller_id = order.reseller_id or actor.user_id
         if seller_id is None:
             raise SellerRequired
+        # nothing at all on an order that used points or a coupon, nor on the reseller's own order
+        commissionable = self._commissions.eligible(
+            seller_id, order.client_id, real_money=order.real_money_only
+        )
         outcome = SaleOutcome([])
         for item in order.items:
             if item.product_id is None:
@@ -141,6 +146,7 @@ class SaleService:
                 order_item_id=item.id,
                 recorded_by_id=actor.user_id,
                 sold_at=sold_at,
+                commissionable=commissionable,
             )
             self._inventory.count_sales(item.product_id, item.quantity, actor_id=actor.user_id)
             outcome.sales.append(sale)

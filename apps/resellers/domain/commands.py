@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from decimal import Decimal
 
 from apps.resellers.domain.enums import ApplicationStatus
 
@@ -16,7 +15,6 @@ class SubmitApplication:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ApproveApplication:
-    commission_rate: Decimal | None = None
     manager_id: int | None = None
 
 

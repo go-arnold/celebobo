@@ -452,6 +452,8 @@ def _convertible(order: Order, *, staff: bool) -> ConvertibleOrder:
         payment_method=PaymentMethod(order.payment_method),
         total=order.total,
         created_at=order.created_at,
+        discount=order.discount,
+        points=order.points,
         items=tuple(
             ConvertibleItem(
                 id=item.pk,

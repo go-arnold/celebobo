@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from apps.orders.domain.enums import PaymentMethod
 from apps.sales.domain.commands import SaleFilters
-from apps.sales.domain.enums import CommissionKind, RefundKind, SaleStatus
+from apps.sales.domain.enums import CommissionKind, CommissionRule, RefundKind, SaleStatus
 from apps.sales.domain.errors import SaleNotFound
 from apps.sales.domain.read_models import (
     CommissionEntryView,
@@ -112,14 +112,13 @@ class CommissionSelector:
     def __init__(self, *, clock: Callable[[], datetime] = timezone.now) -> None:
         self._clock = clock
 
-    def summary(self, reseller: PersonRef, rate: Decimal) -> CommissionSummary:
+    def summary(self, reseller: PersonRef) -> CommissionSummary:
         entries = CommissionEntry.objects.filter(reseller_id=reseller.id)
         month_start = self._clock().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         earned_total = _sum(entries, "amount")
         paid_total = _sum(Payout.objects.filter(reseller_id=reseller.id), "amount")
         return CommissionSummary(
             reseller=reseller,
-            rate=rate,
             earned_this_month=_sum(entries.filter(created_at__gte=month_start), "amount"),
             earned_total=earned_total,
             paid_total=paid_total,
@@ -249,7 +248,7 @@ def _entry_view(entry: CommissionEntry) -> CommissionEntryView:
         id=entry.pk,
         kind=CommissionKind(entry.kind),
         sale_id=entry.sale_id,
-        rate=entry.rate,
+        rule=CommissionRule(entry.rule),
         base_amount=entry.base_amount,
         amount=entry.amount,
         created_at=entry.created_at,

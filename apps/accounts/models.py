@@ -1,14 +1,12 @@
-from decimal import Decimal
 from typing import ClassVar
 
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
+from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.functions import Lower
 
 from apps.accounts.domain.enums import (
     ACCOUNT_ROLES,
-    MAX_COMMISSION_RATE,
     ROLE_LABELS,
     AddressLabel,
     Availability,
@@ -19,7 +17,6 @@ from core.domain.actor import Role
 ROLE_CHOICES = [(role.value, ROLE_LABELS[role]) for role in ACCOUNT_ROLES]
 AVAILABILITY_CHOICES = [(item.value, item.label) for item in Availability]
 ADDRESS_LABEL_CHOICES = [(item.value, item.label) for item in AddressLabel]
-DEFAULT_COMMISSION_RATE = Decimal("0.070")
 
 
 class User(AbstractUser):
@@ -61,13 +58,6 @@ class User(AbstractUser):
         choices=AVAILABILITY_CHOICES,
         default=Availability.OFFLINE.value,
     )
-    commission_rate = models.DecimalField(
-        "taux de commission",
-        max_digits=4,
-        decimal_places=3,
-        default=DEFAULT_COMMISSION_RATE,
-        validators=[MinValueValidator(Decimal(0)), MaxValueValidator(MAX_COMMISSION_RATE)],
-    )
     manager = models.ForeignKey(
         "self",
         verbose_name="responsable",
@@ -90,11 +80,6 @@ class User(AbstractUser):
         ordering = ("-date_joined",)
         constraints = (
             models.UniqueConstraint(Lower("email"), name="accounts_user_email_ci_unique"),
-            models.CheckConstraint(
-                condition=models.Q(commission_rate__gte=0)
-                & models.Q(commission_rate__lte=MAX_COMMISSION_RATE),
-                name="accounts_user_commission_rate_range",
-            ),
         )
 
     def __str__(self) -> str:

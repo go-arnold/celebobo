@@ -225,11 +225,6 @@ class OrderItem(models.Model):
     def total(self) -> Decimal:
         return self.unit_price * self.quantity
 
-    @property
-    def non_cash(self) -> Decimal:
-        # paid with something other than money (coupon, points); commissions skip such lines
-        return self.discount + self.points
-
 
 class OrderLineReturn(models.Model):
     """Units of one line given back after delivery, with their share of the line amounts."""

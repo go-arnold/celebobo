@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 import pytest
 from allauth.account.models import EmailAddress
 
@@ -88,7 +86,7 @@ class TestReview:
     ):
         response = as_user(manager).post(
             f"{BO}{application.pk}/approve/",
-            {"commission_rate": "0.120", "manager_id": manager.pk},
+            {"manager_id": manager.pk},
             format="json",
         )
 
@@ -100,7 +98,6 @@ class TestReview:
         assert user.role == "reseller"
         assert user.email == "grace.ilunga@example.com"
         assert user.phone_number == "+243 82 555 0101"
-        assert user.commission_rate == Decimal("0.120")
         assert user.manager_id == manager.pk
         assert user.referral_code is not None
         assert len(user.referral_code) == 4
@@ -117,7 +114,6 @@ class TestReview:
 
         shopper.refresh_from_db()
         assert shopper.role == "reseller"
-        assert shopper.commission_rate == Decimal("0.070")
         assert shopper.has_usable_password()
 
     def test_staff_emails_cannot_be_approved(self, as_user, manager, api):

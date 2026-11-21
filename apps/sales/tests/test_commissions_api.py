@@ -32,7 +32,7 @@ class TestSummary:
         body = as_user(earned).get(f"{COMMISSIONS}summary/").json()
 
         assert body["reseller"]["id"] == earned.pk
-        assert body["rate"] == "0.100"
+        assert "rate" not in body
         assert body["earned_this_month"] == "20.00"
         assert body["earned_total"] == "20.00"
         assert body["paid_total"] == "0.00"
@@ -65,6 +65,8 @@ class TestSummary:
         assert entries["meta"]["count"] == 1
         assert entries["results"][0]["kind"] == "earned"
         assert entries["results"][0]["base_amount"] == "200.00"
+        assert entries["results"][0]["rule"] == "paid"
+        assert "rate" not in entries["results"][0]
         assert len(series) == 6
         assert series[-1]["earned"] == "20.00"
         assert [row["reseller"]["id"] for row in overview] == [earned.pk]

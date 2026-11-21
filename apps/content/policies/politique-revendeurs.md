@@ -1,18 +1,18 @@
 ---
 title: Politique de gestion des revendeurs
 summary: Devenir revendeur Celebobo : rémunérations, engagements, encaissement et sanctions.
-version: 0.9.1
+version: 0.9.2
 effective_on: 2026-12-12
 position: 5
 ---
 
 ## En résumé
 
-Un revendeur Celebobo gagne de trois façons. Chaque gain est calculé sur le montant réellement dépensé par le client (prix des articles après remises et points, hors frais de livraison). Il est perdu si la vente est remboursée.
+Un revendeur Celebobo gagne de trois façons. Chaque gain est calculé sur le prix des articles payé par le client en argent réel (espèces ou Mobile Money, prix promotionnels compris, hors frais de livraison). Une commande payée même en partie avec des points de fidélité ou un coupon ne rapporte ni prime ni point de parrainage. Le gain est perdu si la vente est remboursée.
 
 | Source de gain | Montant | Exemple sur une vente de 100 $ |
 |---|---|---|
-| Vente d’un produit du stock central Celebobo | Le plus petit montant entre 10 % de la vente et 25 % de la marge brute du produit | Marge de 15 $ : prime de 3,75 $ |
+| Vente d’un produit du stock central Celebobo | Le plus petit montant entre 10 % de la vente et 50 % de la marge brute du produit | Marge de 15 $ : prime de 7,50 $ |
 | Vente d’un produit d’un partenaire (habillement, boissons, hébergement…) | Le plus petit montant entre 10 % de la vente et 20 % de la commission Celebobo | Commission de 15 $ : prime de 3 $ |
 | Achat payé par un client que le revendeur a invité avec son code | Points de parrainage égaux à 0,3 % de la facture, utilisables uniquement pour acheter sur le site | 0,30 point (= 0,30 $ d’achat) |
 
@@ -40,21 +40,23 @@ L’inscription est gratuite. Aucun stock à acheter, aucune caution à verser p
 
 ## 3. Comment le revendeur est rémunéré
 
-**Base de calcul, pour toutes les rémunérations : le montant réellement dépensé par le client.** C’est le prix des articles après remises, promotions et points de fidélité utilisés. Les frais de livraison n’en font pas partie.
+**Base de calcul, pour toutes les rémunérations : le montant payé par le client pour les articles, en argent réel** (espèces ou Mobile Money). Les prix promotionnels affichés sur le site comptent comme de l’argent réel. Les frais de livraison n’en font pas partie.
+
+**Aucune prime ni aucun point de parrainage** n’est dû sur une commande que le client a payée, même en partie, avec des points de fidélité, un coupon de réduction ou une cagnotte. C’est toute la commande qui est exclue, pas seulement la part payée ainsi.
 
 ### 3.1 Prime sur le stock central
 
 Pour chaque vente d’un produit du stock central qu’il conclut et livre, le revendeur touche **le plus petit de ces deux montants** :
 
-- 10 % du montant réellement dépensé par le client ;
-- 25 % de la marge brute de Celebobo sur cette vente, c’est-à-dire le montant réellement dépensé moins le coût d’achat du produit.
-La prime est calculée automatiquement. Son montant en dollars est affiché sur la fiche produit dans l’espace revendeur, **avant** la vente. Le coût d’achat et la marge restent confidentiels. La prime affichée au moment de la commande est celle qui s’applique, recalculée seulement si le client utilise des points ou bénéficie d’une remise.
+- 10 % du montant payé par le client ;
+- 50 % de la marge brute de Celebobo sur cette vente, c’est-à-dire le montant payé moins le coût d’achat du produit.
+La prime est calculée automatiquement. Son montant en dollars est affiché sur la fiche produit dans l’espace revendeur, **avant** la vente. Le coût d’achat et la marge restent confidentiels. La prime affichée au moment de la commande est celle qui s’applique ; elle tombe à zéro si le client utilise des points ou un coupon.
 
 ### 3.2 Prime sur les produits partenaires
 
 Pour un produit partenaire, Celebobo ne gagne qu’une commission. Le revendeur touche **le plus petit de ces deux montants** :
 
-- 10 % du montant réellement dépensé par le client ;
+- 10 % du montant payé par le client ;
 - 20 % de la commission que Celebobo encaisse sur cette vente.
 Le montant de la prime est affiché sur la fiche produit dans l’espace revendeur, avant la vente.
 
@@ -62,7 +64,7 @@ Le montant de la prime est affiché sur la fiche produit dans l’espace revende
 
 Chaque revendeur reçoit un code d’invitation et un QR code. Un client qui crée son compte avec ce code est **rattaché au revendeur pendant 12 mois**.
 
-Pendant ces 12 mois, chaque facture payée par ce client rapporte au revendeur des **points de parrainage égaux à 0,3 % de la facture** (1 point = 1 $). Cela vaut pour tous les achats du client, qu’il commande par son revendeur ou directement sur le site.
+Pendant ces 12 mois, chaque facture payée par ce client rapporte au revendeur des **points de parrainage égaux à 0,3 % de la facture** (1 point = 1 $). Cela vaut pour tous les achats du client, qu’il commande par son revendeur ou directement sur le site, sauf les factures payées même en partie avec des points de fidélité ou un coupon.
 
 Les points de parrainage s’ajoutent au solde de points du revendeur. **Ils servent uniquement à acheter des produits sur Celebobo** : 1 point déduit 1 $ du prix des articles. Ils ne sont ni convertibles en argent, ni transférables, ni utilisables pour payer la livraison. Ils suivent les règles du programme de fidélité (validité de 12 mois sans achat). Sur l’achat réalisé avec ces points, le revendeur ne touche pas de prime, car on ne touche jamais de prime sur ses propres achats.
 
@@ -76,11 +78,12 @@ Si un revendeur vend et livre un produit à un client qu’il a lui-même invit�
 
 ### 3.6 Exemples
 
-| Situation | Montant dépensé | Calcul | Gain du revendeur |
+| Situation | Montant payé | Calcul | Gain du revendeur |
 |---|---|---|---|
-| Smartphone du stock central (coût d’achat 330,65 $), client invité par le revendeur, livré à Bukavu | 389 $ | min(38,90 $ ; 25 % × 58,35 $) + 0,3 % × 389 + 2 $ de livraison | 14,59 $ + 1,17 point + 2 $ |
-| Même smartphone, le client paie 10 $ avec ses points de fidélité | 379 $ | min(37,90 $ ; 25 % × 48,35 $) | 12,09 $ |
-| Chargeur du stock central à 25 $ (coût d’achat 15 $) | 25 $ | min(2,50 $ ; 25 % × 10 $) | 2,50 $ |
+| Smartphone du stock central (coût d’achat 330,65 $), client invité par le revendeur, livré à Bukavu | 389 $ | min(38,90 $ ; 50 % × 58,35 $) + 0,3 % × 389 + 2 $ de livraison | 29,18 $ + 1,17 point + 2 $ |
+| Même smartphone, le client paie 10 $ avec ses points de fidélité | 379 $ + 10 $ en points | Commande payée en partie avec des points : ni prime ni point de parrainage | 2 $ de livraison seulement |
+| Chargeur du stock central à 25 $ (coût d’achat 15 $) | 25 $ | min(2,50 $ ; 50 % × 10 $) | 2,50 $ |
+| Même chargeur avec un coupon de 5 $ | 20 $ + coupon | Commande avec coupon : pas de prime | 0 $ |
 | Robe d’un partenaire à 50 $, commission Celebobo de 15 % (7,50 $) | 50 $ | min(5 $ ; 20 % × 7,50 $) | 1,50 $ |
 | Nuit d’hôtel partenaire à 80 $, commission Celebobo de 10 % (8 $) | 80 $ | min(8 $ ; 20 % × 8 $) | 1,60 $ |
 | Service partenaire à 20 $, commission Celebobo de 60 % (12 $) | 20 $ | min(2 $ ; 20 % × 12 $) | 2 $ |

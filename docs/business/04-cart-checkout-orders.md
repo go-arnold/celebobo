@@ -246,8 +246,8 @@ the proposal flow.
 
 ### Line amounts
 
-Commissions, referral points and partial returns work per line, so every line knows what it really
-cost the client:
+Referral points and partial returns work per line, so every line knows what it really cost the
+client (reseller commissions ignore an order that has any `discount` or `points` at all, §5):
 
 | Field | Meaning |
 |---|---|

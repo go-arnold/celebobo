@@ -199,7 +199,8 @@ class CommissionEntryOutput(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     kind = serializers.CharField(source="kind.value")
     sale_id = serializers.IntegerField(allow_null=True)
-    rate = serializers.DecimalField(max_digits=4, decimal_places=3)
+    # paid | margin | partner_gain | unknown_cost | legacy_rate (see docs/business/05)
+    rule = serializers.CharField(source="rule.value")
     base_amount = money()
     amount = money()
     created_at = serializers.DateTimeField()
@@ -207,7 +208,6 @@ class CommissionEntryOutput(serializers.Serializer[Any]):
 
 class CommissionSummaryOutput(serializers.Serializer[Any]):
     reseller = SalePersonOutput()
-    rate = serializers.DecimalField(max_digits=4, decimal_places=3)
     earned_this_month = money()
     earned_total = money()
     paid_total = money()

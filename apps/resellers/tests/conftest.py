@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 import pytest
 
 from apps.accounts.models import User
@@ -34,5 +32,4 @@ def reseller(db) -> User:
         first_name="Patrick",
         last_name="Kabasele",
         referral_code="4821",
-        commission_rate=Decimal("0.100"),
     )

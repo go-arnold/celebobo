@@ -10,7 +10,7 @@ from apps.accounts.domain.errors import (
     StaffCannotBecomeReseller,
 )
 from apps.accounts.domain.normalization import clean_text, normalize_email, normalize_phone
-from apps.accounts.models import DEFAULT_COMMISSION_RATE, User
+from apps.accounts.models import User
 from apps.accounts.services.access import AccessService
 from apps.accounts.services.contracts import GroupSync, UserStore
 from apps.accounts.services.referrals import ReferralService
@@ -54,9 +54,8 @@ class ResellerAccountService:
         user.is_staff = False
         user.is_active = True
         user.availability = Availability.OFFLINE.value
-        user.commission_rate = command.commission_rate or DEFAULT_COMMISSION_RATE
         user.manager_id = manager_id
-        fields = ["role", "is_staff", "is_active", "availability", "commission_rate", "manager"]
+        fields = ["role", "is_staff", "is_active", "availability", "manager"]
         if not user.referral_code:
             user.referral_code = self._referrals.issue_code()
             fields.append("referral_code")

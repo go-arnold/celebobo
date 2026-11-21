@@ -271,6 +271,14 @@ class ConvertibleOrder:
     total: Decimal
     created_at: datetime
     items: tuple[ConvertibleItem, ...]
+    # non-real money used on the order: a coupon or promotion, and points
+    discount: Decimal = Decimal(0)
+    points: Decimal = Decimal(0)
+
+    # paid only in cash or Mobile Money: no points, no coupon (owner rule on non-real money)
+    @property
+    def real_money_only(self) -> bool:
+        return self.discount == 0 and self.points == 0
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
