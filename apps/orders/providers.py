@@ -6,7 +6,6 @@ from apps.orders.adapters.gateways import (
     AccountsResellerDirectory,
     CatalogInventory,
     DeliveredOrderPurchases,
-    NoMembers,
     NoOrderThreads,
     NoWallet,
     OrderDealSales,
@@ -37,7 +36,6 @@ from apps.orders.services.checkout import CheckoutService
 from apps.orders.services.contracts import (
     AddressBook,
     Inventory,
-    Members,
     OrderThreads,
     ResellerDirectory,
     Wallet,
@@ -59,7 +57,6 @@ def register(container: Container) -> None:
     container.register(AddressBook, lambda _: AccountsAddressBook())
     container.register(ResellerDirectory, lambda _: AccountsResellerDirectory())
     container.register(OrderThreads, lambda _: NoOrderThreads())
-    container.register(Members, lambda _: NoMembers())
     container.register(Wallet, lambda _: NoWallet())
     container.register(OrderStateMachine, lambda _: OrderStateMachine(TransitionPolicyFactory()))
     container.register(PurchaseVerifier, lambda _: DeliveredOrderPurchases(), replace=True)
@@ -85,7 +82,6 @@ def _pricing(container: Container) -> PricingService:
         container.resolve(Inventory),
         ShippingResolver(ShippingZoneRepository(), settings.shipping_rules),
         _coupons(),
-        container.resolve(Members),
         container.resolve(Wallet),
         addresses=container.resolve(AddressBook),
         max_lines=settings.max_lines,

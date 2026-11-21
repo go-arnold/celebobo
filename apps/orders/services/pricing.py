@@ -10,7 +10,7 @@ from apps.orders.domain.errors import CouponRejected, EmptyOrder, PointsUnavaila
 from apps.orders.domain.pricing import ZERO, CouponTerms, QuoteLine, quote
 from apps.orders.domain.read_models import QuoteLineView, QuoteView
 from apps.orders.models import Coupon
-from apps.orders.services.contracts import AddressBook, Inventory, Members, Wallet
+from apps.orders.services.contracts import AddressBook, Inventory, Wallet
 from apps.orders.services.coupons import CouponService
 from apps.orders.services.shipping import ShippingResolver
 
@@ -43,7 +43,6 @@ class PricingService:
         inventory: Inventory,
         shipping: ShippingResolver,
         coupons: CouponService,
-        members: Members,
         wallet: Wallet,
         *,
         addresses: AddressBook,
@@ -52,7 +51,6 @@ class PricingService:
         self._inventory = inventory
         self._shipping = shipping
         self._coupons = coupons
-        self._members = members
         self._wallet = wallet
         self._addresses = addresses
         self._max_lines = max_lines
@@ -83,12 +81,7 @@ class PricingService:
         subtotal = sum((line.total for line in quote_lines), ZERO)
         coupon, terms, error = self._coupon(context, subtotal)
         rules = self._shipping.rules_for(self._city(context), pickup=context.pickup)
-        member = (
-            rules.member_free
-            and context.user_id is not None
-            and self._members.is_member(context.user_id)
-        )
-        result = quote(quote_lines, rules, terms, member=member)
+        result = quote(quote_lines, rules, terms)
         available = (
             self._wallet.usable(
                 context.user_id, result.subtotal - result.discount, lock=context.lock
@@ -111,7 +104,6 @@ class PricingService:
                 delivery_estimate=rules.delivery_estimate,
                 coupon_code=terms.code if terms else None,
                 coupon_error=error,
-                member_free_shipping=member,
                 points=points,
                 points_available=available,
                 delivery_method=DeliveryMethod.PICKUP

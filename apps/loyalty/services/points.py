@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 from decimal import ROUND_DOWN, Decimal
 
 from apps.loyalty.domain.errors import PointsUnavailable
-from apps.loyalty.domain.membership import add_months
 from apps.loyalty.domain.points import (
     CLOSING_MONTHS,
     ZERO,
@@ -11,14 +10,11 @@ from apps.loyalty.domain.points import (
     EntryKind,
     InvoiceStatement,
     Movement,
+    add_months,
     share,
 )
 from apps.loyalty.models import LoyaltySettings, PointsEntry
-from apps.loyalty.repositories import (
-    LoyaltySettingsRepository,
-    MembershipRepository,
-    PointsRepository,
-)
+from apps.loyalty.repositories import LoyaltySettingsRepository, PointsRepository
 from apps.loyalty.services.contracts import OrderLedger, ReturnPolicy
 
 CENT = Decimal("0.01")
@@ -30,7 +26,6 @@ class PointsService:
         self,
         entries: PointsRepository,
         settings: LoyaltySettingsRepository,
-        memberships: MembershipRepository,
         orders: OrderLedger,
         returns: ReturnPolicy,
         *,
@@ -38,7 +33,6 @@ class PointsService:
     ) -> None:
         self._entries = entries
         self._settings = settings
-        self._memberships = memberships
         self._orders = orders
         self._returns = returns
         self._clock = clock

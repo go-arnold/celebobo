@@ -246,11 +246,6 @@ SPECTACULAR_SETTINGS = {
     "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
     "ENUM_NAME_OVERRIDES": {
         "SectionKindEnum": ["showcase", "column"],
-        "MembershipPlanEnum": ["trial", "monthly", "yearly"],
-        "PaidPlanEnum": ["monthly", "yearly"],
-        "MembershipStatusEnum": ["none", "trial", "active", "expired"],
-        "MemberStatusEnum": ["trial", "active", "expired"],
-        "MembershipRequestStatusEnum": ["pending", "confirmed", "rejected", "cancelled"],
     },
 }
 
@@ -411,10 +406,6 @@ CELERY_BEAT_SCHEDULE = {
     "expire-points": {
         "task": "loyalty.expire_points",
         "schedule": 24 * 60 * 60,
-    },
-    "remind-memberships": {
-        "task": "loyalty.remind_memberships",
-        "schedule": 60 * 60,
     },
     "purge-document-jobs": {
         "task": "documents.purge_jobs",

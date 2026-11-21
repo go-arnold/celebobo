@@ -1,11 +1,5 @@
 from django.db import transaction
 
-from apps.loyalty.domain.events import (
-    MembershipEnding,
-    MembershipRequested,
-    MembershipRequestRejected,
-    MembershipStarted,
-)
 from apps.messaging.domain.events import (
     ConversationAssigned,
     ConversationOpened,
@@ -141,23 +135,3 @@ def notify_shipping_quoted(event: ShippingQuoted) -> None:
 @event_bus.on(ShippingQuoteAnswered, background=True)
 def notify_shipping_answered(event: ShippingQuoteAnswered) -> None:
     container.resolve(NotificationRouter).shipping_answered(event)
-
-
-@event_bus.on(MembershipRequested, background=True)
-def notify_membership_requested(event: MembershipRequested) -> None:
-    container.resolve(NotificationRouter).membership_requested(event)
-
-
-@event_bus.on(MembershipStarted, background=True)
-def notify_membership_started(event: MembershipStarted) -> None:
-    container.resolve(NotificationRouter).membership_started(event)
-
-
-@event_bus.on(MembershipRequestRejected, background=True)
-def notify_membership_rejected(event: MembershipRequestRejected) -> None:
-    container.resolve(NotificationRouter).membership_rejected(event)
-
-
-@event_bus.on(MembershipEnding, background=True)
-def notify_membership_ending(event: MembershipEnding) -> None:
-    container.resolve(NotificationRouter).membership_ending(event)

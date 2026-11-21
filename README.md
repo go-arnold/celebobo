@@ -18,7 +18,7 @@ uv run pre-commit install
 uv run python manage.py migrate
 uv run uvicorn config.asgi:application --reload          # HTTP and WebSocket
 uv run celery -A config worker -l info -Q default,ai,exports   # background handlers, email, assistant, PDF exports
-uv run celery -A config beat -l info                     # scheduled tasks (order expiry, cashback, purges)
+uv run celery -A config beat -l info                     # scheduled tasks (order expiry, points expiry, purges)
 ```
 
 ## Quality gates
@@ -38,7 +38,7 @@ uv run pytest --cov
 |---|---|
 | `core.registry.Registry[T]` | Named factories for interchangeable implementations, selected from settings |
 | `core.container` | `Container` (singleton/transient providers, `override()` for tests) and the `Inject` descriptor |
-| `core.events` | `DomainEvent`, `@domain_event`, `EventBus` (observer, deduplicated). Handlers run after commit, inline or on Celery. Handlers marked `transactional=True` run at publish time, inside the publisher's transaction, and a failure rolls the whole change back; money records (cashback, sales returns) use this mode |
+| `core.events` | `DomainEvent`, `@domain_event`, `EventBus` (observer, deduplicated). Handlers run after commit, inline or on Celery. Handlers marked `transactional=True` run at publish time, inside the publisher's transaction, and a failure rolls the whole change back; money records (fidelity points, sales returns) use this mode |
 | `core.observability` | `@use_case` / `@logged_facade`, the structlog setup, request-id middleware, `Metrics` backends, Celery context propagation |
 | `core.authz` | `PermissionCatalog`: role grants inherited by higher roles, plus object rules (django-rules predicates) |
 | `core.api` | `UseCaseViewSet`, `SelectorViewSet`, `requires()`, `paginated()`, `@idempotent()`, problem+json errors, versioned routing |
@@ -185,7 +185,7 @@ Cancellations and returns put the stock back. A client can hold at most `ORDERS.
 | `POST /api/v1/orders/track/` | Public tracking with the order number plus email or phone |
 | `GET /api/v1/bo/orders/` · `<id>/` | Back-office list (counts per status; resellers see only their assignments) and detail with allowed transitions |
 | `POST /api/v1/bo/orders/<id>/assign/` · `decline/` · `transition/` | Dispatch and status changes |
-| `POST /api/v1/bo/orders/<id>/items/<item_id>/return/` | Staff take back some units of a delivered line (`OrderLineReturned`: stock, sale, commission and cashback follow in the same transaction) |
+| `POST /api/v1/bo/orders/<id>/items/<item_id>/return/` | Staff take back some units of a delivered line (`OrderLineReturned`: stock, sale, commission and points follow in the same transaction) |
 | `GET /api/v1/bo/resellers/assignable/` | Resellers with availability and current workload |
 
 **Shipping zones**
@@ -537,20 +537,15 @@ Permissions:
 
 ### `apps.loyalty`
 
-Membership, cashback and mobile app links ([rules](docs/business/12-loyalty.md)).
+Fidelity points and mobile app links ([rules](docs/business/12-loyalty.md)). There is no paid membership (Celebobo Plus was removed).
 
-- `LoyaltySettings` is a single row holding every rule (prices, trial, rate, cap, expiry, store links), each programme off by default.
-- `GET · PATCH /api/v1/bo/loyalty/settings/` (`loyalty.manage`, admins) edits them; `GET /settings/public/` returns them under `programmes`.
+- `LoyaltySettings` is a single row holding every rule (points on/off, rate, validity, store links); points are off by default.
+- `GET · PATCH /api/v1/bo/loyalty/settings/` (`loyalty.manage`, admins) edits them; `GET /settings/public/` returns them under `programmes` (`points`, `app_links`).
 - A change publishes `LoyaltySettingsChanged`, which refreshes the cached public settings and revalidates the shop pages.
-- **Membership**: `Membership` (one per client: plan, end date, trial and its phone, last reminder) and `MembershipRequest` (paid plans waiting for staff to confirm the payment).
-  - Client: `GET /me/membership/`, `POST /me/membership/trial/`, `POST /me/membership/requests/`, `POST /me/membership/requests/<id>/cancel/`.
-  - Staff (`membership.manage`): `GET /bo/membership/requests/?status=`, `POST <id>/confirm/`, `POST <id>/reject/ {note}`, `GET /bo/memberships/?status=`.
-  - Orders ask the `Members` port whether a client is a member; zones with `member_free_shipping` then ship for free.
-  - An hourly task reminds members `membership_reminder_days` before the end; every step notifies through messaging.
-- **Cashback**: `CashbackEntry` is a ledger per client. Credits (`earn`, `refund`) keep their `remaining` amount and expiry; debits (`spend`, `reversal`, `expiry`) are negative lines, one of each kind per order at most.
-  - Orders reach it through the `Wallet` port: the quote asks what is `usable` (eligibility, `$1` minimum, `50 %` cap), checkout `spend`s it inside the order transaction (oldest expiry first, rows locked), order details show `cashback_earned`.
-  - `OrderStatusChanged` to `delivered` earns `cashback_percent` of what the products cost after discounts and cashback, available after `return_days`; `cancelled` or `returned` refunds what was spent and reverses what was earned. This happens in the order's transaction: if it fails, the status change is rolled back.
-  - `GET /me/cashback/` returns the balance; a daily task expires old credits.
+- **Points**: `PointsEntry` is a ledger per client. Credits (`earn`, `refund`) keep their `remaining` amount; debits (`spend`, `reversal`, `expiry`) are negative lines.
+  - Orders reach it through the `Wallet` port: the quote asks what is `usable`, checkout `spend`s the points the client chose inside the order transaction (oldest credits first, rows locked), order details show `points_earned`.
+  - `OrderStatusChanged` to `delivered` earns `points_percent` of what the client really paid for the items, spendable after `return_days`; `cancelled` or `returned` (or a line return, in proportion) reverses the earning and gives back the points used. This happens in the order's transaction.
+  - `GET /me/points/` (`points.view`) returns the balance and history; a daily task expires the balance of clients with no order in `points_validity_months`.
 
 ### `apps.push`
 

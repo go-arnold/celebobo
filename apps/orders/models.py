@@ -294,7 +294,6 @@ class ShippingZone(models.Model):
     is_default = models.BooleanField("zone par défaut", default=False)
     is_active = models.BooleanField(default=True)
     position = models.PositiveSmallIntegerField(default=0)
-    member_free_shipping = models.BooleanField("livraison offerte aux abonnés", default=False)
     pricing = models.CharField(
         "tarification", max_length=8, choices=ZONE_PRICING_CHOICES, default=ZonePricing.FLAT.value
     )

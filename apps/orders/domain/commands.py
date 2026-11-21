@@ -111,7 +111,6 @@ class ZoneFields:
     is_default: bool = False
     is_active: bool = True
     position: int = 0
-    member_free_shipping: bool = False
     pricing: ZonePricing = ZonePricing.FLAT
     pickup_address: str = ""
 
@@ -126,7 +125,6 @@ class ZoneChanges:
     is_default: Maybe[bool] = UNSET
     is_active: Maybe[bool] = UNSET
     position: Maybe[int] = UNSET
-    member_free_shipping: Maybe[bool] = UNSET
     pricing: Maybe[ZonePricing] = UNSET
     pickup_address: Maybe[str] = UNSET
 

@@ -1,31 +1,12 @@
 # 12. Loyalty programmes
 
-Three programmes, each **off until an admin turns it on**. Every rule below is a setting an admin
-edits in `/bo/loyalty/settings/` (`loyalty.manage`); `GET /settings/public/` returns them under
-`programmes`, and the shop only shows a programme that is enabled.
+Fidelity points, **off until an admin turns them on**, and the mobile app links. Every rule below is
+a setting an admin edits in `/bo/loyalty/settings/` (`loyalty.manage`); `GET /settings/public/`
+returns them under `programmes` (`points`, `app_links`), and the shop only shows what is enabled.
 
-## Celebobo Plus (membership)
-
-| Rule | Default |
-|---|---|
-| Benefit | Free delivery with no minimum in the zones marked for members (Bukavu and Goma); other zones keep their fee |
-| Price | $4.99 a month or $49 a year |
-| Payment | Mobile Money or cash, confirmed by staff; the membership starts at confirmation |
-| Free trial | 30 days, once per account and per phone number, verified e-mail and phone required |
-| Renewal | None automatic; a reminder 3 days before the end |
-| End | The normal delivery fee applies again; orders already placed keep their free delivery |
-
-How it works:
-- `GET /me/membership/` gives the status (`none`, `trial`, `active`, `expired`), the plan, the end
-  date, whether the trial is still available and the request waiting for payment, if any.
-- `POST /me/membership/trial/` starts the trial (`trial_unavailable` with a `reason` otherwise).
-- `POST /me/membership/requests/ {plan: monthly|yearly, payment_method}` asks for a paid plan at
-  today's price; one request at a time, which the client can cancel.
-- Staff (`membership.manage`) see the requests in `/bo/membership/requests/`, confirm one once the
-  money is received or refuse it with a note; `/bo/memberships/` lists members by status.
-- A confirmed period starts when the current one ends, so no day is lost. The client is notified
-  when it starts, when a request is refused and before the end.
-- Free delivery applies to the shipping zones an admin marks for members (Bukavu and Goma to start).
+There is no paid membership: Celebobo Plus (a paid subscription with free delivery, trial and
+staff-confirmed payments) was removed in November 2026 before any client subscribed. Its endpoints,
+settings, permissions, notifications and the "free delivery for members" zone flag are gone.
 
 ## Fidelity points
 
@@ -34,7 +15,7 @@ The former cashback ledger ("Cagnotte"), turned into the points ledger of the lo
 
 | Rule | Default |
 |---|---|
-| Who | Every client, once an admin turns points on (`points_enabled`); no membership needed |
+| Who | Every client, once an admin turns points on (`points_enabled`) |
 | Rate | 1 % (`points_percent`) of what the client really paid for the items: subtotal − coupon discount − points used, delivery excluded; rounded down to the cent. **1 point = $1** |
 | Credit | Recorded when the order is delivered, **pending** until the return period is over (the site's `return_days` setting, 7 days by default), then spendable. Before delivery the invoice already shows what the order will earn, marked pending |
 | Use | The client chooses how many points to use (`points`) at quote and checkout. No cap other than their available balance and the items' price after the coupon; points never pay delivery and are never paid out in cash |
@@ -84,6 +65,5 @@ sent by SMS.
 
 ## Status
 
-Settings, membership and points are live. Each stays hidden until an admin turns it on. The paid
-membership (Celebobo Plus) is untouched for now; it is removed in step 4.2 of the implementation
-plan. Referral points for resellers (0.3 %) and Cagnotte campaigns come later.
+Settings and points are live; points stay hidden until an admin turns them on. The paid membership
+(Celebobo Plus) is removed. Referral points for resellers (0.3 %) and Cagnotte campaigns come later.

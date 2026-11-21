@@ -8,7 +8,8 @@ MEMBER_ZONES = ("Bukavu", "Goma")
 
 def mark_member_zones(apps: Apps, _schema_editor: BaseDatabaseSchemaEditor) -> None:
     zones = apps.get_model("orders", "ShippingZone").objects
-    zones.filter(name__in=MEMBER_ZONES).update(member_free_shipping=True)
+    # the field is removed in 0017, so the current model no longer knows it
+    zones.filter(name__in=MEMBER_ZONES).update(member_free_shipping=True)  # type: ignore[misc]
 
 
 class Migration(migrations.Migration):
