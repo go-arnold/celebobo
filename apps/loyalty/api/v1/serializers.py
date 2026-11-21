@@ -14,6 +14,10 @@ class LoyaltySettingsInput(serializers.Serializer[Any]):
         max_digits=5, decimal_places=2, min_value=Decimal("0.01"), max_value=Decimal("50")
     )
     points_validity_months = serializers.IntegerField(min_value=1, max_value=60)
+    referral_percent = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("0.01"), max_value=Decimal("10")
+    )
+    referral_months = serializers.IntegerField(min_value=1, max_value=60)
     app_store_url = serializers.URLField(max_length=300, allow_blank=True)
     play_store_url = serializers.URLField(max_length=300, allow_blank=True)
 
@@ -22,6 +26,8 @@ class PointsTermsOutput(serializers.Serializer[Any]):
     enabled = serializers.BooleanField()
     percent = serializers.DecimalField(max_digits=5, decimal_places=2)
     validity_months = serializers.IntegerField()
+    referral_percent = serializers.DecimalField(max_digits=5, decimal_places=2)
+    referral_months = serializers.IntegerField()
 
 
 class AppLinksOutput(serializers.Serializer[Any]):

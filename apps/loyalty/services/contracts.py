@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Protocol
 
-from apps.loyalty.domain.points import Purchase
+from apps.loyalty.domain.points import Purchase, Referral
 
 
 class OrderLedger(Protocol):
@@ -17,3 +17,8 @@ class OrderLedger(Protocol):
 
 class ReturnPolicy(Protocol):
     def return_days(self) -> int: ...
+
+
+class Referrals(Protocol):
+    # the active reseller who invited the client, and since when
+    def referral(self, client_id: int) -> Referral | None: ...

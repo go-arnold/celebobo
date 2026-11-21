@@ -5,7 +5,7 @@ from typing import Any
 
 from django.db.models import Sum
 
-from apps.loyalty.domain.points import CREDITS, EntryKind
+from apps.loyalty.domain.points import CREDITS, EARNINGS, EntryKind
 from apps.loyalty.models import SETTINGS_ID, LoyaltySettings, PointsEntry
 
 
@@ -48,9 +48,9 @@ class PointsRepository:
             .distinct()
         )
 
-    def last_credit(self, user_id: int) -> datetime | None:
+    def last_credit(self, user_id: int, kinds: tuple[EntryKind, ...] = CREDITS) -> datetime | None:
         return (
-            PointsEntry.objects.filter(user_id=user_id, kind__in=[k.value for k in CREDITS])
+            PointsEntry.objects.filter(user_id=user_id, kind__in=[k.value for k in kinds])
             .order_by("-created_at")
             .values_list("created_at", flat=True)
             .first()
@@ -58,7 +58,10 @@ class PointsRepository:
 
     def pending(self, user_id: int, now: datetime) -> Decimal:
         total = PointsEntry.objects.filter(
-            user_id=user_id, kind=EntryKind.EARN.value, remaining__gt=0, available_at__gt=now
+            user_id=user_id,
+            kind__in=[kind.value for kind in EARNINGS],
+            remaining__gt=0,
+            available_at__gt=now,
         ).aggregate(total=Sum("remaining"))["total"]
         return total or Decimal(0)
 

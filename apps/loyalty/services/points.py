@@ -5,17 +5,19 @@ from decimal import ROUND_DOWN, Decimal
 from apps.loyalty.domain.errors import PointsUnavailable
 from apps.loyalty.domain.points import (
     CLOSING_MONTHS,
+    EARNINGS,
     ZERO,
     Balance,
     EntryKind,
     InvoiceStatement,
     Movement,
     add_months,
+    referral_share,
     share,
 )
 from apps.loyalty.models import LoyaltySettings, PointsEntry
 from apps.loyalty.repositories import LoyaltySettingsRepository, PointsRepository
-from apps.loyalty.services.contracts import OrderLedger, ReturnPolicy
+from apps.loyalty.services.contracts import OrderLedger, Referrals, ReturnPolicy
 
 CENT = Decimal("0.01")
 HISTORY_SIZE = 30
@@ -29,12 +31,14 @@ class PointsService:
         orders: OrderLedger,
         returns: ReturnPolicy,
         *,
+        referrals: Referrals,
         clock: Callable[[], datetime],
     ) -> None:
         self._entries = entries
         self._settings = settings
         self._orders = orders
         self._returns = returns
+        self._referrals = referrals
         self._clock = clock
 
     def balance(self, user_id: int) -> Balance:
@@ -57,7 +61,7 @@ class PointsService:
                     amount=entry.amount,
                     at=entry.created_at,
                     order_number=entry.order.number if entry.order else None,
-                    pending=entry.kind == EntryKind.EARN and entry.available_at > now,
+                    pending=entry.kind in EARNINGS and entry.available_at > now,
                 )
                 for entry in self._entries.recent(user_id, limit=HISTORY_SIZE)
             ),
@@ -139,12 +143,43 @@ class PointsService:
         )
         return amount
 
+    # the reseller who invited the client gets 0.3 % of the items for 12 months after the
+    # invitation (reseller policy, 3.3); nothing when the order used points or a coupon
+    def refer(self, order_id: int, delivered_at: datetime) -> Decimal:
+        settings = self._settings.current()
+        purchase = self._orders.purchase(order_id)
+        if purchase is None or not self._eligible(settings) or not purchase.real_money_only:
+            return ZERO
+        if self._entries.for_order(order_id, EntryKind.REFERRAL):
+            return ZERO
+        referral = self._referrals.referral(purchase.client_id)
+        placed_at = purchase.placed_at or delivered_at
+        if referral is None or referral.reseller_id == purchase.client_id:
+            return ZERO
+        if not referral.since <= placed_at < add_months(referral.since, settings.referral_months):
+            return ZERO
+        amount = referral_share(purchase.base, settings.referral_percent)
+        if amount <= 0:
+            return ZERO
+        self._entries.add(
+            user_id=referral.reseller_id,
+            order_id=order_id,
+            kind=EntryKind.REFERRAL,
+            amount=amount,
+            remaining=amount,
+            available_at=delivered_at + timedelta(days=self._returns.return_days()),
+        )
+        return amount
+
     # a cancelled or returned order loses what it still holds of its earning and gives back what
     # it used and was not refunded yet; earlier line returns already took their share
     def undo(self, order_id: int) -> None:
         earned = self._entries.for_order(order_id, EntryKind.EARN, lock=True)
         if earned and earned.remaining > 0:
             self._reverse(order_id, earned, earned.remaining)
+        referred = self._entries.for_order(order_id, EntryKind.REFERRAL, lock=True)
+        if referred and referred.remaining > 0:
+            self._reverse(order_id, referred, referred.remaining, EntryKind.REFERRAL_REVERSAL)
         spent = self._entries.for_order(order_id, EntryKind.SPEND)
         if spent:
             self._refund(order_id, spent, self._unrefunded(order_id, spent))
@@ -157,17 +192,29 @@ class PointsService:
         if earned and earned.remaining > 0 and purchase and purchase.base > 0 and paid > 0:
             part = (earned.amount * paid / purchase.base).quantize(CENT, rounding=ROUND_DOWN)
             self._reverse(order_id, earned, min(part, earned.remaining))
+        referred = self._entries.for_order(order_id, EntryKind.REFERRAL, lock=True)
+        if referred and referred.remaining > 0 and purchase and purchase.base > 0 and paid > 0:
+            part = (referred.amount * paid / purchase.base).quantize(CENT, rounding=ROUND_DOWN)
+            self._reverse(
+                order_id, referred, min(part, referred.remaining), EntryKind.REFERRAL_REVERSAL
+            )
         spent = self._entries.for_order(order_id, EntryKind.SPEND)
         if spent and points > 0:
             self._refund(order_id, spent, min(points, self._unrefunded(order_id, spent)))
 
-    def _reverse(self, order_id: int, earned: PointsEntry, amount: Decimal) -> None:
+    def _reverse(
+        self,
+        order_id: int,
+        earned: PointsEntry,
+        amount: Decimal,
+        kind: EntryKind = EntryKind.REVERSAL,
+    ) -> None:
         if amount <= 0:
             return
         self._entries.add(
             user_id=earned.user_id,
             order_id=order_id,
-            kind=EntryKind.REVERSAL,
+            kind=kind,
             amount=-amount,
             available_at=self._clock(),
         )
@@ -210,12 +257,21 @@ class PointsService:
 
     # each purchase restarts the count for the whole balance; before the first one, the earning
     def _valid_until(self, user_id: int, settings: LoyaltySettings) -> datetime | None:
-        # the latest purchase, or a later credit (points given back on a cancelled order)
+        # the latest purchase, or a later credit of the client's own (points given back on a
+        # cancelled order); a reseller's referral points restart nothing, unless they are all
+        # the reseller has (no purchase yet)
+        own = (EntryKind.EARN, EntryKind.REFUND)
         moments = [
             moment
-            for moment in (self._orders.last_purchase(user_id), self._entries.last_credit(user_id))
+            for moment in (
+                self._orders.last_purchase(user_id),
+                self._entries.last_credit(user_id, own),
+            )
             if moment is not None
         ]
+        if not moments:
+            last_referral = self._entries.last_credit(user_id, (EntryKind.REFERRAL,))
+            moments = [last_referral] if last_referral else []
         return add_months(max(moments), settings.points_validity_months) if moments else None
 
     def earned(self, order_id: int) -> Decimal | None:

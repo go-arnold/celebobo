@@ -3,8 +3,9 @@ from decimal import Decimal
 
 from django.db.models import Count, Sum
 
+from apps.accounts.selectors import ReferralSelector
 from apps.content.facades import SiteContentFacade
-from apps.loyalty.domain.points import Purchase
+from apps.loyalty.domain.points import Purchase, Referral
 from apps.loyalty.facades import PointsFacade
 from apps.orders.domain.enums import OrderStatus
 from apps.orders.models import Order
@@ -15,7 +16,7 @@ class OrdersLedger:
     def purchase(self, order_id: int) -> Purchase | None:
         order = (
             Order.objects.filter(pk=order_id)
-            .values("client_id", "subtotal", "discount", "points")
+            .values("client_id", "subtotal", "discount", "points", "created_at")
             .first()
         )
         if order is None:
@@ -24,6 +25,8 @@ class OrdersLedger:
             client_id=order["client_id"],
             base=order["subtotal"] - order["discount"] - order["points"],
             points_used=order["points"],
+            discount=order["discount"],
+            placed_at=order["created_at"],
         )
 
     def delivered(self, client_id: int) -> tuple[int, Decimal]:
@@ -56,3 +59,11 @@ class LoyaltyWallet:
 
     def earned(self, order_id: int) -> Decimal | None:
         return container.resolve(PointsFacade).earned(order_id)
+
+
+class AccountsReferrals:
+    def referral(self, client_id: int) -> Referral | None:
+        found = ReferralSelector().referral(client_id)
+        if found is None:
+            return None
+        return Referral(reseller_id=found.reseller_id, since=found.since)
