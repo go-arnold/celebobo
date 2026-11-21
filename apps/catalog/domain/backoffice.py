@@ -2,7 +2,13 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 
-from apps.catalog.domain.enums import Badge, CategoryIcon, ReviewStatus, StockReason
+from apps.catalog.domain.enums import (
+    Badge,
+    CategoryIcon,
+    ProductOrigin,
+    ReviewStatus,
+    StockReason,
+)
 from apps.catalog.domain.management import ProductStatus
 from apps.catalog.domain.read_models import BrandRef, CategoryRef, OptionView, ReviewAuthor
 
@@ -21,6 +27,8 @@ class AdminProductRow:
     current_price: Decimal
     margin: Decimal | None
     margin_percent: Decimal | None
+    origin: ProductOrigin
+    partner_gain: Decimal | None
     stock: int
     stock_threshold: int
     low_stock: bool

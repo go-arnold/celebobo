@@ -72,6 +72,7 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 422 | `variant_required` | Choisissez une variante pour ce produit. |
 | 422 | `insufficient_stock` |  |
 | 400 | `invalid_pricing` | Les prix du produit sont incohérents. |
+| 400 | `invalid_product_origin` | L'origine du produit et le gain Celebobo sont incohérents. |
 | 400 | `sell_by_in_past` | La date limite de vente ne peut pas être passée. |
 | 400 | `category_name_taken` | Une catégorie porte déjà ce nom. |
 | 409 | `category_not_empty` | Cette catégorie contient encore des produits. Choisissez où les déplacer. |

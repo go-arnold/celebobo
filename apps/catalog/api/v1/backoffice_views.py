@@ -91,7 +91,9 @@ class AdminProductViewSet(UseCaseViewSet):
             request,
             page,
             total=result.total,
-            results=AdminProductRowOutput(result.products, many=True).data,
+            results=AdminProductRowOutput(
+                result.products, many=True, context=self.serializer_context()
+            ).data,
             meta={"stats": ProductStatsOutput(result.stats).data},
         )
 

@@ -31,7 +31,7 @@ from apps.catalog.domain.backoffice import (
     StockMovementView,
 )
 from apps.catalog.domain.deals import DealProduct, DealStatus, DealTerms
-from apps.catalog.domain.enums import Badge, CategoryIcon, ReviewStatus, StockReason
+from apps.catalog.domain.enums import Badge, CategoryIcon, ProductOrigin, ReviewStatus, StockReason
 from apps.catalog.domain.errors import (
     BrandNotFound,
     CategoryNotFound,
@@ -763,6 +763,8 @@ def _admin_row(product: Product, images: Sequence[ProductImage] | None = None) -
         current_price=product.current_price,
         margin=amount,
         margin_percent=percent,
+        origin=ProductOrigin(product.origin),
+        partner_gain=product.partner_gain,
         stock=product.stock,
         stock_threshold=product.stock_threshold,
         low_stock=0 < product.stock <= product.stock_threshold,

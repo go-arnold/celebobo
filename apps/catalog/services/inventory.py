@@ -2,7 +2,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 
 from apps.catalog.domain.deals import DealTerms
-from apps.catalog.domain.enums import StockReason
+from apps.catalog.domain.enums import ProductOrigin, StockReason
 from apps.catalog.domain.errors import OutOfStock, ProductUnavailable, VariantRequired
 from apps.catalog.domain.queries import StockLine, StockSource
 from apps.catalog.domain.read_models import PricedLine
@@ -98,6 +98,8 @@ class InventoryService:
             shipping_fee=product.shipping_fee,
             cost_price=product.cost_price,
             deal_id=deal.id if deal is not None else None,
+            origin=ProductOrigin(product.origin),
+            partner_gain=product.partner_gain,
         )
 
 

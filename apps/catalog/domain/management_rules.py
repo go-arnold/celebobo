@@ -2,7 +2,13 @@ from collections.abc import Mapping, Sequence
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
-from apps.catalog.domain.errors import InvalidPricing, InvalidVariantAttributes, SellByInPast
+from apps.catalog.domain.enums import ProductOrigin
+from apps.catalog.domain.errors import (
+    InvalidOrigin,
+    InvalidPricing,
+    InvalidVariantAttributes,
+    SellByInPast,
+)
 from apps.catalog.domain.management import OptionInput
 
 CENT = Decimal("0.01")
@@ -21,6 +27,18 @@ def validate_pricing(
         errors["cost_price"] = ["Le prix d'achat ne peut pas être négatif."]
     if errors:
         raise InvalidPricing(errors)
+
+
+# partner products need Celebobo's gain per unit (> 0); Celebobo products have none
+def validate_origin(origin: ProductOrigin, partner_gain: Decimal | None) -> None:
+    if origin is ProductOrigin.PARTNER and (partner_gain is None or partner_gain <= 0):
+        raise InvalidOrigin(
+            {"partner_gain": ["Indiquez le gain de Celebobo par unité, supérieur à 0."]}
+        )
+    if origin is ProductOrigin.CELEBOBO and partner_gain is not None:
+        raise InvalidOrigin(
+            {"partner_gain": ["Le gain Celebobo ne concerne que les produits partenaires."]}
+        )
 
 
 def validate_sell_by(sell_by: date | None, *, today: date) -> None:

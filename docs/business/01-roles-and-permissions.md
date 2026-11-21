@@ -68,6 +68,7 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `analytics.view` | Analytics pages | | | | ✓ | ✓ |
 | `assistant.logs` | Assistant conversation logs | | | | ✓ | ✓ |
 | `products.manage` | Create / edit / trash / restore products, variants, bulk actions, product images | | | | ✓ | ✓ |
+| `products.origin` | See and set a product's origin (Celebobo / partner) and Celebobo's gain per unit | | | | ✓ | ✓ |
 | `stock.adjust` | Stock adjustments | | | | ✓ | ✓ |
 | `categories.manage` | Categories (CRUD, order, images) | | | | ✓ | ✓ |
 | `reviews.moderate` | Hide / publish reviews | | | | ✓ | ✓ |

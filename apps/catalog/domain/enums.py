@@ -59,3 +59,13 @@ class StockReason(StrEnum):
 class ReviewStatus(StrEnum):
     PUBLISHED = "published"
     HIDDEN = "hidden"
+
+
+class ProductOrigin(StrEnum):
+    # partner products are sold by Celebobo itself: only the commission rules differ
+    CELEBOBO = "celebobo"
+    PARTNER = "partner"
+
+    @property
+    def label(self) -> str:
+        return {"celebobo": "Celebobo", "partner": "Partenaire"}[self.value]
