@@ -52,7 +52,8 @@ class TestDirectory:
             "sales_count": 1,
             "revenue": "200.00",
             "commission_earned": "20.00",
-            "commission_due": "20.00",
+            # still pending: payable 7 days after the sale
+            "commission_due": "0.00",
         }
 
     def test_filters_and_ordering(self, as_user, manager, reseller):

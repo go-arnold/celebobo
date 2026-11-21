@@ -20,6 +20,9 @@ from apps.sales.api.v1.serializers import (
     SaleFiltersInput,
     SaleOutput,
     SalesStatsOutput,
+    StatementDetailOutput,
+    StatementFiltersInput,
+    StatementOutput,
 )
 from apps.sales.domain.commands import (
     ConvertOrder,
@@ -29,6 +32,7 @@ from apps.sales.domain.commands import (
     RefundSale,
     SaleFilters,
 )
+from apps.sales.domain.payouts import StatementStatus
 from apps.sales.facades import CommissionFacade, SalesFacade
 from apps.sales.permissions import (
     COMMISSIONS_PAY,
@@ -184,4 +188,31 @@ class PayoutViewSet(UseCaseViewSet):
         command = self.parse(RecordPayoutInput, into=RecordPayout)
         return self.respond(
             PayoutOutput, self.commissions.record_payout(self.actor, command), status=201
+        )
+
+
+class StatementViewSet(UseCaseViewSet):
+    action_permissions = {"list": (COMMISSIONS_VIEW_OWN,), "retrieve": (COMMISSIONS_VIEW_OWN,)}
+    commissions = Inject(CommissionFacade)
+
+    @extend_schema(parameters=[StatementFiltersInput], responses=page_of(StatementOutput))
+    def list(self, request: Request) -> Response:
+        filters = self.validated(StatementFiltersInput, data=request.query_params)
+        page = page_request(request, default_size=20, max_size=100)
+        status = StatementStatus(filters["status"]) if filters.get("status") else None
+        statements, total = self.commissions.statements(
+            self.actor,
+            filters.get("reseller_id"),
+            status,
+            offset=page.offset,
+            limit=page.page_size,
+        )
+        return page_response(
+            request, page, total=total, results=StatementOutput(statements, many=True).data
+        )
+
+    @extend_schema(responses=StatementDetailOutput)
+    def retrieve(self, request: Request, statement_id: int) -> Response:
+        return self.respond(
+            StatementDetailOutput, self.commissions.statement(self.actor, statement_id)
         )

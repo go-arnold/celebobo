@@ -6,8 +6,8 @@ from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
 from apps.catalog.domain.read_models import PricedLine
 from apps.catalog.facades import InventoryFacade
-from apps.orders.domain.read_models import ConvertibleOrder
-from apps.orders.selectors import convertible_order, convertible_orders
+from apps.orders.domain.read_models import ConvertibleOrder, OrderDelivery
+from apps.orders.selectors import convertible_order, convertible_orders, order_delivery
 from core.container import container
 from core.domain.actor import Actor
 from core.domain.errors import DomainError
@@ -46,6 +46,9 @@ class OrdersBook:
 
     def order(self, actor: Actor, order_id: int) -> ConvertibleOrder:
         return convertible_order(actor, order_id)
+
+    def delivery(self, order_id: int) -> OrderDelivery | None:
+        return order_delivery(order_id)
 
 
 class AccountsSellers:

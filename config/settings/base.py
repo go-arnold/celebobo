@@ -403,6 +403,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "messaging.close_expired_threads",
         "schedule": 60 * 60,
     },
+    "prepare-payout-statements": {
+        "task": "sales.prepare_payouts",
+        "schedule": 60 * 60,
+    },
     "expire-points": {
         "task": "loyalty.expire_points",
         "schedule": 24 * 60 * 60,

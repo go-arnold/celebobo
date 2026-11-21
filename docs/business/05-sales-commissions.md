@@ -88,21 +88,102 @@ Each reseller has a **commission rate** (default **7 %**, between 0 and 50 %), s
 - **Voided**: when a sale is deleted, or before being recomputed after a price edit (the original rate is kept).
 - Changing a reseller's rate affects **future** sales only.
 
-Every movement is a ledger entry (earned / reversed, rate, base amount, amount, note).
+Every movement is a ledger entry (earned / reversed, rate, base amount, amount, note, date of
+validation). Amounts are never changed afterwards: a refund adds a reversal entry.
 
-**Balance due** = Σ ledger entries − Σ payouts.
+### Commission lifecycle: pending → validated → cancelled
+
+Reseller policy §4, with the 7-day trial period of the warranty policy (`VALIDATION_DAYS`):
+
+| Status | When |
+|---|---|
+| **Pending** (`pending`, « En attente ») | From the moment it is earned until **7 days after the order was delivered** (for a manual sale: 7 days after its sale date). A sale converted from an order counts from the delivery recorded on the order, whatever its sale date. |
+| **Validated** (`validated`, « Validé ») | After those 7 days. Only validated commission is **payable**. |
+| **Paid** (`paid`) | Validated and settled by a paid statement (below). |
+| **Cancelled** (`cancelled`, « Annulé ») | The sale was fully refunded or returned, or deleted. |
+
+- Each entry carries `available_at`, the moment it becomes validated. A reversal (refund, return,
+  edit, deletion) takes the date of the earning it offsets, so it lowers what is pending when the
+  commission is still pending, and what is validated otherwise — it never moves money from one to
+  the other.
+- A full refund **before** validation leaves nothing pending and nothing ever becomes payable. A
+  full refund **after** validation cancels the validated amount; if it was already paid, the
+  balance goes negative and is **deducted from the next payout** (policy §4). A partial refund
+  stays proportional.
+- Entries written before this rule existed were already counted as due: they are validated.
+
+### Balances
+
+- **Pending** = Σ entries not validated yet.
+- **Validated** = Σ entries validated (net of reversals).
+- **Delivery fees** = Σ delivery fees credited back (below).
+- **Paid** = Σ payouts.
+- **Due (payable)** = validated + delivery fees − paid.
 
 | View | Who | Content |
 |---|---|---|
-| `/bo/commissions/overview/` | staff | Per reseller: rate, earned this month, earned total, paid total, due |
-| `/bo/commissions/summary/` | reseller (own) / staff (`?reseller_id=`) | Same figures for one reseller |
+| `/bo/commissions/overview/` | staff | Per reseller: rate, earned this month, earned total, pending, validated, delivery fees, paid total, due, next payout date |
+| `/bo/commissions/summary/` | reseller (own) / staff (`?reseller_id=`) | Same figures for one reseller, with the payout threshold ($5) |
 | `/bo/commissions/series/` | same | Earned and paid per month |
-| `/bo/commissions/` | same | Ledger entries |
+| `/bo/commissions/` | same | Ledger entries, each with its `status` and `available_at` |
+
+The resellers directory shows the same **due** (`commission_due`: validated + delivery fees − paid).
+
+### Delivery fees credited back
+
+Owner's decision of 18 Nov 2026 (reseller policy §3.4): the reseller who delivers an order remits
+**everything** collected (§6); the **delivery fee** the client paid comes back to them on their
+next payout, on its own line « Frais de livraison ».
+
+- Credited when the order becomes **delivered**, to the reseller **assigned** to it (the one who
+  entered the client's delivery code, or for whom staff confirmed the handover). It is payable at
+  once: no trial period, it is not a commission.
+- Nothing for a **pickup**, a **free delivery** (fee 0), or an order with no reseller.
+- Kept when the order is later **returned** (whole or line by line): returns refund the products,
+  never the delivery fee, and the delivery did take place. Taken back (a negative line) if the
+  order is ever **cancelled** after the credit — today a delivered order cannot be cancelled, so
+  this is a safeguard only.
 
 ## Payouts
 
-`POST /bo/payouts/` — **admin only** (`commissions.pay`), `Idempotency-Key` required.
+Reseller policy §5: payouts on the **1st and the 16th** of each month, from **$5**.
 
-- Only to a **reseller** (`not_a_reseller`), for an amount **not above the balance due**
-  (`payout_exceeds_due`), at a date not in the future; with an optional note (e.g. "Orange Money").
-- Records who paid. The reseller sees their payouts and the updated balance in real time.
+### Statements
+
+A periodic task (`sales.prepare_payouts`, Celery beat, every hour) prepares, **on the 1st and the
+16th only**, a **payout statement** (« relevé ») for every reseller whose payable lines reach
+**$5** (`PAYOUT_THRESHOLD`):
+
+- A statement takes every ledger entry **validated before the payout date** (00:00 in the shop's time
+  zone, `TIME_ZONE`) and every delivery fee credited before it, that no statement settled yet:
+  commissions, reversals (deductions) and delivery fees. Its total is their sum.
+- **Below $5** (or negative after a deduction) nothing is prepared: everything rolls over to the
+  next payout date.
+- One statement per reseller and date: the hourly runs of the same day prepare it once.
+- A statement still **unpaid** on the next payout date is **replaced** (`cancelled`) by the new
+  statement, which takes its lines back.
+- When a sale or order on a **prepared** statement is refunded, returned or edited, the new entries
+  join that statement and its totals follow; a statement left with nothing to pay is cancelled.
+- The reseller is notified (« Relevé de paiement du … ») and their commissions page refreshes in
+  real time.
+
+| Endpoint | Who | Content |
+|---|---|---|
+| `GET /bo/payout-statements/` | reseller (own) / staff (`?reseller_id=`, `?status=prepared\|paid\|cancelled`) | Statements: payout date, status, commissions, delivery fees, total, prepared and paid dates |
+| `GET /bo/payout-statements/{id}/` | same (a reseller gets `statement_not_found` for another's) | The statement with its lines: `commission` (per sale, with the order number), `reversal`, `delivery_fee`, `delivery_fee_reversal` |
+
+No PDF yet: the statement is shown in the back-office only.
+
+### Paying a statement
+
+`POST /bo/payouts/` with `statement_id` — **admin only** (`commissions.pay`), `Idempotency-Key`
+required; optional `note` (e.g. "M-Pesa") and `paid_at` (not in the future).
+
+- The payout is the statement's **total**; the statement becomes `paid` and its commissions show
+  as paid.
+- Only a **prepared** statement (`statement_not_payable` once paid or replaced;
+  `statement_not_found`).
+- Never more than what is **due right now** (`payout_exceeds_due`, with the due amount): e.g. a
+  commission cancelled after an earlier payment lowers the balance.
+- Records who paid. The reseller is notified (« Paiement reçu ») and sees their payouts and the
+  updated balance in real time. Payouts list their statement and payout date.

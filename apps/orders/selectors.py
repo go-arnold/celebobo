@@ -23,6 +23,7 @@ from apps.orders.domain.read_models import (
     ConvertibleItem,
     ConvertibleOrder,
     CouponView,
+    OrderDelivery,
     OrderDetail,
     OrderLineView,
     OrderRef,
@@ -43,6 +44,7 @@ from apps.orders.models import (
     Order,
     OrderItem,
     OrderRating,
+    OrderStatusEvent,
     ShippingZone,
 )
 from core.domain.actor import Actor
@@ -396,6 +398,27 @@ def order_ref(order_id: int) -> OrderRef:
         reseller_id=order.assigned_reseller_id,
         status=order.order_status,
         total=order.total,
+    )
+
+
+def order_delivery(order_id: int) -> OrderDelivery | None:
+    order = Order.objects.filter(pk=order_id).first()
+    if order is None:
+        return None
+    delivered = (
+        OrderStatusEvent.objects.filter(order=order, to_status=OrderStatus.DELIVERED.value)
+        .order_by("-created_at", "-pk")
+        .values_list("created_at", flat=True)
+        .first()
+    )
+    return OrderDelivery(
+        id=order.pk,
+        number=order.number,
+        status=order.order_status,
+        reseller_id=order.assigned_reseller_id,
+        delivery_method=DeliveryMethod(order.delivery_method),
+        shipping_fee=order.shipping_fee,
+        delivered_at=delivered,
     )
 
 

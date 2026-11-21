@@ -50,3 +50,5 @@ class NotificationKind(StrEnum):
     DELIVERY_CODE_LOCKED = "delivery_code_locked"
     RESELLER_RATED = "reseller_rated"
     DELIVERY_ATTEMPT = "delivery_attempt"
+    PAYOUT_STATEMENT = "payout_statement"
+    PAYOUT_PAID = "payout_paid"

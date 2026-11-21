@@ -5,11 +5,14 @@ from django.db import models
 
 from apps.orders.domain.enums import PaymentMethod
 from apps.sales.domain.enums import CommissionKind, RefundKind, SaleStatus
+from apps.sales.domain.payouts import DeliveryCreditKind, StatementStatus
 
 PAYMENT_CHOICES = [(item.value, item.label) for item in PaymentMethod]
 STATUS_CHOICES = [(item.value, item.value) for item in SaleStatus]
 REFUND_CHOICES = [(item.value, item.value) for item in RefundKind]
 COMMISSION_CHOICES = [(item.value, item.value) for item in CommissionKind]
+STATEMENT_CHOICES = [(item.value, item.value) for item in StatementStatus]
+DELIVERY_CREDIT_CHOICES = [(item.value, item.value) for item in DeliveryCreditKind]
 DIGITS = 10
 PLACES = 2
 
@@ -132,6 +135,17 @@ class CommissionEntry(models.Model):
     base_amount = models.DecimalField(max_digits=DIGITS, decimal_places=PLACES)
     amount = models.DecimalField(max_digits=DIGITS, decimal_places=PLACES)
     note = models.CharField(max_length=255, blank=True)
+    # pending until then, validated (payable) after; a reversal shares the date of the earning it
+    # offsets, so it lowers what is pending or what is validated, never both
+    available_at = models.DateTimeField(db_index=True)
+    # the payout statement that settles this entry
+    statement = models.ForeignKey(
+        "PayoutStatement",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="commission_entries",
+    )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
@@ -168,3 +182,77 @@ class Payout(models.Model):
 
     def __str__(self) -> str:
         return f"{self.reseller_id} {self.amount}"
+
+
+class PayoutStatement(models.Model):
+    """What a reseller is paid on one payout date: validated commissions and delivery fees."""
+
+    reseller = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="payout_statements"
+    )
+    payout_date = models.DateField()
+    status = models.CharField(
+        max_length=10, choices=STATEMENT_CHOICES, default=StatementStatus.PREPARED.value
+    )
+    commissions = models.DecimalField(max_digits=DIGITS, decimal_places=PLACES)
+    delivery_fees = models.DecimalField(max_digits=DIGITS, decimal_places=PLACES)
+    total = models.DecimalField(max_digits=DIGITS, decimal_places=PLACES)
+    payout = models.OneToOneField(
+        Payout, null=True, blank=True, on_delete=models.PROTECT, related_name="statement"
+    )
+    prepared_at = models.DateTimeField()
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "relevé de paiement"
+        verbose_name_plural = "relevés de paiement"
+        ordering = ("-payout_date", "-pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("reseller", "payout_date"),
+                condition=~models.Q(status=StatementStatus.CANCELLED.value),
+                name="sales_statement_once_per_date",
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.reseller_id} {self.payout_date} {self.total}"
+
+
+class DeliveryCredit(models.Model):
+    """The delivery fee of an order the reseller delivered, paid back with their commissions."""
+
+    reseller = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="delivery_credits"
+    )
+    order = models.ForeignKey(
+        "orders.Order", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    order_number = models.CharField(max_length=16)
+    kind = models.CharField(max_length=10, choices=DELIVERY_CREDIT_CHOICES)
+    amount = models.DecimalField(max_digits=DIGITS, decimal_places=PLACES)
+    note = models.CharField(max_length=255, blank=True)
+    available_at = models.DateTimeField(db_index=True)
+    statement = models.ForeignKey(
+        PayoutStatement,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="delivery_credits",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "frais de livraison reversés"
+        verbose_name_plural = "frais de livraison reversés"
+        ordering = ("-created_at", "-pk")
+        constraints = (
+            models.UniqueConstraint(
+                fields=("order", "kind"),
+                condition=models.Q(order__isnull=False),
+                name="sales_delivery_credit_once_per_order",
+            ),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.reseller_id} {self.order_number} {self.amount:+}"

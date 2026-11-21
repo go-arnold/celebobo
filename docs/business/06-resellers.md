@@ -62,7 +62,7 @@ the first rating) and number of ratings (`rating_count`).
 | Dashboard: own sales figures, open orders, commission due | `/bo/dashboard/*` (scoped to themselves) |
 | Orders assigned to them | `/bo/orders/` |
 | Their sales, recording and conversion | `/bo/sales/`, `/bo/orders/{id}/convert-to-sales/` |
-| Their commissions and payouts | `/bo/commissions/summary/`, `/series/`, `/bo/payouts/` |
+| Their commissions and payouts | `/bo/commissions/summary/`, `/series/`, `/bo/payouts/`, `/bo/payout-statements/` |
 | Referral kit | `/bo/me/referral/` |
 | Their invitees (with orders count and amount ordered) | `/bo/me/invitees/` |
 | Availability | `PATCH /bo/me/availability/` |

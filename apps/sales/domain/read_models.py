@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from apps.orders.domain.enums import PaymentMethod
 from apps.sales.domain.enums import CommissionKind, RefundKind, SaleStatus
+from apps.sales.domain.payouts import CommissionStatus, StatementLineKind, StatementStatus
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -79,6 +80,9 @@ class CommissionEntryView:
     base_amount: Decimal
     amount: Decimal
     created_at: datetime
+    status: CommissionStatus
+    available_at: datetime
+    statement_id: int | None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -88,7 +92,39 @@ class CommissionSummary:
     earned_this_month: Decimal
     earned_total: Decimal
     paid_total: Decimal
+    # validated commissions and delivery fees, minus what was paid
     due: Decimal
+    pending: Decimal
+    validated: Decimal
+    delivery_fees: Decimal
+    next_payout_date: date
+    payout_threshold: Decimal
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class StatementLineView:
+    kind: StatementLineKind
+    label: str
+    sale_id: int | None
+    order_number: str | None
+    base_amount: Decimal | None
+    amount: Decimal
+    at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class StatementView:
+    id: int
+    reseller: PersonRef
+    payout_date: date
+    status: StatementStatus
+    commissions: Decimal
+    delivery_fees: Decimal
+    total: Decimal
+    prepared_at: datetime
+    paid_at: datetime | None
+    payout_id: int | None
+    lines: tuple[StatementLineView, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -106,6 +142,8 @@ class PayoutView:
     note: str
     paid_at: datetime
     paid_by: PersonRef | None
+    statement_id: int | None = None
+    payout_date: date | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

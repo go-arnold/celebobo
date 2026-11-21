@@ -5,6 +5,7 @@ from apps.sales.api.v1.views import (
     ConversionViewSet,
     PayoutViewSet,
     SaleViewSet,
+    StatementViewSet,
 )
 
 urlpatterns = [
@@ -54,5 +55,15 @@ urlpatterns = [
         "bo/payouts/",
         PayoutViewSet.as_view({"get": "list", "post": "create"}),
         name="bo-payouts",
+    ),
+    path(
+        "bo/payout-statements/",
+        StatementViewSet.as_view({"get": "list"}),
+        name="bo-payout-statements",
+    ),
+    path(
+        "bo/payout-statements/<id:statement_id>/",
+        StatementViewSet.as_view({"get": "retrieve"}),
+        name="bo-payout-statement",
     ),
 ]
