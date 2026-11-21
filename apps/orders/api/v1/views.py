@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import UUID
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -152,7 +153,7 @@ class QuoteViewSet(UseCaseViewSet):
             data["lines"],
             city=data.get("city") or None,
             coupon_code=coupon_code,
-            use_cashback=data.get("use_cashback", False),
+            points=data.get("points", Decimal(0)),
             pickup=data.get("pickup", False),
         )
         if quote.coupon_error:

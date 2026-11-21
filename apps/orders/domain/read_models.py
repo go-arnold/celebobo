@@ -31,8 +31,8 @@ class QuoteView:
     coupon_code: str | None = None
     coupon_error: str | None = None
     member_free_shipping: bool = False
-    cashback: Decimal = Decimal("0.00")
-    cashback_available: Decimal = Decimal("0.00")
+    points: Decimal = Decimal("0.00")
+    points_available: Decimal = Decimal("0.00")
     delivery_method: DeliveryMethod = DeliveryMethod.DELIVERY
     pickup_address: str = ""
     # the zone is quoted on request: the fee is unknown until a reseller quotes it
@@ -69,7 +69,7 @@ class OrderLineView:
     unit_price: Decimal
     total: Decimal
     discount: Decimal
-    cashback: Decimal
+    points: Decimal
     amount_paid: Decimal
     returned_quantity: int = 0
     returned_amount: Decimal = Decimal(0)
@@ -176,8 +176,8 @@ class OrderDetail:
     rating: RatingView | None = None
     can_rate: bool = False
     delivery_attempts: tuple[AttemptView, ...] = ()
-    cashback: Decimal = Decimal("0.00")
-    cashback_earned: Decimal | None = None
+    points: Decimal = Decimal("0.00")
+    points_earned: Decimal | None = None
     history: tuple[StatusEntry, ...]
     allowed_transitions: tuple[OrderStatus, ...]
     client: PersonBrief

@@ -212,3 +212,8 @@ class AttemptNotAllowed(BusinessRuleViolation):
     default_detail = (
         "Une tentative de livraison ne s'enregistre que pour une commande en livraison."
     )
+
+
+class PointsUnavailable(Conflict):
+    default_code = "points_unavailable"
+    default_detail = "Votre solde de points a changé. Vérifiez le montant puis confirmez."

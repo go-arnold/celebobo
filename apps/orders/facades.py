@@ -152,14 +152,14 @@ class CheckoutFacade:
         *,
         city: str | None = None,
         coupon_code: str | None = None,
-        use_cashback: bool = False,
+        points: Decimal = Decimal(0),
         pickup: bool = False,
     ) -> QuoteView:
         context = PricingContext(
             city=city,
             coupon_code=coupon_code,
             user_id=actor.user_id,
-            use_cashback=use_cashback,
+            points=points,
             pickup=pickup,
         )
         return self._pricing.price(lines, context).view
@@ -186,7 +186,7 @@ class CheckoutFacade:
         return replace(
             detail,
             conversation_id=self._threads.thread_for(detail.summary.id),
-            cashback_earned=self._wallet.earned(detail.summary.id),
+            points_earned=self._wallet.earned(detail.summary.id),
         )
 
 
@@ -261,7 +261,7 @@ class ClientOrderFacade:
             detail,
             allowed_transitions=self._lifecycle.allowed(order, actor),
             conversation_id=self._threads.thread_for(order.pk),
-            cashback_earned=self._wallet.earned(order.pk),
+            points_earned=self._wallet.earned(order.pk),
         )
 
 
@@ -305,7 +305,7 @@ class DispatchFacade:
             detail,
             allowed_transitions=self._lifecycle.allowed(order, actor),
             conversation_id=self._threads.thread_for(order_id),
-            cashback_earned=self._wallet.earned(order_id),
+            points_earned=self._wallet.earned(order_id),
         )
 
     def assign(self, actor: Actor, order_id: int, command: AssignOrder) -> OrderDetail:
@@ -395,7 +395,7 @@ class DispatchFacade:
             )
         return self.detail(actor, order_id)
 
-    # sales and cashback follow the return in this transaction (transactional handlers); once
+    # sales and points follow the return in this transaction (transactional handlers); once
     # every unit is back the order itself becomes returned
     def return_line(
         self, actor: Actor, order_id: int, item_id: int, command: ReturnLine
@@ -410,7 +410,7 @@ class DispatchFacade:
                     quantity=command.quantity,
                     amount_paid=result.share.paid,
                     discount=result.share.discount,
-                    cashback=result.share.cashback,
+                    points=result.share.points,
                     actor_id=actor.user_id,
                 )
             )

@@ -17,8 +17,8 @@ BO = "/api/v1/bo/orders/"
 
 class TestReturnedAmounts:
     def test_partial_returns_round_down_and_the_last_takes_the_rest(self):
-        line = LineAmounts(discount=D("10.00"), cashback=D("0.00"), paid=D("290.00"))
-        nothing = LineAmounts(discount=D(0), cashback=D(0), paid=D(0))
+        line = LineAmounts(discount=D("10.00"), points=D("0.00"), paid=D("290.00"))
+        nothing = LineAmounts(discount=D(0), points=D(0), paid=D(0))
 
         first = returned_amounts(line, quantity=3, returned=0, returning=1, already=nothing)
         last = returned_amounts(line, quantity=3, returned=1, returning=2, already=first)

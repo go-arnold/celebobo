@@ -56,8 +56,11 @@ most **one pickup zone**, it needs an address and can't be the default (errors o
 order take `pickup: true`; without an active pickup zone the answer is `pickup_unavailable`. Every
 quote says whether pickup is offered (`pickup_available`).
 
-**Cashback**: with `use_cashback`, the client's cashback pays part of the products (see
-[loyalty](12-loyalty.md)); `total = subtotal − discount − cashback + shipping`.
+**Fidelity points**: with `points`, the client chooses how many of their points pay part of the
+products, 1 point = $1, up to their balance and the products after the coupon (see
+[loyalty](12-loyalty.md)); `total = subtotal − discount − points + shipping`. The quote lowers the
+amount asked to what is available (`points_available`); `POST /orders/` refuses it with
+`points_unavailable` instead.
 
 **Coupons** (`coupons.manage`): code (stored upper-case, unique), kind `percent` (≤ 100) or `fixed`
 amount, optional maximum discount, minimum subtotal, start/end dates, total usage limit, per-user
@@ -99,7 +102,7 @@ optional `pickup` (collect at the shop; the address then only gives the contact 
 3. The address, product names, images, SKUs and prices are **copied** into the order (snapshot),
    with the delivery method (`delivery` or `pickup`), the pickup address, the zone's delivery
    estimate and, for a zone quoted on request, `awaiting_shipping_quote: true`.
-   Each line also records its share of the order's **coupon** (`discount`) and **cashback**, and the
+   Each line also records its share of the order's **coupon** (`discount`) and **points**, and the
    **real money** paid for it (`amount_paid` = line total − both); see *Line amounts* below.
 4. The coupon is redeemed; the **stock is reserved** (reason `order`).
 5. An **order thread** (conversation) is opened with the client.
@@ -157,7 +160,7 @@ Anything else is refused (`invalid_transition`). Every change is written to the 
 
 | Change | Effect |
 |---|---|
-| → `cancelled` | Reserved stock is **released** (reason `order`). Cashback spent on it comes back. The order thread closes 7 days later (§7). Cancelled after payment (`paid` or `shipping`): a refund is owed (below). |
+| → `cancelled` | Reserved stock is **released** (reason `order`). Points spent on it come back and the points it would earn are dropped. The order thread closes 7 days later (§7). Cancelled after payment (`paid` or `shipping`): a refund is owed (below). |
 | → `returned` | Stock comes back (reason `return`). Sales created from this order are marked **returned** and their commissions reversed (§5). The thread closes 7 days later (§7). |
 | → `delivered` | The order thread closes 7 days later (§7). The client may now review the products and rate the reseller. |
 | Any change | Client notified (and the reseller, except for the assignment itself); real-time update for everyone watching. |
@@ -176,7 +179,7 @@ and a paid order is refunded within 5 working days, **delivery fee deducted**.
    a Sunday does not count.
 3. When failed attempts fall on **2 different working days**, the system cancels the order with the
    reason `delivery_failed` (never chosen by a client). As for any cancellation the stock is
-   released and spent cashback comes back; a paid order owes `refund_due` = total **minus the
+   released and spent points come back; a paid order owes `refund_due` = total **minus the
    delivery fee**, and the staff alert says **5 working days**.
 
 ### Rating the reseller
@@ -209,8 +212,8 @@ Delivery is confirmed by the client, through a code (owner's decision of 16 Nov 
 ### Refunds
 
 An order cancelled once paid (`paid` or `shipping`, by the client or by staff) owes the client what
-they really paid: `refund_due` = the order total (coupon and cashback were not money; the cashback
-comes back to their balance). The delivery policy gives **72 hours** to refund (art. 63). After
+they really paid: `refund_due` = the order total (coupon and points were not money; the points
+come back to their balance). The delivery policy gives **72 hours** to refund (art. 63). After
 failed deliveries (above) the delivery fee is deducted and the delay is **5 working days**.
 
 1. Staff and the reseller in charge are notified ("Remboursement à effectuer").
@@ -251,17 +254,18 @@ cost the client:
 | Field | Meaning |
 |---|---|
 | `discount` | The line's share of the order's coupon discount |
-| `cashback` | The line's share of the cashback used on the order |
-| `amount_paid` | Real money paid for the line: `unit_price × quantity − discount − cashback` |
+| `points` | The line's share of the fidelity points used on the order |
+| `amount_paid` | Real money paid for the line: `unit_price × quantity − discount − points` |
 
-- The coupon is shared in proportion to the line totals; the cashback in proportion to what each
-  line still costs after the coupon (cashback pays the products after the discount).
+- The coupon is shared in proportion to the line totals; the points in proportion to what each
+  line still costs after the coupon (points pay the products after the discount).
 - Shares are rounded to the cent and always add up exactly to the order's amounts; any leftover
   cent goes to the line with the largest rounding remainder.
 - Shipping belongs to the order, never to a line.
-- A price adjustment shares the coupon and cashback out again over all lines.
+- A price adjustment shares the coupon and points out again over all lines.
 - Orders placed before this existed were filled in once by the migration, with the same rule.
-- Coupon and cashback are the **non-real money** of an order (Cagnotte will join them); sale and deal
+- Coupon and fidelity points are the **non-real money** of an order (store credit and Cagnotte
+  campaigns will join them later); sale and deal
   prices are real money. The order details show the three fields on each line.
 
 ### Returning part of an order
@@ -272,11 +276,11 @@ Staff (`orders.status.any`) can take back **some units of one line** of a **deli
 quantity is more than what is left on the line (`invalid_return_quantity`, with `remaining`).
 
 - The return keeps its share of the line amounts: real money owed back (`amount_paid`), coupon and
-  cashback. A partial return takes its proportion rounded down; the last units take what is left,
+  points. A partial return takes its proportion rounded down; the last units take what is left,
   so the returns of a line add up exactly to it.
 - The units go back to stock (reason `return`).
 - The sale made from that line is refunded for those units and the reseller's commission shrinks in
-  proportion (§5); the client's cashback follows (§12). All of this is one transaction: if any part
+  proportion (§5); the client's points follow (§12). All of this is one transaction: if any part
   fails, nothing is recorded.
 - When every unit of every line has come back, the order becomes **returned** by itself.
 - Returning the whole order afterwards (status `returned`) restocks only the units still out, and
@@ -287,7 +291,8 @@ quantity is more than what is left on the line (`invalid_return_quantity`, with 
 
 - `/me/orders/` (own orders), `/me/orders/{number}/` detail, cancel until out for delivery.
 - **Invoice PDF** `/me/orders/{number}/invoice/` — not available for a cancelled order (`invoice_unavailable`).
-  Back-office users get the invoice of any order they can see.
+  Back-office users get the invoice of any order they can see. It prints the points used in the
+  totals and the client's **"Vos points de fidélité"** statement (§12).
 - **Delivery receipt PDF** `/me/orders/{number}/receipt/` — signed, issued and e-mailed at delivery
   (see [back-office tools](10-backoffice-tools.md#delivery-receipts)); before delivery
   `receipt_unavailable`.

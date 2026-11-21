@@ -6,7 +6,7 @@ from apps.catalog.domain.queries import StockLine
 from apps.catalog.domain.read_models import PricedLine
 from apps.orders.domain.commands import OrderLineInput
 from apps.orders.domain.enums import DeliveryMethod
-from apps.orders.domain.errors import CouponRejected, EmptyOrder, TooManyLines
+from apps.orders.domain.errors import CouponRejected, EmptyOrder, PointsUnavailable, TooManyLines
 from apps.orders.domain.pricing import ZERO, CouponTerms, QuoteLine, quote
 from apps.orders.domain.read_models import QuoteLineView, QuoteView
 from apps.orders.models import Coupon
@@ -22,7 +22,8 @@ class PricingContext:
     user_id: int | None = None
     strict: bool = False
     lock: bool = False
-    use_cashback: bool = False
+    # points the client asks to use; the quote applies what their balance and the items allow
+    points: Decimal = ZERO
     pickup: bool = False
 
 
@@ -95,22 +96,24 @@ class PricingService:
             if context.user_id is not None
             else ZERO
         )
-        cashback = available if context.use_cashback else ZERO
+        if context.strict and context.points > available:
+            raise PointsUnavailable
+        points = min(context.points, available)
         return (
             QuoteView(
                 lines=tuple(_line_view(line) for line in priced),
                 subtotal=result.subtotal,
                 discount=result.discount,
                 shipping_fee=result.shipping_fee,
-                total=result.total - cashback,
+                total=result.total - points,
                 free_shipping_remaining=result.free_shipping_remaining,
                 shipping_zone=rules.zone,
                 delivery_estimate=rules.delivery_estimate,
                 coupon_code=terms.code if terms else None,
                 coupon_error=error,
                 member_free_shipping=member,
-                cashback=cashback,
-                cashback_available=available,
+                points=points,
+                points_available=available,
                 delivery_method=DeliveryMethod.PICKUP
                 if context.pickup
                 else DeliveryMethod.DELIVERY,

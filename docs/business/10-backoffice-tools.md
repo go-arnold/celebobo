@@ -52,7 +52,10 @@ event is pushed when it finishes. Users see only their own jobs; files are delet
 ### Invoices
 
 PDF invoice of an order: clients for their own orders, back-office users for orders they can see.
-Not available for cancelled orders.
+Not available for cancelled orders. When fidelity points are on, it ends with the client's
+**"Vos points de fidélité"** statement: points earned on this invoice (marked "en attente" until the
+return period is over), points used on it, available balance, total and count of the client's
+delivered orders (§12).
 
 ### Delivery receipts
 
@@ -119,4 +122,4 @@ Two journals, kept **365 days**:
 | Delete orphan uploads | daily |
 | Announce deals that start or end | every minute |
 | Remind members whose Plus membership ends soon | hourly |
-| Expire unused cashback | daily |
+| Expire the points of clients with no order in the validity period (12 months) | daily |

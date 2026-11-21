@@ -6,6 +6,7 @@ from apps.documents.adapters.gateways import (
     CatalogProductSource,
     CatalogProductWriter,
     EmailReceiptMailer,
+    LoyaltyPointsStatements,
     OrdersInvoiceSource,
     SalesLedgerSource,
 )
@@ -139,5 +140,9 @@ def _receipt_facade(container: Container) -> ReceiptFacade:
 def _invoice_facade(container: Container) -> InvoiceFacade:
     return InvoiceFacade(
         orders=container.resolve(OrderSource),
-        builder=InvoiceBuilder(container.resolve(PdfRenderer), branding(document_settings())),
+        builder=InvoiceBuilder(
+            container.resolve(PdfRenderer),
+            branding(document_settings()),
+            LoyaltyPointsStatements(),
+        ),
     )

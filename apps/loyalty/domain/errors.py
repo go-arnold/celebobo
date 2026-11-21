@@ -29,6 +29,6 @@ class RequestAlreadyHandled(Conflict):
     default_detail = "Cette demande a déjà été traitée."
 
 
-class CashbackUnavailable(Conflict):
-    default_code = "cashback_unavailable"
-    default_detail = "Votre cagnotte a changé. Mettez à jour votre commande."
+class PointsUnavailable(Conflict):
+    default_code = "points_unavailable"
+    default_detail = "Votre solde de points a changé. Vérifiez le montant puis confirmez."

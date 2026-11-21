@@ -37,11 +37,11 @@ class TestSpread:
                 D(0) <= share <= weight for share, weight in zip(shares, weights, strict=True)
             )
 
-    def test_cashback_is_spread_over_what_the_coupon_left(self):
-        first, second = line_amounts([D("100"), D("50")], discount=D("50"), cashback=D("10"))
+    def test_points_is_spread_over_what_the_coupon_left(self):
+        first, second = line_amounts([D("100"), D("50")], discount=D("50"), points=D("10"))
 
         assert (first.discount, second.discount) == (D("33.33"), D("16.67"))
-        assert (first.cashback, second.cashback) == (D("6.67"), D("3.33"))
+        assert (first.points, second.points) == (D("6.67"), D("3.33"))
         assert (first.paid, second.paid) == (D("60.00"), D("30.00"))
 
 
@@ -74,7 +74,7 @@ def place(as_user, user, products, **extra) -> Order:
 
 
 def amounts(order: Order) -> list[tuple[Decimal, Decimal, Decimal]]:
-    return [(item.discount, item.cashback, item.amount_paid) for item in order.items.all()]
+    return [(item.discount, item.points, item.amount_paid) for item in order.items.all()]
 
 
 @pytestmark_db

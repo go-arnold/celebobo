@@ -108,7 +108,7 @@ class TestAttempts:
 
     def test_a_free_delivery_refunds_everything(self, as_user, reseller, order):
         Order.objects.filter(pk=order.pk).update(
-            shipping_fee=Decimal(0), total=order.subtotal - order.discount - order.cashback
+            shipping_fee=Decimal(0), total=order.subtotal - order.discount - order.points
         )
         failed_on(order, MONDAY, TUESDAY)
 

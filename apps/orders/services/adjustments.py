@@ -56,20 +56,20 @@ class AdjustmentService:
                 line.unit_price = price
         order.subtotal = sum((line.total for line in items), Decimal(0))
         order.discount = min(order.discount, order.subtotal)
-        order.cashback = min(order.cashback, order.subtotal - order.discount)
-        order.total = order.subtotal - order.discount - order.cashback + order.shipping_fee
-        # the new price changes every line's share of the coupon and cashback
+        order.points = min(order.points, order.subtotal - order.discount)
+        order.total = order.subtotal - order.discount - order.points + order.shipping_fee
+        # the new price changes every line's share of the coupon and points
         shares = line_amounts(
-            [line.total for line in items], discount=order.discount, cashback=order.cashback
+            [line.total for line in items], discount=order.discount, points=order.points
         )
         for line, share in zip(items, shares, strict=True):
-            line.discount, line.cashback, line.amount_paid = (
+            line.discount, line.points, line.amount_paid = (
                 share.discount,
-                share.cashback,
+                share.points,
                 share.paid,
             )
         self._orders.reprice(item_id=item.pk, price=price, items=items)
-        self._orders.save(order, fields=("subtotal", "discount", "cashback", "total"))
+        self._orders.save(order, fields=("subtotal", "discount", "points", "total"))
         item.unit_price = price
         return Repricing(order, item, previous)
 

@@ -61,7 +61,7 @@ def snapshot(order: OrderDetail) -> dict[str, Any]:
         ],
         "subtotal": str(order.subtotal),
         "discount": str(order.discount),
-        "cashback": str(order.cashback),
+        "points": str(order.points),
         "shipping_fee": str(order.shipping_fee),
         "total": str(order.summary.total),
     }

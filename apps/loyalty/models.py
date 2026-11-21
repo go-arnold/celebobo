@@ -3,8 +3,8 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 
-from apps.loyalty.domain.cashback import EntryKind
 from apps.loyalty.domain.membership import Plan, RequestStatus
+from apps.loyalty.domain.points import EntryKind
 
 SETTINGS_ID = 1
 PLAN_CHOICES = [(item.value, item.value) for item in Plan]
@@ -25,14 +25,15 @@ class LoyaltySettings(models.Model):
     )
     membership_trial_days = models.PositiveSmallIntegerField(default=30)
     membership_reminder_days = models.PositiveSmallIntegerField(default=3)
-    cashback_enabled = models.BooleanField("cagnotte active", default=False)
-    cashback_members_only = models.BooleanField("cagnotte réservée aux abonnés", default=True)
-    cashback_percent = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("3.00"))
-    cashback_max_share = models.PositiveSmallIntegerField(default=50)
-    cashback_min_balance = models.DecimalField(
-        default=Decimal("1.00"), max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES
+    points_enabled = models.BooleanField("points de fidélité actifs", default=False)
+    # points earned on what the client really paid for the items (1 point = $1)
+    points_percent = models.DecimalField(
+        "points gagnés (%)", max_digits=5, decimal_places=2, default=Decimal("1.00")
     )
-    cashback_validity_months = models.PositiveSmallIntegerField(default=12)
+    # the whole balance stays valid while the client buys at least once in this many months
+    points_validity_months = models.PositiveSmallIntegerField(default=12)
+    # when the programme was switched off: clients keep using their points for 3 months
+    points_disabled_at = models.DateTimeField(null=True, blank=True, editable=False)
     app_store_url = models.URLField(max_length=300, blank=True)
     play_store_url = models.URLField(max_length=300, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -103,9 +104,9 @@ class MembershipRequest(models.Model):
 
 
 # credits (earn, refund) keep what is left to spend; debits are negative lines
-class CashbackEntry(models.Model):
+class PointsEntry(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cashback_entries"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="points_entries"
     )
     order = models.ForeignKey(
         "orders.Order", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
@@ -116,21 +117,20 @@ class CashbackEntry(models.Model):
         max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
     )
     available_at = models.DateTimeField(db_index=True)
-    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "mouvement de cagnotte"
-        verbose_name_plural = "mouvements de cagnotte"
+        verbose_name = "mouvement de points"
+        verbose_name_plural = "mouvements de points"
         ordering = ("created_at", "pk")
-        indexes = (models.Index(fields=("user", "available_at"), name="loyalty_cashback_user"),)
+        indexes = (models.Index(fields=("user", "available_at"), name="loyalty_points_user"),)
         constraints = (
             # an order earns and spends once; reversals and refunds can come in parts (line
             # returns), bounded by what was earned and spent
             models.UniqueConstraint(
                 fields=("order", "kind"),
                 condition=models.Q(order__isnull=False, kind__in=("earn", "spend")),
-                name="loyalty_cashback_once_per_order",
+                name="loyalty_points_once_per_order",
             ),
         )
 

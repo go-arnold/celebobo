@@ -172,7 +172,7 @@ class OrderLifecycleService:
             order.delivery_code = delivery.new_code()
             fields.append("delivery_code")
         if status is OrderStatus.CANCELLED and previous in PAID_STATUSES:
-            # what the client really paid (cashback and coupon were not money); after failed
+            # what the client really paid (points and coupon were not money); after failed
             # deliveries the delivery fee is kept (delivery policy)
             kept = (
                 order.shipping_fee

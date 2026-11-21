@@ -25,10 +25,21 @@
   <tfoot>
     <tr><td colspan="4" class="num">Sous-total</td><td class="num">{{ order.subtotal }} $</td></tr>
     {% if order.discount %}<tr><td colspan="4" class="num">Remise{% if order.coupon_code %} ({{ order.coupon_code }}){% endif %}</td><td class="num">-{{ order.discount }} $</td></tr>{% endif %}
-    {% if order.cashback %}<tr><td colspan="4" class="num">Cagnotte</td><td class="num">-{{ order.cashback }} $</td></tr>{% endif %}
+    {% if order.points %}<tr><td colspan="4" class="num">Points de fidélité utilisés</td><td class="num">-{{ order.points }} $</td></tr>{% endif %}
     <tr><td colspan="4" class="num">Livraison{% if order.shipping_zone %} ({{ order.shipping_zone }}){% endif %}</td><td class="num">{{ order.shipping_fee }} $</td></tr>
     <tr class="totals"><td colspan="4" class="num">Total</td><td class="num">{{ order.summary.total }} $</td></tr>
   </tfoot>
 </table>
+{% if points %}
+<h2>Vos points de fidélité</h2>
+<table>
+  <tr><td>Points gagnés sur cette facture{% if points.earned_pending %} (en attente){% endif %}</td><td class="num">{{ points.earned }}</td></tr>
+  <tr><td>Points utilisés sur cette facture</td><td class="num">{{ points.used }}</td></tr>
+  <tr><td>Solde de points disponibles</td><td class="num">{{ points.available }}</td></tr>
+  <tr><td>Total de vos factures encaissées à ce jour</td><td class="num">{{ points.orders_total }} $</td></tr>
+  <tr><td>Nombre de factures encaissées</td><td class="num">{{ points.orders_count }}</td></tr>
+</table>
+<p class="muted">1 point = 1 $, utilisable sur vos prochains achats. Les points en attente deviennent utilisables {{ points.return_days }} jours après la livraison.</p>
+{% endif %}
 <p class="muted" style="margin-top: 18px;">Merci pour votre confiance.</p>
 {% endblock %}

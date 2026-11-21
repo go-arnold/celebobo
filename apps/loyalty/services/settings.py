@@ -1,5 +1,7 @@
 from typing import Any
 
+from django.utils import timezone
+
 from apps.loyalty.domain.settings import LoyaltySettingsChanges
 from apps.loyalty.models import LoyaltySettings
 from apps.loyalty.repositories import LoyaltySettingsRepository
@@ -19,6 +21,11 @@ class LoyaltySettingsService:
         changed = tuple(name for name, value in values.items() if getattr(settings, name) != value)
         for name in changed:
             setattr(settings, name, values[name])
+        saved = changed
+        if "points_enabled" in changed:
+            # switched off: the points stay usable for a while (loyalty policy)
+            settings.points_disabled_at = None if settings.points_enabled else timezone.now()
+            saved = (*changed, "points_disabled_at")
         if changed:
-            self._settings.save(settings, fields=changed)
+            self._settings.save(settings, fields=saved)
         return changed

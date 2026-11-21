@@ -122,7 +122,7 @@ def _shipping_fee(lines: Sequence[QuoteLine], subtotal: Decimal, rules: Shipping
 @dataclass(frozen=True, slots=True)
 class LineAmounts:
     discount: Decimal
-    cashback: Decimal
+    points: Decimal
     paid: Decimal
 
 
@@ -147,19 +147,19 @@ def spread(amount: Decimal, weights: Sequence[Decimal]) -> list[Decimal]:
 
 
 def line_amounts(
-    totals: Sequence[Decimal], *, discount: Decimal, cashback: Decimal
+    totals: Sequence[Decimal], *, discount: Decimal, points: Decimal
 ) -> list[LineAmounts]:
-    """What each order line really cost the client, once the order's coupon and cashback are spread.
+    """What each order line really cost the client, once the order's coupon and points are spread.
 
-    The coupon is spread over the line totals; the cashback over what is left after the coupon,
+    The coupon is spread over the line totals; the points over what is left after the coupon,
     since it pays the products after the discount. Shipping is not part of any line.
     """
     discounts = spread(discount, totals)
     after_coupon = [line - share for line, share in zip(totals, discounts, strict=True)]
-    cashbacks = spread(cashback, after_coupon)
+    point_parts = spread(points, after_coupon)
     return [
-        LineAmounts(discount=coupon, cashback=credit, paid=rest - credit)
-        for coupon, credit, rest in zip(discounts, cashbacks, after_coupon, strict=True)
+        LineAmounts(discount=coupon, points=credit, paid=rest - credit)
+        for coupon, credit, rest in zip(discounts, point_parts, after_coupon, strict=True)
     ]
 
 
@@ -174,13 +174,11 @@ def returned_amounts(
     if returned + returning >= quantity:
         return LineAmounts(
             discount=line.discount - already.discount,
-            cashback=line.cashback - already.cashback,
+            points=line.points - already.points,
             paid=line.paid - already.paid,
         )
 
     def part(amount: Decimal) -> Decimal:
         return (amount * returning / quantity).quantize(CENT, rounding=ROUND_DOWN)
 
-    return LineAmounts(
-        discount=part(line.discount), cashback=part(line.cashback), paid=part(line.paid)
-    )
+    return LineAmounts(discount=part(line.discount), points=part(line.points), paid=part(line.paid))
