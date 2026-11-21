@@ -176,6 +176,27 @@ class NotificationFanout:
             order_id=order.id,
         )
 
+    def payout_statement(
+        self, reseller_id: int, statement_id: int, *, total: str, date: str
+    ) -> None:
+        self._notifications.notify(
+            [reseller_id],
+            render(
+                NotificationKind.PAYOUT_STATEMENT,
+                statement_id=statement_id,
+                total=total,
+                date=date,
+            ),
+        )
+
+    def payout_paid(self, reseller_id: int, statement_id: int, *, amount: str, date: str) -> None:
+        self._notifications.notify(
+            [reseller_id],
+            render(
+                NotificationKind.PAYOUT_PAID, statement_id=statement_id, amount=amount, date=date
+            ),
+        )
+
     def delivery_code_locked(self, order_id: int) -> None:
         order = self._orders.ref(order_id)
         self._notifications.notify(

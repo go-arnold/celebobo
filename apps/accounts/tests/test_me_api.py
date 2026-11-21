@@ -37,7 +37,6 @@ class TestProfile:
         assert body["reseller"] == {
             "referral_code": "4821",
             "availability": "offline",
-            "commission_rate": "0.070",
             "invited_count": 2,
         }
         assert "availability.update" in body["permissions"]

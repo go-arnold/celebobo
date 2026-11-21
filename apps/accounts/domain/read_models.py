@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
 
 from apps.accounts.domain.enums import AddressLabel, Availability
 from core.domain.actor import Role
@@ -10,7 +9,6 @@ from core.domain.actor import Role
 class ResellerProfile:
     referral_code: str | None
     availability: Availability
-    commission_rate: Decimal
     invited_count: int
 
 
@@ -76,7 +74,6 @@ class SellerProfile:
     id: int
     name: str
     role: Role
-    commission_rate: Decimal
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -95,7 +92,6 @@ class ResellerAccount:
     phone_number: str | None
     avatar: str
     referral_code: str | None
-    commission_rate: Decimal
     availability: Availability
     is_active: bool
     manager: ManagerRef | None

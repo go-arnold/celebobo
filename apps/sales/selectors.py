@@ -16,8 +16,16 @@ from django.utils import timezone
 
 from apps.orders.domain.enums import PaymentMethod
 from apps.sales.domain.commands import SaleFilters
-from apps.sales.domain.enums import CommissionKind, RefundKind, SaleStatus
-from apps.sales.domain.errors import SaleNotFound
+from apps.sales.domain.enums import CommissionKind, CommissionRule, RefundKind, SaleStatus
+from apps.sales.domain.errors import SaleNotFound, StatementNotFound
+from apps.sales.domain.payouts import (
+    PAYOUT_THRESHOLD,
+    CommissionStatus,
+    DeliveryCreditKind,
+    PayoutCalendar,
+    StatementLineKind,
+    StatementStatus,
+)
 from apps.sales.domain.read_models import (
     CommissionEntryView,
     CommissionSummary,
@@ -28,9 +36,11 @@ from apps.sales.domain.read_models import (
     SalesStats,
     SaleView,
     SellerPerformance,
+    StatementLineView,
+    StatementView,
 )
 from apps.sales.domain.rules import ZERO, cents, profit_for
-from apps.sales.models import CommissionEntry, Payout, Sale
+from apps.sales.models import CommissionEntry, DeliveryCredit, Payout, PayoutStatement, Sale
 from core.domain.actor import Actor
 
 MONEY = DecimalField(max_digits=14, decimal_places=2)
@@ -112,26 +122,40 @@ class CommissionSelector:
     def __init__(self, *, clock: Callable[[], datetime] = timezone.now) -> None:
         self._clock = clock
 
-    def summary(self, reseller: PersonRef, rate: Decimal) -> CommissionSummary:
+    def summary(self, reseller: PersonRef) -> CommissionSummary:
+        now = self._clock()
         entries = CommissionEntry.objects.filter(reseller_id=reseller.id)
-        month_start = self._clock().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        earned_total = _sum(entries, "amount")
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        validated = _sum(entries.filter(available_at__lte=now), "amount")
+        fees = _sum(
+            DeliveryCredit.objects.filter(reseller_id=reseller.id, available_at__lte=now), "amount"
+        )
         paid_total = _sum(Payout.objects.filter(reseller_id=reseller.id), "amount")
         return CommissionSummary(
             reseller=reseller,
-            rate=rate,
             earned_this_month=_sum(entries.filter(created_at__gte=month_start), "amount"),
-            earned_total=earned_total,
+            earned_total=_sum(entries, "amount"),
             paid_total=paid_total,
-            due=earned_total - paid_total,
+            due=validated + fees - paid_total,
+            pending=_sum(entries.filter(available_at__gt=now), "amount"),
+            validated=validated,
+            delivery_fees=fees,
+            next_payout_date=PayoutCalendar().next(timezone.localdate(now)),
+            payout_threshold=PAYOUT_THRESHOLD,
         )
 
     def entries(
         self, reseller_id: int, *, offset: int, limit: int
     ) -> tuple[list[CommissionEntryView], int]:
         entries = CommissionEntry.objects.filter(reseller_id=reseller_id)
-        page = entries.order_by("-created_at", "-pk")[offset : offset + limit]
-        return [_entry_view(entry) for entry in page], entries.count()
+        page = list(
+            entries.select_related("statement").order_by("-created_at", "-pk")[
+                offset : offset + limit
+            ]
+        )
+        nets = _sale_nets(entry.sale_id for entry in page)
+        now = self._clock()
+        return [_entry_view(entry, nets, now) for entry in page], entries.count()
 
     def monthly(self, reseller_id: int, *, months: int = 6) -> list[MonthlyCommission]:
         now = self._clock()
@@ -154,7 +178,7 @@ class PayoutSelector:
     def page(
         self, reseller_id: int | None, *, offset: int, limit: int
     ) -> tuple[list[PayoutView], int]:
-        payouts = Payout.objects.select_related("reseller", "paid_by")
+        payouts = Payout.objects.select_related("reseller", "paid_by", "statement")
         if reseller_id is not None:
             payouts = payouts.filter(reseller_id=reseller_id)
         page = payouts.order_by("-paid_at", "-pk")[offset : offset + limit]
@@ -162,8 +186,36 @@ class PayoutSelector:
 
     def one(self, payout_id: int) -> PayoutView:
         return to_payout_view(
-            Payout.objects.select_related("reseller", "paid_by").get(pk=payout_id)
+            Payout.objects.select_related("reseller", "paid_by", "statement").get(pk=payout_id)
         )
+
+
+class StatementSelector:
+    def page(
+        self,
+        reseller_id: int | None,
+        status: StatementStatus | None,
+        *,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[StatementView], int]:
+        statements = PayoutStatement.objects.select_related("reseller", "payout")
+        if reseller_id is not None:
+            statements = statements.filter(reseller_id=reseller_id)
+        if status is not None:
+            statements = statements.filter(status=status.value)
+        page = statements.order_by("-payout_date", "-pk")[offset : offset + limit]
+        return [_statement_view(statement) for statement in page], statements.count()
+
+    # a reseller only reaches their own statements
+    def detail(self, statement_id: int, *, reseller_id: int | None = None) -> StatementView:
+        statements = PayoutStatement.objects.select_related("reseller", "payout")
+        if reseller_id is not None:
+            statements = statements.filter(reseller_id=reseller_id)
+        statement = statements.filter(pk=statement_id).first()
+        if statement is None:
+            raise StatementNotFound
+        return _statement_view(statement, lines=_statement_lines(statement))
 
 
 def to_sale_view(sale: Sale, *, with_refunds: bool = False) -> SaleView:
@@ -206,6 +258,7 @@ def to_sale_view(sale: Sale, *, with_refunds: bool = False) -> SaleView:
 
 
 def to_payout_view(payout: Payout) -> PayoutView:
+    statement: PayoutStatement | None = getattr(payout, "statement", None)
     return PayoutView(
         id=payout.pk,
         reseller=_person(payout.reseller),
@@ -213,7 +266,89 @@ def to_payout_view(payout: Payout) -> PayoutView:
         note=payout.note,
         paid_at=payout.paid_at,
         paid_by=_person(payout.paid_by) if payout.paid_by else None,
+        statement_id=statement.pk if statement else None,
+        payout_date=statement.payout_date if statement else None,
     )
+
+
+def _statement_view(
+    statement: PayoutStatement, *, lines: tuple[StatementLineView, ...] = ()
+) -> StatementView:
+    return StatementView(
+        id=statement.pk,
+        reseller=_person(statement.reseller),
+        payout_date=statement.payout_date,
+        status=StatementStatus(statement.status),
+        commissions=statement.commissions,
+        delivery_fees=statement.delivery_fees,
+        total=statement.total,
+        prepared_at=statement.prepared_at,
+        paid_at=statement.payout.paid_at if statement.payout else None,
+        payout_id=statement.payout_id,
+        lines=lines,
+    )
+
+
+def _statement_lines(statement: PayoutStatement) -> tuple[StatementLineView, ...]:
+    entries = (
+        CommissionEntry.objects.filter(statement=statement)
+        .select_related("sale__order")
+        .order_by("available_at", "pk")
+    )
+    credits = DeliveryCredit.objects.filter(statement=statement).order_by("available_at", "pk")
+    lines = [_commission_line(entry) for entry in entries]
+    lines.extend(
+        StatementLineView(
+            kind=StatementLineKind.DELIVERY_FEE
+            if credit.kind == DeliveryCreditKind.CREDIT.value
+            else StatementLineKind.DELIVERY_FEE_REVERSAL,
+            label=f"{credit.note or 'Frais de livraison'} — commande {credit.order_number}",
+            sale_id=None,
+            order_number=credit.order_number,
+            base_amount=None,
+            amount=credit.amount,
+            at=credit.available_at,
+        )
+        for credit in credits
+    )
+    return tuple(lines)
+
+
+def _commission_line(entry: CommissionEntry) -> StatementLineView:
+    sale = entry.sale
+    earned = entry.kind == CommissionKind.EARNED.value
+    product = sale.product_name if sale else "vente supprimée"
+    return StatementLineView(
+        kind=StatementLineKind.COMMISSION if earned else StatementLineKind.REVERSAL,
+        label=f"Commission — {product}" if earned else f"{entry.note or 'Annulation'} — {product}",
+        sale_id=entry.sale_id,
+        order_number=sale.order.number if sale and sale.order else None,
+        base_amount=entry.base_amount,
+        amount=entry.amount,
+        at=entry.available_at,
+    )
+
+
+def _sale_nets(sale_ids: Iterable[int | None]) -> dict[int, Decimal]:
+    ids = {sale_id for sale_id in sale_ids if sale_id is not None}
+    rows = (
+        CommissionEntry.objects.filter(sale_id__in=ids)
+        .values("sale_id")
+        .annotate(total=Sum("amount"))
+    )
+    return {row["sale_id"]: Decimal(row["total"] or 0) for row in rows}
+
+
+# cancelled once its sale is gone or fully reversed; paid once its statement is paid
+def commission_status(
+    entry: CommissionEntry, nets: dict[int, Decimal], now: datetime
+) -> CommissionStatus:
+    if entry.sale_id is None or nets.get(entry.sale_id, ZERO) <= ZERO:
+        return CommissionStatus.CANCELLED
+    statement = entry.statement
+    if statement is not None and statement.status == StatementStatus.PAID.value:
+        return CommissionStatus.PAID
+    return CommissionStatus.PENDING if entry.available_at > now else CommissionStatus.VALIDATED
 
 
 def _stats(sales: QuerySet[Sale]) -> SalesStats:
@@ -244,15 +379,20 @@ def _net_profit(sale: Sale) -> Decimal | None:
     return None if profit is None else cents(profit - sale.refunded_amount)
 
 
-def _entry_view(entry: CommissionEntry) -> CommissionEntryView:
+def _entry_view(
+    entry: CommissionEntry, nets: dict[int, Decimal], now: datetime
+) -> CommissionEntryView:
     return CommissionEntryView(
         id=entry.pk,
         kind=CommissionKind(entry.kind),
         sale_id=entry.sale_id,
-        rate=entry.rate,
+        rule=CommissionRule(entry.rule),
         base_amount=entry.base_amount,
         amount=entry.amount,
         created_at=entry.created_at,
+        status=commission_status(entry, nets, now),
+        available_at=entry.available_at,
+        statement_id=entry.statement_id,
     )
 
 
@@ -265,7 +405,9 @@ def _person(user: object) -> PersonRef:
     )
 
 
-def _sum(queryset: QuerySet[CommissionEntry] | QuerySet[Payout], field: str) -> Decimal:
+def _sum(
+    queryset: QuerySet[CommissionEntry] | QuerySet[Payout] | QuerySet[DeliveryCredit], field: str
+) -> Decimal:
     total = queryset.aggregate(total=Sum(field))["total"]
     return cents(Decimal(total or 0))
 
@@ -312,7 +454,13 @@ def seller_performance(
     rows = sales.values("seller_id").annotate(count=Count("pk"), revenue=Sum(net))
     counts = {row["seller_id"]: int(row["count"]) for row in rows}
     revenue = {row["seller_id"]: Decimal(row["revenue"] or 0) for row in rows}
-    earned = _totals_by_reseller(CommissionEntry.objects.filter(reseller_id__in=ids))
+    entries = CommissionEntry.objects.filter(reseller_id__in=ids)
+    now = timezone.now()
+    earned = _totals_by_reseller(entries)
+    validated = _totals_by_reseller(entries.filter(available_at__lte=now))
+    fees = _totals_by_reseller(
+        DeliveryCredit.objects.filter(reseller_id__in=ids, available_at__lte=now)
+    )
     paid = _totals_by_reseller(Payout.objects.filter(reseller_id__in=ids))
     return {
         seller_id: SellerPerformance(
@@ -320,14 +468,19 @@ def seller_performance(
             sales_count=counts.get(seller_id, 0),
             revenue=cents(revenue.get(seller_id, ZERO)),
             commission_earned=cents(earned.get(seller_id, ZERO)),
-            commission_due=cents(earned.get(seller_id, ZERO) - paid.get(seller_id, ZERO)),
+            # payable now: validated commissions and delivery fees, minus what was paid
+            commission_due=cents(
+                validated.get(seller_id, ZERO)
+                + fees.get(seller_id, ZERO)
+                - paid.get(seller_id, ZERO)
+            ),
         )
         for seller_id in ids
     }
 
 
 def _totals_by_reseller(
-    queryset: QuerySet[CommissionEntry] | QuerySet[Payout],
+    queryset: QuerySet[CommissionEntry] | QuerySet[Payout] | QuerySet[DeliveryCredit],
 ) -> dict[int, Decimal]:
     rows = queryset.values("reseller_id").annotate(total=Sum("amount"))
     return {row["reseller_id"]: Decimal(row["total"] or 0) for row in rows}

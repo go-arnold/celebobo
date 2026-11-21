@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from decimal import Decimal
 from typing import Any
 
@@ -10,7 +11,13 @@ from apps.catalog.api.v1.serializers import (
     ReviewAuthorOutput,
 )
 from apps.catalog.domain.deals import DealStatus
-from apps.catalog.domain.enums import Badge, CategoryIcon, ReviewStatus, StockReason
+from apps.catalog.domain.enums import (
+    Badge,
+    CategoryIcon,
+    ProductOrigin,
+    ReviewStatus,
+    StockReason,
+)
 from apps.catalog.domain.management import (
     AdjustmentMode,
     BulkAction,
@@ -18,10 +25,15 @@ from apps.catalog.domain.management import (
     ProductStatus,
     VariantDraft,
 )
+from apps.catalog.permissions import PRODUCTS_ORIGIN
 from core.api.fields import MAX_INTEGER
+from core.authz.catalog import permission_catalog
+from core.domain.actor import Actor
+from core.domain.errors import Forbidden
 
 MAX_IMAGES = 8
 MAX_VARIANTS = 200
+ORIGIN_FIELDS = ("origin", "partner_gain")
 
 
 def _choices(enum: type[Any]) -> list[str]:
@@ -30,6 +42,11 @@ def _choices(enum: type[Any]) -> list[str]:
 
 def money(**options: Any) -> serializers.DecimalField:
     return serializers.DecimalField(max_digits=10, decimal_places=2, **options)
+
+
+def sees_origin(context: Mapping[str, Any]) -> bool:
+    actor = context.get("actor")
+    return isinstance(actor, Actor) and permission_catalog.allows(actor, PRODUCTS_ORIGIN)
 
 
 class OptionInputSerializer(serializers.Serializer[Any]):
@@ -52,6 +69,8 @@ class ProductFieldsSerializer(serializers.Serializer[Any]):
     price = money(min_value=0)
     sale_price = money(min_value=0, allow_null=True, required=False)
     cost_price = money(min_value=0, allow_null=True, required=False)
+    origin = serializers.ChoiceField(choices=_choices(ProductOrigin), required=False)
+    partner_gain = money(min_value=0, allow_null=True, required=False)
     long_description = serializers.CharField(required=False, allow_blank=True, max_length=10000)
     seo_title = serializers.CharField(required=False, allow_blank=True, max_length=70)
     seo_description = serializers.CharField(required=False, allow_blank=True, max_length=160)
@@ -79,8 +98,12 @@ class ProductFieldsSerializer(serializers.Serializer[Any]):
     )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if any(name in attrs for name in ORIGIN_FIELDS) and not sees_origin(self.context):
+            raise Forbidden
         if attrs.get("badge"):
             attrs["badge"] = Badge(attrs["badge"])
+        if "origin" in attrs:
+            attrs["origin"] = ProductOrigin(attrs["origin"])
         for name in ("features", "options", "image_ids"):
             if name in attrs:
                 attrs[name] = tuple(attrs[name])
@@ -289,6 +312,9 @@ class AdminProductRowOutput(serializers.Serializer[Any]):
     current_price = money()
     margin = money(allow_null=True)
     margin_percent = serializers.DecimalField(max_digits=7, decimal_places=2, allow_null=True)
+    # only for managers (products.origin): left out of the payload for everyone else
+    origin = serializers.CharField(required=False)
+    partner_gain = money(allow_null=True, required=False)
     stock = serializers.IntegerField()
     stock_threshold = serializers.IntegerField()
     low_stock = serializers.BooleanField()
@@ -298,6 +324,13 @@ class AdminProductRowOutput(serializers.Serializer[Any]):
     sales_count = serializers.IntegerField()
     rating = serializers.DecimalField(max_digits=3, decimal_places=2)
     updated_at = serializers.DateTimeField()
+
+    def to_representation(self, instance: Any) -> dict[str, Any]:
+        data = super().to_representation(instance)
+        if not sees_origin(self.context):
+            for name in ORIGIN_FIELDS:
+                data.pop(name, None)
+        return data
 
 
 class AdminImageOutput(serializers.Serializer[Any]):
@@ -333,7 +366,8 @@ class AdminProductDetailOutput(serializers.Serializer[Any]):
     variants = AdminVariantOutput(many=True)
 
     def to_representation(self, instance: Any) -> dict[str, Any]:
-        return {**AdminProductRowOutput(instance.row).data, **super().to_representation(instance)}
+        row = AdminProductRowOutput(instance.row, context=self.context).data
+        return {**row, **super().to_representation(instance)}
 
 
 class ProductStatsOutput(serializers.Serializer[Any]):

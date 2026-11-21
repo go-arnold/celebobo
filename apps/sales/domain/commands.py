@@ -51,8 +51,7 @@ class ConvertOrder:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class RecordPayout:
-    reseller_id: int
-    amount: Decimal
+    statement_id: int
     note: str = ""
     paid_at: datetime | None = None
 

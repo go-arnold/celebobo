@@ -83,3 +83,13 @@ class NotAReseller(ValidationFailed):
 class ReturnThroughOrder(BusinessRuleViolation):
     default_code = "return_through_order"
     default_detail = "Cette vente provient d'une commande : enregistrez le retour sur la commande."
+
+
+class StatementNotFound(NotFound):
+    default_code = "statement_not_found"
+    default_detail = "Relevé de paiement introuvable."
+
+
+class StatementNotPayable(Conflict):
+    default_code = "statement_not_payable"
+    default_detail = "Ce relevé a déjà été payé ou a été remplacé par un relevé plus récent."

@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 
-from apps.catalog.domain.enums import StockReason
+from apps.catalog.domain.enums import ProductOrigin, StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
 from apps.orders.domain.enums import PaymentMethod
 from apps.sales.domain.commands import ConvertOrder, EditSale, RecordSale, RefundSale
@@ -77,9 +77,12 @@ class SaleService:
             quantity=command.quantity,
             unit_price=command.unit_price,
             unit_cost=line.cost_price,
+            origin=line.origin.value,
+            partner_gain=line.partner_gain,
             payment_method=command.payment_method.value,
             recorded_by_id=actor.user_id,
             sold_at=sold_at,
+            commissionable=self._commissions.eligible(seller_id, command.buyer_id),
         )
         self._inventory.reserve(
             [
@@ -115,6 +118,10 @@ class SaleService:
         seller_id = order.reseller_id or actor.user_id
         if seller_id is None:
             raise SellerRequired
+        # nothing at all on an order that used points or a coupon, nor on the reseller's own order
+        commissionable = self._commissions.eligible(
+            seller_id, order.client_id, real_money=order.real_money_only
+        )
         outcome = SaleOutcome([])
         for item in order.items:
             if item.product_id is None:
@@ -132,11 +139,14 @@ class SaleService:
                 quantity=item.quantity,
                 unit_price=overrides.get(item.id, item.unit_price),
                 unit_cost=cost.cost_price if cost else None,
+                origin=cost.origin.value if cost else ProductOrigin.CELEBOBO.value,
+                partner_gain=cost.partner_gain if cost else None,
                 payment_method=(command.payment_method or order.payment_method).value,
                 order_id=order.id,
                 order_item_id=item.id,
                 recorded_by_id=actor.user_id,
                 sold_at=sold_at,
+                commissionable=commissionable,
             )
             self._inventory.count_sales(item.product_id, item.quantity, actor_id=actor.user_id)
             outcome.sales.append(sale)
@@ -205,8 +215,12 @@ class SaleService:
             if sale.order_id is None:
                 self._restock(actor, sale, StockReason.CORRECTION, "Suppression de vente")
             self._inventory.count_sales(sale.product_id, -sale.quantity, actor_id=actor.user_id)
-        self._sales.delete(sale)
         return SaleOutcome([], changes)
+
+    # the row goes last: until then the void entry still names the sale, so a prepared statement
+    # holding its commission can take the void in
+    def remove(self, sale: Sale) -> None:
+        self._sales.delete(sale)
 
     def order_returned(self, actor: Actor, order_id: int) -> SaleOutcome:
         outcome = SaleOutcome([])

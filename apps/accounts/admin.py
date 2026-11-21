@@ -24,7 +24,7 @@ class UserAdmin(BaseUserAdmin[User]):
         (None, {"fields": ("email", "password")}),
         ("Identité", {"fields": ("first_name", "last_name", "phone_number", "avatar")}),
         ("Rôle", {"fields": ("role", "referral_code", "invited_by", "manager")}),
-        ("Revendeur", {"fields": ("availability", "commission_rate")}),
+        ("Revendeur", {"fields": ("availability",)}),
         (
             "Accès",
             {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")},

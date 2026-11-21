@@ -263,6 +263,18 @@ class OrderRef:
     total: Decimal
 
 
+# how an order was handed over: who delivered it, when, and the delivery fee the client paid
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OrderDelivery:
+    id: int
+    number: str
+    status: OrderStatus
+    reseller_id: int | None
+    delivery_method: DeliveryMethod
+    shipping_fee: Decimal
+    delivered_at: datetime | None
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ConvertibleItem:
     id: int
@@ -286,6 +298,14 @@ class ConvertibleOrder:
     total: Decimal
     created_at: datetime
     items: tuple[ConvertibleItem, ...]
+    # non-real money used on the order: a coupon or promotion, and points
+    discount: Decimal = Decimal(0)
+    points: Decimal = Decimal(0)
+
+    # paid only in cash or Mobile Money: no points, no coupon (owner rule on non-real money)
+    @property
+    def real_money_only(self) -> bool:
+        return self.discount == 0 and self.points == 0
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

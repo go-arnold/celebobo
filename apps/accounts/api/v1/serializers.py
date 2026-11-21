@@ -53,7 +53,6 @@ class UpdateProfileInput(serializers.Serializer[Any]):
 class ResellerProfileOutput(serializers.Serializer[Any]):
     referral_code = serializers.CharField(allow_null=True)
     availability = serializers.ChoiceField(choices=[item.value for item in Availability])
-    commission_rate = serializers.DecimalField(max_digits=4, decimal_places=3)
     invited_count = serializers.IntegerField()
 
 

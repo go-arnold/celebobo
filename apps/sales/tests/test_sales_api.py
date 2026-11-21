@@ -68,6 +68,23 @@ class TestRecording:
 
         assert Sale.objects.get(pk=body["id"]).unit_cost == Decimal("80.00")
 
+    def test_origin_and_partner_gain_are_frozen_at_sale_time(self, reseller, record_sale):
+        product = ProductFactory.create(
+            price=Decimal("30.00"), stock=5, origin="partner", partner_gain=Decimal("4.00")
+        )
+        body = record_sale(reseller, product, quantity=1, unit_price="30.00")
+        Product.objects.filter(pk=product.pk).update(origin="celebobo", partner_gain=None)
+
+        sale = Sale.objects.get(pk=body["id"])
+        assert (sale.origin, sale.partner_gain) == ("partner", Decimal("4.00"))
+        assert "origin" not in body
+        assert "partner_gain" not in body
+
+    def test_celebobo_products_have_no_partner_gain(self, reseller, phone, record_sale):
+        sale = Sale.objects.get(pk=record_sale(reseller, phone)["id"])
+
+        assert (sale.origin, sale.partner_gain) == ("celebobo", None)
+
     def test_managers_attribute_sales_to_a_reseller(self, manager, reseller, phone, record_sale):
         body = record_sale(manager, phone, seller_id=reseller.pk)
 

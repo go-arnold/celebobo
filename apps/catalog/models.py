@@ -11,10 +11,17 @@ from safedelete.config import SOFT_DELETE
 from safedelete.models import SafeDeleteModel
 
 from apps.catalog.domain.deals import DealStatus
-from apps.catalog.domain.enums import Badge, CategoryIcon, ReviewStatus, StockReason
+from apps.catalog.domain.enums import (
+    Badge,
+    CategoryIcon,
+    ProductOrigin,
+    ReviewStatus,
+    StockReason,
+)
 from apps.catalog.domain.rules import current_price
 
 BADGE_CHOICES = [(item.value, item.label) for item in Badge]
+ORIGIN_CHOICES = [(item.value, item.label) for item in ProductOrigin]
 ICON_CHOICES = [(item.value, item.value) for item in CategoryIcon]
 STOCK_REASON_CHOICES = [(item.value, item.label) for item in StockReason]
 REVIEW_STATUS_CHOICES = [(item.value, item.value) for item in ReviewStatus]
@@ -106,6 +113,17 @@ class Product(SafeDeleteModel, TimestampedModel):
     current_price = models.DecimalField(
         editable=False, db_index=True, max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES
     )
+    # managers only: who supplies the product, and Celebobo's gain per unit on partner products
+    origin = models.CharField(
+        "origine", max_length=10, choices=ORIGIN_CHOICES, default=ProductOrigin.CELEBOBO.value
+    )
+    partner_gain = models.DecimalField(
+        "gain Celebobo par unité",
+        null=True,
+        blank=True,
+        max_digits=MONEY_DIGITS,
+        decimal_places=MONEY_PLACES,
+    )
     care_instructions = models.TextField(blank=True)
     delivery_policy_primary = models.TextField(blank=True)
     delivery_policy_secondary = models.TextField(blank=True)
@@ -143,6 +161,19 @@ class Product(SafeDeleteModel, TimestampedModel):
             models.CheckConstraint(
                 condition=models.Q(cost_price__isnull=True) | models.Q(cost_price__gte=0),
                 name="catalog_product_cost_price_positive",
+            ),
+            # spelled out with isnull: a NULL gain must fail the check, not leave it unknown
+            models.CheckConstraint(
+                condition=models.Q(
+                    origin=ProductOrigin.PARTNER.value,
+                    partner_gain__isnull=False,
+                    partner_gain__gt=0,
+                )
+                | (
+                    ~models.Q(origin=ProductOrigin.PARTNER.value)
+                    & models.Q(partner_gain__isnull=True)
+                ),
+                name="catalog_product_partner_gain",
             ),
         )
 

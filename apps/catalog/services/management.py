@@ -5,7 +5,7 @@ from typing import Any
 
 from django.utils.text import slugify
 
-from apps.catalog.domain.enums import ReviewStatus, StockReason
+from apps.catalog.domain.enums import ProductOrigin, ReviewStatus, StockReason
 from apps.catalog.domain.errors import (
     BrandNameTaken,
     BrandNotFound,
@@ -41,6 +41,7 @@ from apps.catalog.domain.management_rules import (
     discounted,
     normalize_options,
     validate_attributes,
+    validate_origin,
     validate_pricing,
     validate_sell_by,
     variant_label,
@@ -107,6 +108,7 @@ class ProductAdminService:
 
     def create(self, draft: ProductDraft) -> Product:
         validate_pricing(draft.price, draft.sale_price, draft.cost_price)
+        validate_origin(draft.origin, draft.partner_gain)
         validate_sell_by(draft.sell_by, today=self._today())
         category = self._category(draft.category_id)
         urls = self._image_urls(draft.image_ids)
@@ -124,6 +126,8 @@ class ProductAdminService:
             price=draft.price,
             sale_price=draft.sale_price,
             cost_price=draft.cost_price,
+            origin=draft.origin.value,
+            partner_gain=draft.partner_gain,
             care_instructions=draft.care_instructions.strip(),
             delivery_policy_primary=draft.delivery_policy_primary.strip(),
             delivery_policy_secondary=draft.delivery_policy_secondary.strip(),
@@ -147,6 +151,7 @@ class ProductAdminService:
         sale_price = values.get("sale_price", product.sale_price)
         cost_price = values.get("cost_price", product.cost_price)
         validate_pricing(price, sale_price, cost_price)
+        self._origin(product, values)
         if "sell_by" in values:
             validate_sell_by(values["sell_by"], today=self._today())
         fields: list[str] = []
@@ -173,6 +178,18 @@ class ProductAdminService:
             self._products.save(product, fields=fields)
         return product
 
+    # switching back to Celebobo drops the partner gain unless the change sets it explicitly
+    @staticmethod
+    def _origin(product: Product, values: dict[str, Any]) -> None:
+        if "origin" not in values and "partner_gain" not in values:
+            return
+        origin = values.get("origin", ProductOrigin(product.origin))
+        if origin is ProductOrigin.CELEBOBO and "partner_gain" not in values:
+            values["partner_gain"] = None
+        validate_origin(origin, values.get("partner_gain", product.partner_gain))
+        if "origin" in values:
+            values["origin"] = origin.value
+
     def trash(self, product: Product) -> None:
         self._products.soft_delete(product)
 
@@ -194,6 +211,8 @@ class ProductAdminService:
             price=product.price,
             sale_price=product.sale_price,
             cost_price=product.cost_price,
+            origin=product.origin,
+            partner_gain=product.partner_gain,
             care_instructions=product.care_instructions,
             delivery_policy_primary=product.delivery_policy_primary,
             delivery_policy_secondary=product.delivery_policy_secondary,

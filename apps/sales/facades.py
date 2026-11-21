@@ -1,7 +1,8 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date, datetime
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from apps.accounts.domain.read_models import SellerProfile
 from apps.sales.domain.commands import (
@@ -18,11 +19,13 @@ from apps.sales.domain.events import (
     CommissionChanged,
     OrderConverted,
     PayoutRecorded,
+    PayoutStatementPrepared,
     SaleDeleted,
     SaleRecorded,
     SaleRefunded,
     SaleUpdated,
 )
+from apps.sales.domain.payouts import StatementStatus
 from apps.sales.domain.read_models import (
     CommissionEntryView,
     CommissionSummary,
@@ -32,12 +35,15 @@ from apps.sales.domain.read_models import (
     PersonRef,
     SalesStats,
     SaleView,
+    StatementView,
 )
+from apps.sales.domain.rules import ZERO
 from apps.sales.models import Sale
 from apps.sales.selectors import (
     CommissionSelector,
     PayoutSelector,
     SaleSelector,
+    StatementSelector,
     scoped_sales,
     to_sale_view,
 )
@@ -45,6 +51,7 @@ from apps.sales.services.commissions import CommissionChange
 from apps.sales.services.contracts import OrderBook, Sellers
 from apps.sales.services.payouts import PayoutService
 from apps.sales.services.sales import SaleOutcome, SaleService
+from apps.sales.services.statements import DeliveryCreditService, StatementService
 from core.domain.actor import Actor, Role
 from core.domain.errors import DomainError, Forbidden, ValidationFailed
 from core.events.contracts import EventPublisher
@@ -66,11 +73,13 @@ class SalesFacade:
         sales: SaleService,
         selector: SaleSelector,
         books: OrderBook,
+        statements: StatementService,
         publisher: EventPublisher,
     ) -> None:
         self._sales = sales
         self._selector = selector
         self._books = books
+        self._statements = statements
         self._publisher = publisher
 
     def page(self, actor: Actor, filters: SaleFilters, *, offset: int, limit: int) -> SalePage:
@@ -137,6 +146,7 @@ class SalesFacade:
                 SaleDeleted(sale_id=sale_id, seller_id=seller_id, actor_id=actor.user_id)
             )
             self._commissions(actor, outcome.commissions)
+            self._sales.remove(sale)
 
     def convertible(self, actor: Actor, search: str | None) -> list[ConvertibleOrderView]:
         orders = self._books.convertible(actor, search)
@@ -229,6 +239,9 @@ class SalesFacade:
                     reseller_id=change.reseller_id, delta=change.delta, actor_id=actor.user_id
                 )
             )
+        # a refund or return of a sale already on a prepared statement updates that statement
+        for reseller_id in sorted({change.reseller_id for change in changes}):
+            self._statements.refresh(reseller_id)
 
 
 @logged_facade
@@ -237,28 +250,30 @@ class CommissionFacade:
         self,
         *,
         payouts: PayoutService,
+        statements: StatementService,
+        delivery_credits: DeliveryCreditService,
         selector: CommissionSelector,
         payout_selector: PayoutSelector,
+        statement_selector: StatementSelector,
         sellers: Sellers,
         publisher: EventPublisher,
     ) -> None:
         self._payouts = payouts
+        self._statements = statements
+        self._delivery_credits = delivery_credits
         self._selector = selector
         self._payout_selector = payout_selector
+        self._statement_selector = statement_selector
         self._sellers = sellers
         self._publisher = publisher
 
     def summary(self, actor: Actor, reseller_id: int | None) -> CommissionSummary:
         reseller = self._reseller(actor, reseller_id)
-        return self._selector.summary(
-            PersonRef(id=reseller.id, name=reseller.name), reseller.commission_rate
-        )
+        return self._selector.summary(PersonRef(id=reseller.id, name=reseller.name))
 
     def overview(self) -> list[CommissionSummary]:
         return [
-            self._selector.summary(
-                PersonRef(id=reseller.id, name=reseller.name), reseller.commission_rate
-            )
+            self._selector.summary(PersonRef(id=reseller.id, name=reseller.name))
             for reseller in self._sellers.resellers()
         ]
 
@@ -277,18 +292,77 @@ class CommissionFacade:
         scope = reseller_id if actor.is_staff else actor.user_id
         return self._payout_selector.page(scope, offset=offset, limit=limit)
 
+    def statements(
+        self,
+        actor: Actor,
+        reseller_id: int | None,
+        status: StatementStatus | None,
+        *,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[StatementView], int]:
+        scope = reseller_id if actor.is_staff else actor.user_id
+        return self._statement_selector.page(scope, status, offset=offset, limit=limit)
+
+    def statement(self, actor: Actor, statement_id: int) -> StatementView:
+        scope = None if actor.is_staff else actor.user_id
+        return self._statement_selector.detail(statement_id, reseller_id=scope)
+
+    # an admin pays a prepared statement: the payout is its total
     def record_payout(self, actor: Actor, command: RecordPayout) -> PayoutView:
         with transaction.atomic():
-            payout = self._payouts.record(actor, command)
+            payout, statement = self._payouts.record(actor, command)
             self._publisher.publish(
                 PayoutRecorded(
                     payout_id=payout.pk,
                     reseller_id=payout.reseller_id,
                     amount=payout.amount,
+                    statement_id=statement.pk,
+                    payout_date=statement.payout_date,
                     actor_id=actor.user_id,
                 )
             )
         return self._payout_selector.one(payout.pk)
+
+    # on the 1st and the 16th (periodic task); the demo passes the date to prepare
+    def prepare_statements(self, payout_date: date | None = None) -> int:
+        payout_date = payout_date or self._statements.payout_date()
+        if payout_date is None:
+            return 0
+        prepared = 0
+        for reseller_id in self._statements.reseller_ids():
+            try:
+                with transaction.atomic():
+                    statement = self._statements.prepare(reseller_id, payout_date)
+                    if statement is None:
+                        continue
+                    self._publisher.publish(
+                        PayoutStatementPrepared(
+                            statement_id=statement.pk,
+                            reseller_id=reseller_id,
+                            total=statement.total,
+                            payout_date=payout_date,
+                        )
+                    )
+            except IntegrityError:
+                # an overlapping run prepared this reseller's statement first
+                continue
+            prepared += 1
+        return prepared
+
+    # the reseller who delivered the order gets its delivery fee back on their next payout
+    def order_delivered(self, order_id: int, delivered_at: datetime) -> None:
+        with transaction.atomic():
+            reseller_id = self._delivery_credits.credit(order_id, delivered_at)
+            if reseller_id is not None:
+                self._publisher.publish(CommissionChanged(reseller_id=reseller_id, delta=ZERO))
+
+    def order_cancelled(self, order_id: int) -> None:
+        with transaction.atomic():
+            reseller_id = self._delivery_credits.reverse(order_id, note="Commande annulée")
+            if reseller_id is not None:
+                self._statements.refresh(reseller_id)
+                self._publisher.publish(CommissionChanged(reseller_id=reseller_id, delta=ZERO))
 
     def _reseller(self, actor: Actor, reseller_id: int | None) -> SellerProfile:
         if not actor.is_staff:

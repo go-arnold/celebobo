@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 from apps.sales.domain.enums import RefundKind
@@ -49,3 +50,13 @@ class PayoutRecorded(DomainEvent):
     payout_id: int
     reseller_id: int
     amount: Decimal
+    statement_id: int | None = None
+    payout_date: date | None = None
+
+
+@domain_event
+class PayoutStatementPrepared(DomainEvent):
+    statement_id: int
+    reseller_id: int
+    total: Decimal
+    payout_date: date

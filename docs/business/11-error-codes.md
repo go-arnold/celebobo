@@ -72,6 +72,7 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 422 | `variant_required` | Choisissez une variante pour ce produit. |
 | 422 | `insufficient_stock` |  |
 | 400 | `invalid_pricing` | Les prix du produit sont incohérents. |
+| 400 | `invalid_product_origin` | L'origine du produit et le gain Celebobo sont incohérents. |
 | 400 | `sell_by_in_past` | La date limite de vente ne peut pas être passée. |
 | 400 | `category_name_taken` | Une catégorie porte déjà ce nom. |
 | 409 | `category_not_empty` | Cette catégorie contient encore des produits. Choisissez où les déplacer. |
@@ -209,6 +210,8 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 409 | `order_not_convertible` | Cette commande ne peut pas être convertie en ventes. |
 | 400 | `unknown_order_items` | Certains articles n'appartiennent pas à cette commande. |
 | 400 | `payout_exceeds_due` | Le montant dépasse la commission due. |
+| 404 | `statement_not_found` | Relevé de paiement introuvable. |
+| 409 | `statement_not_payable` | Ce relevé a déjà été payé ou a été remplacé par un relevé plus récent. |
 | 400 | `not_a_reseller` | Cet utilisateur n'est pas revendeur. |
 | 422 | `return_through_order` | Cette vente provient d'une commande : enregistrez le retour sur la commande. |
 

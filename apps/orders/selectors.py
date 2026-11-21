@@ -23,6 +23,7 @@ from apps.orders.domain.read_models import (
     ConvertibleItem,
     ConvertibleOrder,
     CouponView,
+    OrderDelivery,
     OrderDetail,
     OrderLineView,
     OrderRef,
@@ -43,6 +44,7 @@ from apps.orders.models import (
     Order,
     OrderItem,
     OrderRating,
+    OrderStatusEvent,
     ShippingZone,
 )
 from core.domain.actor import Actor
@@ -401,6 +403,27 @@ def order_ref(order_id: int) -> OrderRef:
     )
 
 
+def order_delivery(order_id: int) -> OrderDelivery | None:
+    order = Order.objects.filter(pk=order_id).first()
+    if order is None:
+        return None
+    delivered = (
+        OrderStatusEvent.objects.filter(order=order, to_status=OrderStatus.DELIVERED.value)
+        .order_by("-created_at", "-pk")
+        .values_list("created_at", flat=True)
+        .first()
+    )
+    return OrderDelivery(
+        id=order.pk,
+        number=order.number,
+        status=order.order_status,
+        reseller_id=order.assigned_reseller_id,
+        delivery_method=DeliveryMethod(order.delivery_method),
+        shipping_fee=order.shipping_fee,
+        delivered_at=delivered,
+    )
+
+
 # for the client's notification only: never exposed to the back-office
 def delivery_code(order_id: int) -> str:
     code = Order.objects.filter(pk=order_id).values_list("delivery_code", flat=True).first()
@@ -454,6 +477,8 @@ def _convertible(order: Order, *, staff: bool) -> ConvertibleOrder:
         payment_method=PaymentMethod(order.payment_method),
         total=order.total,
         created_at=order.created_at,
+        discount=order.discount,
+        points=order.points,
         items=tuple(
             ConvertibleItem(
                 id=item.pk,

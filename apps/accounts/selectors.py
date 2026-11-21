@@ -154,7 +154,6 @@ def _reseller_profile(user: User) -> ResellerProfile:
     return ResellerProfile(
         referral_code=user.referral_code,
         availability=Availability(user.availability),
-        commission_rate=user.commission_rate,
         invited_count=getattr(user, "invited_count", 0),
     )
 
@@ -237,7 +236,6 @@ class SellerSelector:
             id=user.pk,
             name=user.get_full_name() or user.email,
             role=user.account_role,
-            commission_rate=user.commission_rate,
         )
 
     def names(self, user_ids: Iterable[int]) -> dict[int, str]:
@@ -252,7 +250,6 @@ class SellerSelector:
                 id=user.pk,
                 name=user.get_full_name() or user.email,
                 role=user.account_role,
-                commission_rate=user.commission_rate,
             )
             for user in User.objects.filter(role=Role.RESELLER.value).order_by("first_name")
         ]
@@ -263,7 +260,6 @@ RESELLER_ORDERING = {
     ResellerOrdering.NEWEST: ("-date_joined", "-pk"),
     ResellerOrdering.OLDEST: ("date_joined", "pk"),
     ResellerOrdering.MOST_INVITED: ("-invited_count", "first_name", "pk"),
-    ResellerOrdering.HIGHEST_RATE: ("-commission_rate", "first_name", "pk"),
 }
 
 
@@ -341,7 +337,6 @@ def to_reseller_account(user: User) -> ResellerAccount:
         phone_number=user.phone_number,
         avatar=user.avatar,
         referral_code=user.referral_code,
-        commission_rate=user.commission_rate,
         availability=Availability(user.availability),
         is_active=user.is_active,
         manager=ManagerRef(id=manager.pk, name=manager.get_full_name() or manager.email)

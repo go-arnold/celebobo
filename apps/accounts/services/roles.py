@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from apps.accounts.domain.commands import ChangeRole, SetAvailability
 from apps.accounts.domain.enums import ACCOUNT_ROLES, STAFF_ROLES, Availability
 from apps.accounts.domain.errors import InvalidRole, NotAReseller, OwnRoleChange, UserNotFound
-from apps.accounts.models import DEFAULT_COMMISSION_RATE, User
+from apps.accounts.models import User
 from apps.accounts.services.contracts import GroupSync, UserStore
 from apps.accounts.services.referrals import ReferralService
 from core.domain.actor import Actor, Role
@@ -58,8 +58,7 @@ class RoleService:
 
     def _prepare_reseller(self, user: User) -> list[str]:
         user.availability = Availability.OFFLINE.value
-        user.commission_rate = DEFAULT_COMMISSION_RATE
-        fields = ["availability", "commission_rate"]
+        fields = ["availability"]
         if not user.referral_code:
             user.referral_code = self._referrals.issue_code()
             fields.append("referral_code")

@@ -15,7 +15,7 @@ First name, last name, email, phone, city, message.
 
 `/bo/reseller-applications/` (filter by status, search).
 
-- **Approve** (optional commission rate and manager): the application's email is **onboarded** as a
+- **Approve** (optional manager): the application's email is **onboarded** as a
   reseller (below) and the application is closed as approved. The applicant receives a welcome email
   (with an invitation to set a password if the account was just created).
 - **Reject** with a reason: closed as rejected, the applicant is emailed.
@@ -31,17 +31,17 @@ First name, last name, email, phone, city, message.
 | Active reseller | Refused (`already_reseller`). |
 | Manager or admin | Refused (`staff_cannot_become_reseller`). |
 
-The reseller gets: a **referral code** (4 digits, unique, kept forever), availability `offline`, the
-commission rate given (default **7 %**), and optionally a **manager** (must be an active staff member,
-`invalid_manager`).
+The reseller gets: a **referral code** (4 digits, unique, kept forever), availability `offline`, and
+optionally a **manager** (must be an active staff member, `invalid_manager`). There is no
+per-reseller commission rate: every reseller earns by the same rules (§5, decided on 16 Nov 2026).
 
 Admins can also turn an existing user into a reseller by **changing their role** (§2), or create a
 reseller account directly from the user screen.
 
 ## Reseller management (staff, `resellers.manage`)
 
-`/bo/resellers/` — search, active/inactive filter, ordering (name, newest, oldest, most invitees,
-highest rate). Each reseller shows: contact, referral code, rate, availability, manager, join date,
+`/bo/resellers/` — search, active/inactive filter, ordering (name, newest, oldest, most invitees).
+Each reseller shows: contact, referral code, availability, manager, join date,
 last seen, number of invitees, cumulative **performance** (sales count, revenue, commission earned
 and due) and the clients' **rating**: average out of 5 (`rating_average`, one decimal, `null` until
 the first rating) and number of ratings (`rating_count`).
@@ -49,7 +49,7 @@ the first rating) and number of ratings (`rating_count`).
 - `/bo/resellers/{id}/ratings/`: the ratings themselves, newest first: order number, the client's
   first name, score and comment.
 
-- **Change** commission rate (0–50 %) and manager.
+- **Change** the manager.
 - **Deactivate / activate**: a deactivated reseller cannot log in and is no longer assignable.
 - `/bo/resellers/stats/`: totals (resellers, active, invited clients, pending applications) and the
   **top reseller** over the last 30 days.
@@ -62,7 +62,7 @@ the first rating) and number of ratings (`rating_count`).
 | Dashboard: own sales figures, open orders, commission due | `/bo/dashboard/*` (scoped to themselves) |
 | Orders assigned to them | `/bo/orders/` |
 | Their sales, recording and conversion | `/bo/sales/`, `/bo/orders/{id}/convert-to-sales/` |
-| Their commissions and payouts | `/bo/commissions/summary/`, `/series/`, `/bo/payouts/` |
+| Their commissions and payouts | `/bo/commissions/summary/`, `/series/`, `/bo/payouts/`, `/bo/payout-statements/` |
 | Referral kit | `/bo/me/referral/` |
 | Their invitees (with orders count and amount ordered) | `/bo/me/invitees/` |
 | Availability | `PATCH /bo/me/availability/` |

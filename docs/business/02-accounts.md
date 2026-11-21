@@ -72,4 +72,4 @@ Admins manage users at `/bo/users/` (managers can only view them).
 | Deactivate / activate | Not oneself (`own_account_deactivation`). Deactivation revokes all sessions. |
 | Send password reset | Emails the user a reset link. |
 
-Reseller-specific management (commission rate, manager, activation) is described in [§6](06-resellers.md).
+Reseller-specific management (manager, activation) is described in [§6](06-resellers.md).
