@@ -62,9 +62,10 @@ class TestAttempts:
         assert response.status_code == 200, response.json()
         assert response.json()["delivery_attempts"][0]["reason_label"] == "Client absent"
         assert response.json()["delivery_attempts"][0]["note"] == "Personne à la maison"
-        # a second attempt the same day is not a second day
+        # a second attempt the same day is not a second day (and a Sunday is not a working day)
         assert again.json()["status"] == "shipping"
-        assert [e.days for e in published_events.of_type(DeliveryAttemptFailed)] == [1, 1]
+        today = working_days([timezone.localdate()])
+        assert [e.days for e in published_events.of_type(DeliveryAttemptFailed)] == [today, today]
         mine = as_user(shopper).get(f"{MINE}{order.number}/").json()
         assert len(mine["delivery_attempts"]) == 2
 
