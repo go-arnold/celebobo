@@ -250,6 +250,7 @@ SPECTACULAR_SETTINGS = {
     "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
     "ENUM_NAME_OVERRIDES": {
         "SectionKindEnum": ["showcase", "column"],
+        "ConsentKindEnum": ["terms", "hosting_abroad", "marketing"],
     },
 }
 
