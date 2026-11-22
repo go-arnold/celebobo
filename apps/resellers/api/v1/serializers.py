@@ -155,6 +155,21 @@ class InviteesSummaryOutput(serializers.Serializer[Any]):
     orders_total = money()
 
 
+# the reseller's own invitees: no e-mail, no purchase figures (privacy policy §4)
+class OwnInviteeOutput(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    joined_at = serializers.DateTimeField()
+    # end of the 12-month referral period, and whether their purchases still earn points
+    referral_ends_at = serializers.DateTimeField(allow_null=True)
+    referral_active = serializers.BooleanField()
+
+
+class OwnInviteesSummaryOutput(serializers.Serializer[Any]):
+    code = serializers.CharField(allow_null=True)
+    invited_count = serializers.IntegerField()
+
+
 class ReferralKitOutput(serializers.Serializer[Any]):
     code = serializers.CharField()
     link = serializers.URLField()

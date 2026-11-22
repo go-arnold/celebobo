@@ -27,6 +27,9 @@ CREDITS = (EntryKind.EARN, EntryKind.REFUND, EntryKind.REFERRAL)
 CLIENT_MOVEMENTS = (EntryKind.EARN, EntryKind.SPEND, EntryKind.REFUND, EntryKind.REVERSAL)
 # credited on delivery, pending until the return period is over
 EARNINGS = (EntryKind.EARN, EntryKind.REFERRAL)
+# an invitee's order: its number stays off the reseller's history, which would otherwise give
+# back each invitee's purchase total (privacy policy, 4)
+REFERRALS = (EntryKind.REFERRAL, EntryKind.REFERRAL_REVERSAL)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

@@ -8,8 +8,9 @@
       <strong>Client</strong><br>{{ order.client.name }}{% if order.client.email %}<br>{{ order.client.email }}{% endif %}{% if order.client.phone %}<br>{{ order.client.phone }}{% endif %}
     </td>
     <td style="border: none;">
-      <strong>Livraison</strong><br>{{ order.address.recipient }}{% if order.address.phone %} · {{ order.address.phone }}{% endif %}<br>
-      {{ order.address.line1 }}, {{ order.address.quarter }}<br>{{ order.address.city }}, {{ order.address.country }}
+      <strong>Livraison</strong><br>{% if order.contact_hidden %}{{ order.address.recipient }}<br>
+      <span class="muted">Coordonnées masquées (7 jours après la livraison)</span><br>{% else %}{{ order.address.recipient }}{% if order.address.phone %} · {{ order.address.phone }}{% endif %}<br>
+      {{ order.address.line1 }}, {{ order.address.quarter }}<br>{% endif %}{{ order.address.city }}, {{ order.address.country }}
     </td>
   </tr>
 </table>

@@ -13,6 +13,7 @@ from apps.messaging.repositories import (
     NotificationRepository,
     ParticipantRepository,
 )
+from apps.messaging.selectors import visible_conversations
 from apps.messaging.services.conversations import ConversationService
 from apps.orders.domain.read_models import AdjustableItem, OrderRef, QuotableOrder
 from apps.orders.facades import OrderAdjustmentFacade, OrderPrivacyFacade, ShippingQuoteFacade
@@ -73,8 +74,11 @@ class MessagingOrderThreads:
         )
         return conversation.pk
 
-    def thread_for(self, order_id: int) -> int | None:
-        return ConversationRepository().id_for_order(order_id)
+    def thread_for(self, order_id: int, viewer: Actor | None = None) -> int | None:
+        if viewer is None:
+            return ConversationRepository().id_for_order(order_id)
+        threads = visible_conversations(viewer).filter(order_id=order_id)
+        return threads.values_list("pk", flat=True).first()
 
 
 def _conversations() -> ConversationService:

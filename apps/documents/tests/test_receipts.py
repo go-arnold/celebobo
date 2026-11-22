@@ -162,3 +162,68 @@ def test_queued_mail_keeps_its_attachments():
     rebuilt = build_message(serialize_message(message))
 
     assert rebuilt.attachments[0] == ("recu.pdf", b"%PDF-1.7 \x00\xff", "application/pdf")
+
+
+def deliver_days_ago(as_user, manager, order, days: float) -> None:
+    response = as_user(manager).post(
+        f"{BO}{order.pk}/transition/",
+        {"to": "delivered", "reason": "Remise vérifiée par téléphone"},
+    )
+    assert response.status_code == 200
+    backdate_delivery(order, days)
+
+
+def backdate_delivery(order, days: float) -> None:
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.orders.models import OrderStatusEvent
+
+    OrderStatusEvent.objects.filter(order=order, to_status="delivered").update(
+        created_at=timezone.now() - timedelta(days=days)
+    )
+
+
+@pytest.mark.django_db
+class TestResellerCopyAfterTheReturnPeriod:
+    HIDDEN = "Coordonnées masquées (7 jours après la livraison)"
+
+    def test_the_reseller_copy_leaves_out_the_contact(
+        self, as_user, manager, reseller, order, renderer
+    ):
+        deliver_days_ago(as_user, manager, order, 8)
+
+        response = as_user(reseller).get(f"{BO}{order.pk}/receipt/")
+
+        assert response.status_code == 200
+        printed = renderer.calls[-1][1]["receipt"]
+        assert printed["recipient"] == self.HIDDEN
+        assert printed["address"] == self.HIDDEN
+        assert "234 5678" not in str(printed)
+        # the staff's free-text reason for a delivery confirmed without the code
+        assert printed["confirmation"] == ""
+        # issued from the full order: the signed receipt keeps everything and still verifies
+        receipt = DeliveryReceipt.objects.get(order_id=order.pk)
+        assert receipt.payload["recipient"] == "Aline Mbuyi · +243 81 234 5678"
+        assert receipt.payload["client"] == "Aline Mbuyi"
+        verified = as_user(reseller).post(
+            VERIFY, {"number": receipt.number, "signature": receipt.signature}
+        )
+        assert verified.json()["valid"] is True
+
+    def test_staff_and_the_reseller_within_the_period_get_it_whole(
+        self, as_user, manager, reseller, order, renderer
+    ):
+        deliver_days_ago(as_user, manager, order, 3)
+
+        as_user(reseller).get(f"{BO}{order.pk}/receipt/")
+        within = renderer.calls[-1][1]["receipt"]
+        backdate_delivery(order, 30)
+        as_user(manager).get(f"{BO}{order.pk}/receipt/")
+        staff = renderer.calls[-1][1]["receipt"]
+
+        assert within["recipient"] == "Aline Mbuyi · +243 81 234 5678"
+        assert staff["recipient"] == "Aline Mbuyi · +243 81 234 5678"
+        assert "Av. Lumumba" in staff["address"]
+        assert staff["confirmation"].endswith("Remise vérifiée par téléphone")

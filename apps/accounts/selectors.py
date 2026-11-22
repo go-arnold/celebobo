@@ -431,6 +431,8 @@ def _invitee(user: User) -> Invitee:
         name=user.get_full_name() or user.email,
         email=user.email,
         joined_at=user.date_joined,
+        full_name=user.get_full_name(),
+        invited_at=user.invited_at,
     )
 
 

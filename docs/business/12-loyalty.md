@@ -66,7 +66,9 @@ them under `programmes.points` (`enabled`, `percent`, `validity_months`, `referr
 Resellers' share of what their invited clients buy (reseller policy, §3.3). They are points like any
 other: same balance, same "Mes points" page (`GET /me/points/`, `kind` `referral` and
 `referral_reversal`), spent the same way on the reseller's own purchases, never paid in cash and never
-used for delivery.
+used for delivery. Referral lines carry **no order number** (`order_number: null`; the page shows
+"Commande d'un invité"): with it the reseller could work back each invitee's purchase total
+(privacy policy §4). They show the kind, the date and the amount only.
 
 | Rule | Default |
 |---|---|

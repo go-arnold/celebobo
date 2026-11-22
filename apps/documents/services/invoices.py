@@ -19,7 +19,7 @@ class InvoiceBuilder:
         self._branding = branding
         self._points = points
 
-    def build(self, order: OrderDetail) -> RenderedFile:
+    def build(self, order: OrderDetail, *, points: bool = True) -> RenderedFile:
         if order.summary.status is OrderStatus.CANCELLED:
             raise InvoiceUnavailable
         content = self._renderer.render(
@@ -28,11 +28,12 @@ class InvoiceBuilder:
                 "order": order,
                 "issued_at": timezone.localtime(),
                 # the client's points statement, printed on each invoice (loyalty policy); not
-                # for a deleted or anonymised account, whose points history is gone (it would be
-                # recomputed at today's rate and shown as pending)
-                "points": None
-                if order.client.anonymized
-                else self._points.statement(order.client.id, order.summary.id),
+                # on a reseller's copy (it gives the client's purchase totals), nor for a deleted
+                # or anonymised account, whose points history is gone (it would be recomputed at
+                # today's rate and shown as pending)
+                "points": self._points.statement(order.client.id, order.summary.id)
+                if points and not order.client.anonymized
+                else None,
                 **self._branding,
             },
         )

@@ -5,6 +5,7 @@ from apps.audit.services.retention import retention_rules
 from apps.resellers.adapters.gateways import (
     AccountsDirectory,
     AccountsResellers,
+    LoyaltyReferralTerms,
     OrderRatingBook,
     OrdersInviteeTotals,
     SalesPerformanceLedger,
@@ -58,7 +59,12 @@ def register(container: Container) -> None:
 
 
 def _invitees(container: Container) -> InviteeService:
-    return InviteeService(container.resolve(ResellerDirectory), container.resolve(InviteeOrders))
+    return InviteeService(
+        container.resolve(ResellerDirectory),
+        container.resolve(InviteeOrders),
+        LoyaltyReferralTerms(),
+        clock=timezone.now,
+    )
 
 
 def _mailer(container: Container) -> ApplicationMailer:
