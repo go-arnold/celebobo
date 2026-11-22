@@ -1,9 +1,12 @@
 from collections.abc import Iterable
+from datetime import datetime
 from typing import Any
 
+from allauth.socialaccount.models import SocialAccount
 from django.db.models import QuerySet
 
-from apps.accounts.models import Address, NotificationPreference, User
+from apps.accounts.domain.consents import ConsentKind, ConsentSource
+from apps.accounts.models import Address, Consent, NotificationPreference, User
 from core.domain.actor import Role
 
 
@@ -43,6 +46,9 @@ class UserRepository:
 
     def referral_code_taken(self, code: str) -> bool:
         return User.objects.filter(referral_code=code).exists()
+
+    def signed_up_with_google(self, user_id: int) -> bool:
+        return bool(SocialAccount.objects.filter(user_id=user_id, provider="google").exists())
 
     @staticmethod
     def _others(exclude_id: int | None) -> QuerySet[User]:
@@ -91,3 +97,38 @@ class PreferenceRepository:
         NotificationPreference.objects.update_or_create(
             user_id=user_id, defaults={"preferences": preferences}
         )
+
+
+class ConsentRepository:
+    def accepted(self, user_id: int) -> dict[ConsentKind, str]:
+        return Consent.objects.open_versions(user_id)
+
+    def any_for(self, user_id: int) -> bool:
+        return Consent.objects.filter(user_id=user_id).exists()
+
+    def create(
+        self,
+        user_id: int,
+        *,
+        kind: ConsentKind,
+        version: str,
+        source: ConsentSource,
+        accepted_at: datetime,
+    ) -> Consent:
+        return Consent.objects.create(
+            user_id=user_id,
+            kind=kind.value,
+            version=version,
+            source=source.value,
+            accepted_at=accepted_at,
+        )
+
+    def withdraw(
+        self, user_id: int, *, kinds: Iterable[ConsentKind], at: datetime
+    ) -> tuple[ConsentKind, ...]:
+        rows = Consent.objects.filter(
+            user_id=user_id, kind__in=[kind.value for kind in kinds], withdrawn_at__isnull=True
+        )
+        withdrawn = {ConsentKind(kind) for kind in rows.values_list("kind", flat=True)}
+        rows.update(withdrawn_at=at)
+        return tuple(kind for kind in ConsentKind if kind in withdrawn)

@@ -4,6 +4,13 @@ from allauth.account.models import EmailAddress
 from django.db.models import Count, Exists, OuterRef, Q, QuerySet
 
 from apps.accounts.domain.commands import ResellerFilters, UserFilters
+from apps.accounts.domain.consents import (
+    ConsentKind,
+    ConsentSource,
+    PolicyVersions,
+    missing_consents,
+    needs_consents,
+)
 from apps.accounts.domain.enums import (
     ACCOUNT_ROLES,
     AddressLabel,
@@ -16,6 +23,9 @@ from apps.accounts.domain.errors import AddressNotFound, ResellerNotFound, UserN
 from apps.accounts.domain.preferences import DEFAULT_PREFERENCES
 from apps.accounts.domain.read_models import (
     AddressView,
+    ConsentOverview,
+    ConsentRecord,
+    ConsentStatus,
     Contact,
     Invitee,
     InviterRef,
@@ -31,14 +41,68 @@ from apps.accounts.domain.read_models import (
     SellerProfile,
     UserRow,
 )
-from apps.accounts.models import Address, NotificationPreference, User
+from apps.accounts.models import Address, Consent, NotificationPreference, User
 from core.authz.catalog import PermissionCatalog
 from core.domain.actor import Role
 
 
+class ConsentSelector:
+    def __init__(self, versions: PolicyVersions) -> None:
+        self._versions = versions
+
+    def missing(self, user_id: int, role: Role) -> tuple[ConsentKind, ...]:
+        if not needs_consents(role):
+            return ()
+        return missing_consents(
+            role, Consent.objects.open_versions(user_id), self._versions.current()
+        )
+
+    def overview(self, user_id: int, role: Role) -> ConsentOverview:
+        records = list(Consent.objects.filter(user_id=user_id).order_by("-accepted_at", "-pk"))
+        current = self._versions.current()
+        latest: dict[ConsentKind, Consent] = {}
+        for record in records:
+            if record.withdrawn_at is None:
+                latest.setdefault(ConsentKind(record.kind), record)
+        accepted = {kind: record.version for kind, record in latest.items()}
+        return ConsentOverview(
+            consents=tuple(
+                _consent_status(kind, latest.get(kind), current.get(kind, ""))
+                for kind in ConsentKind
+            ),
+            missing=missing_consents(role, accepted, current),
+            history=tuple(_consent_record(record) for record in records),
+        )
+
+
+def _consent_status(kind: ConsentKind, open_record: Consent | None, current: str) -> ConsentStatus:
+    return ConsentStatus(
+        kind=kind,
+        label=kind.label,
+        required=kind.required,
+        given=open_record is not None,
+        version=open_record.version if open_record else None,
+        accepted_at=open_record.accepted_at if open_record else None,
+        source=ConsentSource(open_record.source) if open_record else None,
+        current_version=current,
+        outdated=open_record is not None and current not in ("", open_record.version),
+    )
+
+
+def _consent_record(record: Consent) -> ConsentRecord:
+    return ConsentRecord(
+        kind=ConsentKind(record.kind),
+        version=record.version,
+        source=ConsentSource(record.source),
+        accepted_at=record.accepted_at,
+        withdrawn_at=record.withdrawn_at,
+    )
+
+
 class ProfileSelector:
-    def __init__(self, catalog: PermissionCatalog) -> None:
+    def __init__(self, catalog: PermissionCatalog, consents: ConsentSelector) -> None:
         self._catalog = catalog
+        self._consents = consents
 
     def profile(self, user_id: int) -> Profile:
         user = (
@@ -65,6 +129,7 @@ class ProfileSelector:
             invited_by_code=user.invited_by.referral_code if user.invited_by else None,
             permissions=tuple(sorted(self._catalog.permissions_for(role))),
             reseller=_reseller_profile(user) if role is Role.RESELLER else None,
+            missing_consents=self._consents.missing(user.pk, role),
         )
 
 
@@ -220,11 +285,21 @@ class DirectorySelector:
             )
         )
         default = DEFAULT_PREFERENCES[topic][channel]
-        return {
+        subscribed = {
             user_id
             for user_id in wanted
             if bool(stored.get(user_id, {}).get(topic.value, {}).get(channel.value, default))
         }
+        if topic is NotificationTopic.PROMOTIONS:
+            # commercial offers only reach those who gave the marketing consent (policy §8)
+            subscribed &= set(
+                Consent.objects.filter(
+                    user_id__in=subscribed,
+                    kind=ConsentKind.MARKETING.value,
+                    withdrawn_at__isnull=True,
+                ).values_list("user_id", flat=True)
+            )
+        return subscribed
 
 
 class SellerSelector:

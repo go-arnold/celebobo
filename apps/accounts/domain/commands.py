@@ -1,6 +1,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from apps.accounts.domain.consents import ConsentKind
 from apps.accounts.domain.enums import (
     AddressLabel,
     Availability,
@@ -20,6 +21,23 @@ class RegisterUser:
     password: str
     phone_number: str | None = None
     referral_code: str | None = None
+    accept_terms: bool = False
+    accept_hosting_abroad: bool = False
+    accept_marketing: bool = False
+
+    @property
+    def consents(self) -> tuple[ConsentKind, ...]:
+        accepted = {
+            ConsentKind.TERMS: self.accept_terms,
+            ConsentKind.HOSTING_ABROAD: self.accept_hosting_abroad,
+            ConsentKind.MARKETING: self.accept_marketing,
+        }
+        return tuple(kind for kind, given in accepted.items() if given)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class GiveConsents:
+    kinds: tuple[ConsentKind, ...]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
