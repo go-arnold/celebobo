@@ -189,6 +189,29 @@ class NotificationFanout:
             ),
         )
 
+    def claim_submitted(
+        self, claim_id: int, *, number: str, client: str, product: str, kind: str
+    ) -> None:
+        self._notifications.notify(
+            self._directory.staff_ids(),
+            render(
+                NotificationKind.CLAIM_SUBMITTED,
+                claim_id=claim_id,
+                number=number,
+                client=client,
+                product=product,
+                claim_kind=kind,
+            ),
+        )
+
+    def claim_update(self, client_id: int, claim_id: int, *, number: str, message: str) -> None:
+        self._notifications.notify(
+            [client_id],
+            render(
+                NotificationKind.CLAIM_UPDATE, claim_id=claim_id, number=number, message=message
+            ),
+        )
+
     def payout_paid(self, reseller_id: int, statement_id: int, *, amount: str, date: str) -> None:
         self._notifications.notify(
             [reseller_id],

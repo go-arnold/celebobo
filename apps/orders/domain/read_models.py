@@ -355,3 +355,23 @@ class CouponView:
     uses: int
     discount_total: Decimal
     created_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ClaimableLine:
+    """One order line as the warranty claims see it (warranty policy)."""
+
+    order_id: int
+    order_number: str
+    client_id: int
+    status: OrderStatus
+    ordered_at: datetime
+    delivered_at: datetime | None
+    item_id: int
+    product_id: int | None
+    name: str
+    variant_label: str
+    quantity: int
+    returned_quantity: int
+    serials: tuple[str, ...]
+    sealed_return_only: bool

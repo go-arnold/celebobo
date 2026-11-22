@@ -173,6 +173,14 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 400 | `too_many_serial_numbers` | Il y a plus de numéros que d'unités sur cette ligne. |
 | 409 | `serial_number_already_sold` | Ce numéro de série ou IMEI figure déjà sur une autre commande en cours. (`meta.serial`, `meta.order_number`) |
 | 422 | `serial_numbers_not_editable` | Les numéros de série se saisissent avant la livraison ; après, seul un responsable peut les corriger. |
+| 404 | `claim_not_found` | Réclamation introuvable. |
+| 404 | `line_not_claimable` | Cet article ne fait pas partie de vos commandes. |
+| 422 | `claim_window_closed` | Le délai est dépassé (changement d'avis pendant l'essai, défaut pendant l'essai ou la garantie, contrefaçon dans les 12 mois). |
+| 409 | `claim_already_open` | Une réclamation est déjà en cours pour cet article. |
+| 400 | `serial_not_on_order` | Ce numéro de série ou IMEI ne figure pas sur la facture de cette commande. |
+| 422 | `claim_step_not_allowed` | Cette étape ne correspond pas à l'état de la réclamation. |
+| 422 | `outcome_not_allowed` | Cette solution n'est pas possible pour cette réclamation. |
+| 422 | `seal_required` | Ce produit n'est repris pour un changement d'avis que sous scellé. |
 | 422 | `serial_numbers_missing` | Saisissez le numéro de série ou l'IMEI de chaque unité avant de faire partir la commande. (`meta.lines`) |
 | 422 | `order_not_ratable` | Vous pourrez noter le revendeur une fois votre commande livrée. |
 | 409 | `already_rated` | Vous avez déjà noté le revendeur pour cette commande. |

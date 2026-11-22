@@ -101,6 +101,7 @@ class InventoryService:
             origin=ProductOrigin(product.origin),
             partner_gain=product.partner_gain,
             serial_required=product.serial_required,
+            sealed_return_only=product.sealed_return_only,
         )
 
 

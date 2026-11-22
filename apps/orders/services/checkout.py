@@ -103,6 +103,7 @@ class CheckoutService:
                     "points": share.points,
                     "amount_paid": share.paid,
                     "serial_required": line.serial_required,
+                    "sealed_return_only": line.sealed_return_only,
                 }
                 for line, share in zip(priced, amounts, strict=True)
             ),

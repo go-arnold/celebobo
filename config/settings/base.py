@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "apps.content",
     "apps.push",
     "apps.loyalty",
+    "apps.warranty",
     "apps.demo",
     "allauth",
     "allauth.account",
@@ -251,6 +252,7 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "SectionKindEnum": ["showcase", "column"],
         "ConsentKindEnum": ["terms", "hosting_abroad", "marketing"],
+        "ClaimKindEnum": ["defect", "change_of_mind", "counterfeit"],
     },
 }
 

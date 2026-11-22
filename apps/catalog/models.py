@@ -130,6 +130,8 @@ class Product(SafeDeleteModel, TimestampedModel):
     free_shipping = models.BooleanField(default=False)
     # phones, laptops…: each unit sold gets its serial number or IMEI (warranty policy)
     serial_required = models.BooleanField("numéro de série requis", default=False)
+    # in-ear earphones: taken back for a change of mind only if still sealed (warranty policy)
+    sealed_return_only = models.BooleanField("repris sous scellé uniquement", default=False)
     shipping_fee = models.DecimalField(
         null=True, blank=True, max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES
     )
