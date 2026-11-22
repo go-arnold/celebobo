@@ -20,7 +20,7 @@ from apps.documents.selectors import JobSelector, to_job_view
 from apps.documents.services.contracts import OrderSource, ReceiptMailer
 from apps.documents.services.importer import parse_csv
 from apps.documents.services.invoices import InvoiceBuilder
-from apps.documents.services.jobs import JobService
+from apps.documents.services.jobs import STALE_ERROR, JobService, PersonalDataPolicy
 from apps.documents.services.receipts import ReceiptService, Verification
 from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
@@ -129,8 +129,9 @@ class DocumentJobFacade:
 class PersonalDataFacade:
     """ "Télécharger mes données" (privacy policy, art. 211): the owner's data as a ZIP.
 
-    Built in the background like the other document jobs; one request per cooldown, a download
-    link that expires, and an audit event for each request and each download.
+    Built in the background like the other document jobs; one request per cooldown (shorter
+    after a failure, and an export the worker lost counts as failed), a download link that
+    expires, and an audit event for each request and each download.
     """
 
     def __init__(
@@ -138,12 +139,12 @@ class PersonalDataFacade:
         *,
         jobs: JobService,
         publisher: EventPublisher,
-        cooldown: timedelta,
+        policy: PersonalDataPolicy,
         link_ttl: timedelta,
     ) -> None:
         self._jobs = jobs
         self._publisher = publisher
-        self._cooldown = cooldown
+        self._policy = policy
         self._link_ttl = link_ttl
 
     def status(self, actor: Actor) -> PersonalDataStatus:
@@ -151,13 +152,13 @@ class PersonalDataFacade:
         job = self._jobs.latest_personal_data(owner_id)
         return PersonalDataStatus(
             job=self._view(job) if job else None,
-            available_at=self._jobs.personal_data_available_at(owner_id, cooldown=self._cooldown),
+            available_at=self._jobs.personal_data_available_at(owner_id, policy=self._policy),
         )
 
     def request(self, actor: Actor) -> JobView:
         owner_id = _user_id(actor)
         with transaction.atomic():
-            job = self._jobs.request_personal_data(actor, cooldown=self._cooldown)
+            job = self._jobs.request_personal_data(actor, policy=self._policy)
             self._publisher.publish(JobRequested(job_id=job.pk, actor_id=owner_id))
             self._publisher.publish(
                 PersonalDataRequested(job_id=job.pk, owner_id=owner_id, actor_id=owner_id)
@@ -179,6 +180,8 @@ class PersonalDataFacade:
         return RenderedFile(content=content, filename=job.filename, content_type=job.content_type)
 
     def _view(self, job: Job) -> JobView:
+        if self._jobs.is_lost(job, stale_after=self._policy.stale_after):
+            return replace(to_job_view(job), status=JobStatus.FAILED, error=STALE_ERROR)
         expires_at, expired = self._jobs.expiry(job, ttl=self._link_ttl)
         return replace(to_job_view(job), expires_at=expires_at, expired=expired)
 

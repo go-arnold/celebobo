@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -19,6 +20,17 @@ from core.domain.actor import Actor, Role
 from core.domain.errors import DomainError, Unauthenticated
 
 ERROR_LIMIT = 500
+STALE_ERROR = "La préparation a pris trop de temps. Vous pouvez demander un nouvel export."
+ACTIVE = (JobStatus.PENDING, JobStatus.RUNNING)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PersonalDataPolicy:
+    # a new export once per cooldown after a request, failure_cooldown after a failure
+    cooldown: timedelta
+    failure_cooldown: timedelta
+    # an export still pending or running after this was lost by the worker: it counts as failed
+    stale_after: timedelta
 
 
 class JobService:
@@ -48,21 +60,40 @@ class JobService:
             upload=upload,
         )
 
-    # one request per cooldown: a failed export does not count
-    def request_personal_data(self, actor: Actor, *, cooldown: timedelta) -> Job:
+    # serialised per owner, so parallel requests cannot each start an export
+    def request_personal_data(self, actor: Actor, *, policy: PersonalDataPolicy) -> Job:
         if actor.user_id is None:
             raise Unauthenticated
-        available_at = self.personal_data_available_at(actor.user_id, cooldown=cooldown)
+        self._jobs.lock_owner(actor.user_id)
+        available_at = self.personal_data_available_at(actor.user_id, policy=policy)
         if available_at is not None:
             raise PersonalDataExportTooSoon(timezone.localtime(available_at))
+        now = self._clock()
+        self._jobs.fail_lost(
+            actor.user_id,
+            JobKind.PERSONAL_DATA,
+            created_before=now - policy.stale_after,
+            reason=STALE_ERROR,
+            now=now,
+        )
         return self.request(actor, JobKind.PERSONAL_DATA, JobFormat.ZIP, {})
 
-    def personal_data_available_at(self, owner_id: int, *, cooldown: timedelta) -> datetime | None:
-        last = self._jobs.latest(owner_id, JobKind.PERSONAL_DATA, include_failed=False)
-        if last is None:
-            return None
-        available_at = last.created_at + cooldown
-        return available_at if available_at > self._clock() else None
+    def personal_data_available_at(
+        self, owner_id: int, *, policy: PersonalDataPolicy
+    ) -> datetime | None:
+        limits: list[datetime] = []
+        last = self._jobs.latest(owner_id, JobKind.PERSONAL_DATA, failed=False)
+        if last is not None and not self.is_lost(last, stale_after=policy.stale_after):
+            limits.append(last.created_at + policy.cooldown)
+        failed = self._jobs.latest(owner_id, JobKind.PERSONAL_DATA, failed=True)
+        if failed is not None:
+            limits.append((failed.finished_at or failed.created_at) + policy.failure_cooldown)
+        available_at = max(limits, default=None)
+        return available_at if available_at is not None and available_at > self._clock() else None
+
+    # still pending or running long after it was asked for: the worker lost it
+    def is_lost(self, job: Job, *, stale_after: timedelta) -> bool:
+        return job.job_status in ACTIVE and job.created_at + stale_after <= self._clock()
 
     def latest_personal_data(self, owner_id: int) -> Job | None:
         return self._jobs.latest(owner_id, JobKind.PERSONAL_DATA)

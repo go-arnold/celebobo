@@ -1,5 +1,6 @@
 import io
 import json
+import threading
 import zipfile
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -7,6 +8,7 @@ from typing import Any
 
 import pytest
 from django.conf import settings
+from django.db import connection, transaction
 from django.utils import timezone
 
 from apps.accounts.models import Address
@@ -15,10 +17,15 @@ from apps.audit.models import EventRecord
 from apps.catalog.models import Favorite
 from apps.catalog.tests.factories import ReviewFactory
 from apps.documents.domain.enums import JobKind
+from apps.documents.domain.errors import PersonalDataExportTooSoon
 from apps.documents.facades import DocumentJobFacade
 from apps.documents.models import Job
 from apps.documents.providers import register_generators
+from apps.documents.repositories import JobRepository
+from apps.documents.services.contracts import FileStore
 from apps.documents.services.generators import generator_registry
+from apps.documents.services.jobs import JobService, PersonalDataPolicy
+from apps.documents.services.personal_data_html import render_html
 from apps.loyalty.models import PointsEntry
 from apps.messaging.models import Conversation, Message
 from apps.orders.models import Order
@@ -26,6 +33,7 @@ from apps.sales.domain.payouts import PayoutCalendar
 from apps.sales.facades import CommissionFacade
 from apps.sales.models import CommissionEntry
 from core.container import container
+from core.domain.actor import Actor, Role
 
 pytestmark = pytest.mark.django_db
 
@@ -319,6 +327,68 @@ class TestClientExport:
         assert "&lt;script&gt;x&lt;/script&gt;" in html
 
 
+DATE_LIKE_TEXTS = ("2026-11-22T10:00 rdv", "2026-11-22T10:00", "2026-02-30")
+
+
+class TestFreeTextThatLooksLikeADate:
+    def test_never_breaks_the_export(self, as_user, shopper, phone, place_order, run_jobs):
+        order = Order.objects.get(number=place_order(shopper, phone)["number"])
+        Order.objects.filter(pk=order.pk).update(note=DATE_LIKE_TEXTS[0])
+        support = Conversation.objects.create(kind="support", client=shopper, subject="Rdv")
+        ReviewFactory.create(user=shopper, product=phone, message=DATE_LIKE_TEXTS[2])
+        for text in DATE_LIKE_TEXTS:
+            Message.objects.create(conversation=support, sender=shopper, body=text)
+
+        document, _, html = download(as_user(shopper), run_jobs)
+
+        thread = next(t for t in document["data"]["messages"]["threads"] if t["subject"] == "Rdv")
+        assert [m["body"] for m in thread["messages"]] == list(DATE_LIKE_TEXTS)
+        # free text is printed as typed, never reformatted as a date
+        for text in DATE_LIKE_TEXTS:
+            assert f"<td>{text}</td>" in html
+
+    def test_known_date_fields_tolerate_bad_values(self):
+        html = render_html(
+            {
+                "generated_at": "2026-11-22T09:00:00+00:00",
+                "data": {
+                    "account": {
+                        "date_joined": "2026-02-30",
+                        "last_login": "2026-11-22T10:00",
+                        "invited_at": "2026-11-22T10:00 rdv",
+                        "created_at": "2026-11-21T08:30:00+00:00",
+                        "payout_date": "2026-11-20",
+                        "note": "2026-11-20",
+                    }
+                },
+            },
+            company={},
+        )
+
+        for raw in ("2026-02-30", "2026-11-22T10:00", "2026-11-22T10:00 rdv"):
+            assert f"<td>{raw}</td>" in html
+        assert "<td>21/11/2026 10:30</td>" in html  # Africa/Lubumbashi, UTC+2
+        assert "<td>20/11/2026</td>" in html
+        assert "<td>2026-11-20</td>" in html  # a note, not a date field
+        assert "Export généré le 22/11/2026 11:00" in html
+
+
+class TestDeletedSender:
+    def test_messages_of_a_deleted_account_are_not_signed_celebobo(
+        self, as_user, shopper, run_jobs
+    ):
+        support = Conversation.objects.create(kind="support", client=shopper, subject="Garantie")
+        Message.objects.create(conversation=support, sender=None, body="Ancien message")
+        Message.objects.create(
+            conversation=support, sender=None, kind="system", body="Discussion fermée"
+        )
+
+        document, _, _ = download(as_user(shopper), run_jobs)
+
+        (thread,) = document["data"]["messages"]["threads"]
+        assert [m["sender"] for m in thread["messages"]] == ["Compte supprimé", "Celebobo"]
+
+
 class TestResellerExport:
     @pytest.fixture
     def activity(self, as_user, admin, reseller, phone, sell) -> None:
@@ -440,13 +510,74 @@ class TestThrottle:
         assert as_user(UserFactory.create()).post(EXPORT).status_code == 202
 
     @pytest.mark.usefixtures("exploding_export")
-    def test_a_failed_export_can_be_retried(self, as_user, shopper, run_jobs):
+    def test_a_failed_export_can_be_retried_after_ten_minutes(self, as_user, shopper, run_jobs):
         api = as_user(shopper)
         with run_jobs():
             api.post(EXPORT)
         assert api.get(EXPORT).json()["job"]["status"] == "failed"
 
+        response = api.post(EXPORT)
+        assert response.status_code == 429
+        assert api.get(EXPORT).json()["available_at"] == response.json()["meta"]["available_at"]
+        Job.objects.update(finished_at=timezone.now() - timedelta(minutes=11))
+        assert api.get(EXPORT).json()["available_at"] is None
         assert api.post(EXPORT).status_code == 202
+
+    def test_a_lost_export_expires_after_thirty_minutes(self, as_user, shopper):
+        api = as_user(shopper)
+        lost = api.post(EXPORT).json()["id"]
+        assert api.post(EXPORT).status_code == 429
+        Job.objects.update(created_at=timezone.now() - timedelta(minutes=31))
+
+        status = api.get(EXPORT).json()
+        assert status["job"]["status"] == "failed"
+        assert status["job"]["error"]
+        assert status["available_at"] is None
+        assert api.post(EXPORT).status_code == 202
+        assert Job.objects.get(pk=lost).status == "failed"
+        assert Job.objects.filter(status="pending").count() == 1
+
+
+POLICY = PersonalDataPolicy(
+    cooldown=timedelta(hours=1),
+    failure_cooldown=timedelta(minutes=10),
+    stale_after=timedelta(minutes=30),
+)
+
+
+@pytest.mark.django_db(transaction=True)
+class TestConcurrentRequests:
+    def test_parallel_requests_start_a_single_export(self, shopper):
+        actor = Actor(role=Role(shopper.role), user_id=shopper.pk)
+        created, release = threading.Event(), threading.Event()
+        outcomes: list[str] = []
+
+        def ask(*, hold: bool) -> None:
+            jobs = JobService(JobRepository(), container.resolve(FileStore), clock=timezone.now)
+            try:
+                with transaction.atomic():
+                    jobs.request_personal_data(actor, policy=POLICY)
+                    if hold:
+                        created.set()
+                        release.wait(5)
+                outcomes.append("created")
+            except PersonalDataExportTooSoon:
+                outcomes.append("too soon")
+            finally:
+                connection.close()
+
+        first = threading.Thread(target=ask, kwargs={"hold": True})
+        first.start()
+        assert created.wait(5)
+        second = threading.Thread(target=ask, kwargs={"hold": False})
+        second.start()
+        second.join(0.5)
+        release.set()
+        first.join(5)
+        second.join(5)
+
+        assert sorted(outcomes) == ["created", "too soon"]
+        assert Job.objects.count() == 1
 
 
 class TestExpiry:

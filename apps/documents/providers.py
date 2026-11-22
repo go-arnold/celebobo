@@ -52,7 +52,7 @@ from apps.documents.services.generators import (
 )
 from apps.documents.services.importer import ProductImport
 from apps.documents.services.invoices import InvoiceBuilder
-from apps.documents.services.jobs import JobService
+from apps.documents.services.jobs import JobService, PersonalDataPolicy
 from apps.documents.services.personal_data import PersonalDataExport, collector_registry
 from apps.documents.services.receipts import ReceiptService
 from apps.documents.services.writers import (
@@ -177,7 +177,11 @@ def _personal_data_facade(container: Container) -> PersonalDataFacade:
     return PersonalDataFacade(
         jobs=JobService(JobRepository(), container.resolve(FileStore), clock=timezone.now),
         publisher=container.resolve(EventPublisher),
-        cooldown=timedelta(minutes=settings.personal_data_cooldown_minutes),
+        policy=PersonalDataPolicy(
+            cooldown=timedelta(minutes=settings.personal_data_cooldown_minutes),
+            failure_cooldown=timedelta(minutes=settings.personal_data_failure_cooldown_minutes),
+            stale_after=timedelta(minutes=settings.personal_data_stale_minutes),
+        ),
         link_ttl=timedelta(hours=settings.personal_data_link_hours),
     )
 

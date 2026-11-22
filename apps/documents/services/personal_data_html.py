@@ -180,6 +180,10 @@ VALUE_LABELS: Mapping[str, Mapping[str, str]] = {
     },
 }
 
+# only these fields hold dates: free text (messages, notes, reviews) is never reformatted
+DATE_FIELDS = frozenset({"at", "date_joined", "last_login", "next_expiry"})
+DATE_SUFFIXES = ("_at", "_date", "_on")
+
 _INSTANT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
 _DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -289,8 +293,25 @@ def _text(key: str, value: Any) -> str:
     if isinstance(value, str):
         if label := VALUE_LABELS.get(key, {}).get(value):
             return label
+        if _is_date_field(key):
+            return _date(value)
+    return str(value)
+
+
+def _is_date_field(key: str) -> bool:
+    return key in DATE_FIELDS or key.endswith(DATE_SUFFIXES)
+
+
+# French date, or the value as stored when it is not a valid, timezone-aware ISO 8601 date
+def _date(value: str) -> str:
+    try:
         if _INSTANT.match(value):
-            return timezone.localtime(datetime.fromisoformat(value)).strftime("%d/%m/%Y %H:%M")
+            instant = datetime.fromisoformat(value)
+            if timezone.is_naive(instant):
+                return value
+            return timezone.localtime(instant).strftime("%d/%m/%Y %H:%M")
         if _DAY.match(value):
             return date.fromisoformat(value).strftime("%d/%m/%Y")
-    return str(value)
+    except ValueError:
+        return value
+    return value

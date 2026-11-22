@@ -16,6 +16,8 @@ from apps.documents.domain.personal_data import DataSubject, day, instant, money
 from apps.documents.domain.read_models import ReceiptRef
 from apps.documents.selectors import ReceiptSelector
 from apps.loyalty.facades import PointsFacade
+from apps.messaging.domain.enums import MessageKind
+from apps.messaging.domain.read_models import MessageView
 from apps.messaging.selectors import ConversationSelector
 from apps.orders.domain.enums import DeliveryMethod, OrderStatus
 from apps.orders.domain.read_models import OrderDetail
@@ -35,7 +37,9 @@ from core.domain.actor import Actor, Role
 BATCH = 500
 # far above any real history: the export is never cut short in practice
 MAX_ROWS = 50_000
+# automatic messages have no sender; any other message without one comes from a deleted account
 SYSTEM_SENDER = "Celebobo"
+DELETED_SENDER = "Compte supprimé"
 
 
 def paged[T](fetch: Callable[[int, int], tuple[list[T], int]], *, limit: int = MAX_ROWS) -> list[T]:
@@ -268,7 +272,7 @@ class MessagesCollector:
                     "messages": [
                         {
                             "at": instant(message.created_at),
-                            "sender": message.sender.name if message.sender else SYSTEM_SENDER,
+                            "sender": _sender_name(message),
                             "kind": message.kind.value,
                             "body": message.body,
                             "attachment": message.attachment or None,
@@ -403,3 +407,9 @@ class ResellerCollector:
             Actor.system(), SaleFilters(seller_id=reseller_id), offset=offset, limit=limit
         )
         return sales, total
+
+
+def _sender_name(message: MessageView) -> str:
+    if message.sender is not None:
+        return message.sender.name
+    return SYSTEM_SENDER if message.kind is MessageKind.SYSTEM else DELETED_SENDER
