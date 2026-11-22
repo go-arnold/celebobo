@@ -136,6 +136,9 @@ class JobViewSet(UseCaseViewSet):
 class PersonalDataViewSet(UseCaseViewSet):
     """ "Télécharger mes données": every signed-in user, for their own data only."""
 
+    # the right of access does not wait for the completion step: a client asked to accept a new
+    # version (or to give a phone) can still take a copy of their data, e.g. before closing
+    allow_incomplete_account = True
     action_permissions = {
         "retrieve": (PERSONAL_DATA_EXPORT_OWN,),
         "create": (PERSONAL_DATA_EXPORT_OWN,),

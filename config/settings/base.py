@@ -434,6 +434,7 @@ CELERY_BEAT_SCHEDULE = {
         }
         for rule in (
             "accounts.inactive_clients",
+            "accounts.stale_marketing_consents",
             "messaging.stale_conversations",
             "resellers.rejected_applications",
             "content.stale_subscribers",

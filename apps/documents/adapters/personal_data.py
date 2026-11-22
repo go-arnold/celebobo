@@ -9,7 +9,7 @@ from collections.abc import Callable
 from typing import Any
 
 from apps.accounts.domain.read_models import AddressView
-from apps.accounts.facades import PreferencesFacade
+from apps.accounts.facades import ConsentFacade, PreferencesFacade
 from apps.accounts.selectors import AccountRecordSelector
 from apps.catalog.selectors import FavoriteSelector, ReviewSelector
 from apps.documents.domain.personal_data import DataSubject, day, instant, money
@@ -94,6 +94,36 @@ class PreferencesCollector:
     def collect(self, subject: DataSubject) -> dict[str, Any]:
         actor = Actor(role=subject.role, user_id=subject.user_id)
         return dict(container.resolve(PreferencesFacade).current(actor))
+
+
+# consents with their version and date, as kept for proof (policy §3)
+class ConsentsCollector:
+    def collect(self, subject: DataSubject) -> dict[str, Any]:
+        actor = Actor(role=subject.role, user_id=subject.user_id)
+        overview = container.resolve(ConsentFacade).overview(actor)
+        return {
+            "current": [
+                {
+                    "kind": status.kind.value,
+                    "label": status.label,
+                    "given": status.given,
+                    "version": status.version,
+                    "accepted_at": instant(status.accepted_at),
+                    "current_version": status.current_version,
+                }
+                for status in overview.consents
+            ],
+            "history": [
+                {
+                    "kind": record.kind.value,
+                    "version": record.version,
+                    "source": record.source.value,
+                    "accepted_at": instant(record.accepted_at),
+                    "withdrawn_at": instant(record.withdrawn_at),
+                }
+                for record in overview.history
+            ],
+        }
 
 
 class OrdersCollector:

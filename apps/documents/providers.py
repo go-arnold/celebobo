@@ -14,6 +14,7 @@ from apps.documents.adapters.gateways import (
 )
 from apps.documents.adapters.personal_data import (
     AccountCollector,
+    ConsentsCollector,
     FavoritesCollector,
     MessagesCollector,
     OrdersCollector,
@@ -105,6 +106,7 @@ def register_collectors() -> None:
     settings = document_settings
     collector_registry.add("account", AccountCollector, replace=True)
     collector_registry.add("notification_preferences", PreferencesCollector, replace=True)
+    collector_registry.add("consents", ConsentsCollector, replace=True)
     collector_registry.add(
         "orders",
         lambda: OrdersCollector(limit=settings().personal_data_max_orders),

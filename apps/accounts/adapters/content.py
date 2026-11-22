@@ -4,6 +4,8 @@ from apps.accounts.domain.consents import CONSENT_DOCUMENTS, ConsentKind
 from apps.content.facades import NewsletterFacade, SiteContentFacade
 from core.container import container
 
+# the same value as `apps.content.domain.retention.ACCOUNT_SOURCE`: such subscriptions follow the
+# account's marketing consent
 NEWSLETTER_SOURCE = "compte"
 
 

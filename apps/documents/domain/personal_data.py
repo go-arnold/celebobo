@@ -22,7 +22,6 @@ README_NAME = "LISEZMOI.txt"
 SECTION_ORDER = (
     "account",
     "notification_preferences",
-    # consent records (step 6.1) plug in here: register a collector under this key
     "consents",
     "orders",
     "points",

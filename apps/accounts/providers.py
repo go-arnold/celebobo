@@ -27,10 +27,12 @@ from apps.accounts.adapters.security import (
 from apps.accounts.domain.consents import PolicyVersions
 from apps.accounts.facades import (
     INACTIVE_CLIENTS_RULE,
+    STALE_MARKETING_RULE,
     AccountFacade,
     AccountRetentionFacade,
     AddressBookFacade,
     ConsentFacade,
+    MarketingConsentRetentionFacade,
     PreferencesFacade,
     RealtimeAccessFacade,
     ResellerAccountFacade,
@@ -110,6 +112,14 @@ def register(container: Container) -> None:
     container.register(ResellerAccountFacade, _reseller_facade, lifetime=Lifetime.TRANSIENT)
     container.register(UserAdminFacade, _user_admin_facade, lifetime=Lifetime.TRANSIENT)
     container.register(AccountRetentionFacade, _retention_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(
+        MarketingConsentRetentionFacade, _marketing_retention_facade, lifetime=Lifetime.TRANSIENT
+    )
+    retention_rules.add(
+        STALE_MARKETING_RULE,
+        lambda: container.resolve(MarketingConsentRetentionFacade),
+        replace=True,
+    )
     retention_rules.add(
         INACTIVE_CLIENTS_RULE, lambda: container.resolve(AccountRetentionFacade), replace=True
     )
@@ -150,6 +160,7 @@ def _account_facade(container: Container) -> AccountFacade:
             account_settings.EMAIL_VERIFICATION
             == account_settings.EmailVerificationMethod.MANDATORY
         ),
+        identities=(AllauthIdentities(), PushDevices()),
     )
 
 
@@ -211,6 +222,7 @@ def _user_admin_facade(container: Container) -> UserAdminFacade:
 
 def _retention_facade(container: Container) -> AccountRetentionFacade:
     orders, messaging, loyalty = OrdersPrivacy(), MessagingPrivacy(), LoyaltyPrivacy()
+    users = UserRepository()
     return AccountRetentionFacade(
         retention=InactiveAccountService(
             InactiveClientRepository(),
@@ -229,6 +241,21 @@ def _retention_facade(container: Container) -> AccountRetentionFacade:
                 UploadedFiles(),
             ),
         ),
+        consents=_consent_service(container, users),
+        users=users,
+        newsletter=container.resolve(MarketingList),
         revoker=container.resolve(TokenRevoker),
+        publisher=container.resolve(EventPublisher),
+    )
+
+
+def _marketing_retention_facade(container: Container) -> MarketingConsentRetentionFacade:
+    users = UserRepository()
+    return MarketingConsentRetentionFacade(
+        consents=_consent_service(container, users),
+        store=ConsentRepository(),
+        users=users,
+        activity=(SessionRenewals(), OrdersPrivacy(), MessagingPrivacy(), LoyaltyPrivacy()),
+        newsletter=container.resolve(MarketingList),
         publisher=container.resolve(EventPublisher),
     )

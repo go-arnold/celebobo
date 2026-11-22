@@ -41,6 +41,7 @@ EXPORT = "/api/v1/me/data-export/"
 CLIENT_SECTIONS = [
     "account",
     "notification_preferences",
+    "consents",
     "orders",
     "points",
     "reviews",
@@ -166,6 +167,16 @@ class TestClientExport:
         assert finished is not None
         expires_at = datetime.fromisoformat(status["job"]["expires_at"])
         assert abs(expires_at - (finished + timedelta(hours=48))) < timedelta(seconds=1)
+
+    def test_an_account_still_to_complete_can_take_its_data(self, as_user, run_jobs):
+        # e.g. a new version of the conditions to accept, or a phone cleared by the migration
+        incomplete = UserFactory.create(consents=False)
+        api = as_user(incomplete)
+        assert api.get("/api/v1/me/orders/").status_code == 403
+
+        job = export(api, run_jobs)
+
+        assert api.get(f"{EXPORT}{job['id']}/download/").status_code == 200
 
     def test_zip_holds_json_html_and_a_readme(self, as_user, shopper, run_jobs):
         api = as_user(shopper)
@@ -304,6 +315,15 @@ class TestClientExport:
         ]
         assert data["messages"]["truncated"] is False
         assert data["reseller_applications"] == []
+
+    def test_consents_with_version_and_date(self, as_user, shopper, run_jobs):
+        document, _, _ = download(as_user(shopper), run_jobs)
+
+        consents = document["data"]["consents"]
+        given = {row["kind"]: row["given"] for row in consents["current"]}
+        assert given == {"terms": True, "hosting_abroad": True, "marketing": False}
+        assert {row["kind"] for row in consents["history"]} == {"terms", "hosting_abroad"}
+        assert all(row["version"] and row["accepted_at"] for row in consents["history"])
 
     def test_leaves_out_other_peoples_data(self, as_user, shopper, run_jobs):
         _, raw, html = download(as_user(shopper), run_jobs)
