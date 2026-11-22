@@ -1,5 +1,5 @@
 import re
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from datetime import datetime
 
 from django.db.models import Count, Q, QuerySet
@@ -96,6 +96,10 @@ class PageSelector:
     def sitemap(self) -> tuple[SitemapEntry, ...]:
         pages = Page.objects.filter(is_published=True).values_list("slug", "updated_at")
         return tuple(SitemapEntry(slug=slug, updated_at=updated_at) for slug, updated_at in pages)
+
+    def versions(self, slugs: Sequence[str]) -> dict[str, str]:
+        pages = Page.objects.filter(slug__in=slugs, is_published=True)
+        return dict(pages.values_list("slug", "version"))
 
     def listing(self, *, published_only: bool) -> list[PageView]:
         pages = Page.objects.filter(is_published=True) if published_only else Page.objects.all()

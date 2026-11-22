@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0003_remove_commission_rate'),
+        ('accounts', '0006_phone_number_unique'),
     ]
 
     operations = [

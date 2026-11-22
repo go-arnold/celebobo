@@ -65,6 +65,9 @@ class InMemoryUsers:
     def referral_code_taken(self, code: str) -> bool:
         return any(user.referral_code == code for user in self.users.values())
 
+    def signed_up_with_google(self, user_id: int) -> bool:
+        return False
+
 
 class InMemoryPreferences:
     def __init__(self) -> None:

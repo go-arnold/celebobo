@@ -43,6 +43,8 @@ class TestSessionHint:
                 "email": "aline@celebobo.test",
                 "password": "Kinshasa-2026!",
                 "phone_number": "+243 81 234 5678",
+                "accept_terms": True,
+                "accept_hosting_abroad": True,
             },
         )
 

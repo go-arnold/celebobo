@@ -1,7 +1,7 @@
 from django.utils import timezone
 
 from apps.accounts.domain.commands import RegisterUser
-from apps.accounts.domain.errors import EmailAlreadyUsed, PhoneAlreadyUsed
+from apps.accounts.domain.errors import EmailAlreadyUsed, PhoneAlreadyUsed, PhoneRequired
 from apps.accounts.domain.normalization import clean_text, normalize_email, normalize_phone
 from apps.accounts.models import User
 from apps.accounts.services.contracts import PasswordPolicy, UserStore
@@ -19,10 +19,13 @@ class RegistrationService:
 
     def register(self, command: RegisterUser) -> User:
         email = normalize_email(command.email)
-        phone = normalize_phone(command.phone_number)
         if self._users.email_taken(email):
             raise EmailAlreadyUsed
-        if phone and self._users.phone_taken(phone):
+        # one account per phone: required, normalised (+243…) and unique
+        phone = normalize_phone(command.phone_number)
+        if phone is None:
+            raise PhoneRequired
+        if self._users.phone_taken(phone):
             raise PhoneAlreadyUsed
         inviter = self._referrals.resolve(command.referral_code) if command.referral_code else None
         first_name, last_name = clean_text(command.first_name), clean_text(command.last_name)

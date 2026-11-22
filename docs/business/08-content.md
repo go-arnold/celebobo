@@ -66,6 +66,9 @@ One record, `GET /settings/public/` exposes the public part to the shop:
 - Every email contains an **unsubscribe link** (`/newsletter/desinscription?token=…`); an unknown token
   answers `unknown_subscription`.
 - Staff (`newsletter.view`) list subscribers (active / unsubscribed, search) and export them as CSV.
+- The newsletter follows an account's `marketing` consent, both ways: giving it subscribes the
+  account's e-mail, withdrawing it unsubscribes it, and the unsubscribe link withdraws the consent
+  ([accounts](02-accounts.md#newsletter-and-promotions)).
 - Retention (privacy policy §6: marketing consent lasts until withdrawn, or 3 years without
   interaction): an **active** subscriber whose last (re)subscription is more than 3 years old is
   deleted by a daily task (`content.stale_subscribers`, see [§10](10-backoffice-tools.md#retention)).

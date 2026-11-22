@@ -14,6 +14,7 @@ from apps.accounts.api.v1.backoffice_views import UserAdminViewSet
 from apps.accounts.api.v1.views import (
     AddressViewSet,
     AvailabilityViewSet,
+    ConsentViewSet,
     CsrfViewSet,
     GoogleLoginView,
     MeViewSet,
@@ -57,6 +58,16 @@ urlpatterns = [
         "me/",
         MeViewSet.as_view({"get": "retrieve", "patch": "partial_update", "delete": "destroy"}),
         name="me",
+    ),
+    path(
+        "me/consents/",
+        ConsentViewSet.as_view({"get": "list", "post": "create"}),
+        name="consents",
+    ),
+    path(
+        "me/consents/<str:kind>/",
+        ConsentViewSet.as_view({"delete": "destroy"}),
+        name="consent",
     ),
     path(
         "me/notification-preferences/",

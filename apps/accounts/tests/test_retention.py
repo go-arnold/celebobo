@@ -13,7 +13,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.adapters.retention import PushDevices
 from apps.accounts.domain.events import AccountDeleted
-from apps.accounts.models import Address, NotificationPreference, User
+from apps.accounts.models import Address, Consent, NotificationPreference, User
 from apps.accounts.repositories import UserRepository
 from apps.accounts.services.referrals import ReferralService
 from apps.accounts.tests.factories import (
@@ -559,6 +559,23 @@ class TestNewsletter:
         assert as_user(sleeper).delete("/api/v1/me/").status_code == 204
 
         assert not Subscriber.objects.exists()
+
+    def test_deleting_an_account_with_marketing_accepted_drops_the_address(self, as_user, sleeper):
+        # withdrawing the consent on deletion must not turn the row into an opposition kept forever
+        Consent.objects.create(
+            user=sleeper,
+            kind="marketing",
+            version="0.9.2",
+            source="signup",
+            accepted_at=timezone.now(),
+        )
+        Subscriber.objects.create(email="aline@celebobo.test")
+
+        assert as_user(sleeper).delete("/api/v1/me/").status_code == 204
+
+        assert not Subscriber.objects.exists()
+        consent = Consent.objects.get(user=sleeper, kind="marketing")
+        assert consent.withdrawn_at is not None
 
     def test_deleting_the_account_keeps_the_opposition(self, as_user, sleeper):
         Subscriber.objects.create(email="aline@celebobo.test", unsubscribed_at=LONG_AGO)

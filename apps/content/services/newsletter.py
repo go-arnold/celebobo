@@ -51,7 +51,17 @@ class NewsletterService:
         subscriber = self._subscribers.by_token(token)
         if subscriber is None:
             raise UnknownSubscription
+        self._stop(subscriber)
+        return subscriber
+
+    # the account's marketing consent was withdrawn: no more e-mail offers to that address
+    def unsubscribe_email(self, email: str) -> Subscriber | None:
+        subscriber = self._subscribers.by_email(normalize_email(email), for_update=True)
+        if subscriber is not None:
+            self._stop(subscriber)
+        return subscriber
+
+    def _stop(self, subscriber: Subscriber) -> None:
         if subscriber.is_active:
             subscriber.unsubscribed_at = self._clock()
             self._subscribers.save(subscriber, fields=("unsubscribed_at",))
-        return subscriber

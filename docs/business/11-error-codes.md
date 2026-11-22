@@ -24,7 +24,9 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | HTTP | Code | Message |
 |---|---|---|
 | 400 | `email_already_used` | Un compte existe déjà avec cette adresse e-mail. |
-| 400 | `phone_already_used` | Ce numéro de téléphone est déjà utilisé. |
+| 400 | `phone_already_used` | Ce numéro de téléphone est déjà utilisé par un autre compte. |
+| 400 | `invalid_phone` | Numéro de téléphone invalide : saisissez un numéro mobile congolais, par exemple 0812345678 ou +243 81 234 5678. |
+| 400 | `phone_required` | Le numéro de téléphone est obligatoire. |
 | 400 | `unknown_referral_code` | Aucun revendeur trouvé avec ce code. |
 | 400 | `weak_password` | Le mot de passe ne respecte pas les règles de sécurité. |
 | 422 | `referral_already_set` | Un code revendeur est déjà associé à votre compte. |
@@ -45,6 +47,9 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 422 | `inactive_account` | Ce compte est désactivé. |
 | 429 | `too_many_login_attempts` | Trop de tentatives de connexion. Réessayez dans quelques minutes. |
 | 400 | `invalid_avatar` | Cette photo est introuvable ou ne vous appartient pas. |
+| 400 | `consent_required` | Vous devez accepter les conditions obligatoires pour créer un compte. (`errors.accept_terms`, `errors.accept_hosting_abroad`) |
+| 404 | `consent_not_found` | Ce consentement n'existe pas. |
+| 403 | `account_incomplete` | Complétez votre compte (conditions obligatoires, numéro de téléphone) pour continuer à l'utiliser. (`meta.missing_consents`, `meta.phone_required`) |
 
 ## Assistant
 

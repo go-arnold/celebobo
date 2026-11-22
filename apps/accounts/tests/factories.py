@@ -5,7 +5,9 @@ from factory.declarations import PostGeneration, Sequence, SubFactory
 from factory.django import DjangoModelFactory
 from factory.faker import Faker
 
-from apps.accounts.models import Address, User
+from apps.accounts.domain.consents import REQUIRED_CONSENTS, ConsentSource, PolicyVersions
+from apps.accounts.models import Address, Consent, User
+from core.container import container
 from core.domain.actor import Role
 
 DEFAULT_PASSWORD = "Kinshasa-2026!"
@@ -22,6 +24,22 @@ def _verify_email(user: User, create: bool, extracted: bool | None, **_: Any) ->
         EmailAddress.objects.create(user=user, email=user.email, primary=True, verified=True)
 
 
+# the required consents on the current policy versions, so the account is usable; pass
+# `consents=False` for an account that still has to give them
+def _give_consents(user: User, create: bool, extracted: bool | None, **_: Any) -> None:
+    if create and extracted is not False:
+        versions = container.resolve(PolicyVersions).current()
+        Consent.objects.bulk_create(
+            Consent(
+                user=user,
+                kind=kind.value,
+                version=versions.get(kind, ""),
+                source=ConsentSource.SIGNUP.value,
+            )
+            for kind in REQUIRED_CONSENTS
+        )
+
+
 class UserFactory(DjangoModelFactory[User]):
     class Meta:
         model = User
@@ -30,9 +48,11 @@ class UserFactory(DjangoModelFactory[User]):
     email = Sequence(lambda index: f"user{index}@celebobo.test")
     first_name = Faker("first_name", locale="fr_FR")
     last_name = Faker("last_name", locale="fr_FR")
+    phone_number = Sequence(lambda index: f"+24381{index:07d}")
     role = Role.CLIENT.value
     password = PostGeneration(_set_password)
     verified = PostGeneration(_verify_email)
+    consents = PostGeneration(_give_consents)
 
 
 class ResellerFactory(UserFactory):

@@ -6,7 +6,9 @@ from apps.accounts.domain.commands import RegisterUser, UpdatePreferences
 from apps.accounts.domain.enums import NotificationChannel, NotificationTopic
 from apps.accounts.domain.errors import (
     EmailAlreadyUsed,
+    InvalidPhone,
     PhoneAlreadyUsed,
+    PhoneRequired,
     ReferralCodesExhausted,
     UnknownReferralCode,
 )
@@ -41,6 +43,7 @@ def command(**overrides) -> RegisterUser:
         "last_name": "Mbuyi",
         "email": " Aline@Celebobo.TEST ",
         "password": "Kinshasa-2026!",
+        "phone_number": "0812345678",
     }
     return RegisterUser(**{**values, **overrides})
 
@@ -51,10 +54,41 @@ class TestNormalization:
 
     @pytest.mark.parametrize(
         ("raw", "expected"),
-        [(None, None), ("   ", None), ("+243  81 234   567", "+243 81 234 567")],
+        [
+            (None, None),
+            ("   ", None),
+            ("+243  81 234   5678", "+243812345678"),
+            ("+243812345678", "+243812345678"),
+            ("00243 81 234 5678", "+243812345678"),
+            ("243812345678", "+243812345678"),
+            ("0812345678", "+243812345678"),
+            ("081-234-5678", "+243812345678"),
+            ("(081) 234.56.78", "+243812345678"),
+            ("812345678", "+243812345678"),
+            (" 0996 531 255 ", "+243996531255"),
+        ],
     )
     def test_phone(self, raw, expected):
         assert normalize_phone(raw) == expected
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "abc",
+            "12345",
+            "081234567",  # 8 digits after the 0
+            "08123456789",  # 10 digits after the 0
+            "+243 12 345 6789",  # not a mobile
+            "0712345678",
+            "+33 6 12 34 56 78",  # another country
+            "+2438123456789",
+            "+24381234567a",
+        ],
+    )
+    def test_invalid_phones(self, raw):
+        with pytest.raises(InvalidPhone) as error:
+            normalize_phone(raw)
+        assert "phone_number" in error.value.errors
 
     def test_text(self):
         assert clean_text("  Jean   Pierre ") == "Jean Pierre"
@@ -102,7 +136,7 @@ class TestRegistrationService:
 
         assert user.email == "aline@celebobo.test"
         assert user.first_name == "Aline"
-        assert user.phone_number == "+243 81 000 0000"
+        assert user.phone_number == "+243810000000"
         assert user.role == Role.CLIENT.value
         assert user.check_password("Kinshasa-2026!")
 
@@ -121,11 +155,22 @@ class TestRegistrationService:
             self.service(users).register(command())
         assert "email" in error.value.errors
 
-    def test_rejects_duplicate_phone(self):
-        users = InMemoryUsers([User(pk=1, email="x@celebobo.test", phone_number="+243 81")])
+    def test_rejects_duplicate_phone_in_any_format(self):
+        users = InMemoryUsers([User(pk=1, email="x@celebobo.test", phone_number="+243812345678")])
 
         with pytest.raises(PhoneAlreadyUsed):
-            self.service(users).register(command(email="new@celebobo.test", phone_number="+243 81"))
+            self.service(users).register(
+                command(email="new@celebobo.test", phone_number="081 234 5678")
+            )
+
+    @pytest.mark.parametrize("phone", [None, "", "  "])
+    def test_phone_is_required(self, phone):
+        with pytest.raises(PhoneRequired):
+            self.service(InMemoryUsers()).register(command(phone_number=phone))
+
+    def test_rejects_invalid_phone(self):
+        with pytest.raises(InvalidPhone):
+            self.service(InMemoryUsers()).register(command(phone_number="12345"))
 
 
 class TestPreferenceService:
