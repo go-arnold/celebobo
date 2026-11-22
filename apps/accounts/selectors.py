@@ -19,6 +19,7 @@ from apps.accounts.domain.read_models import (
     Contact,
     Invitee,
     InviterRef,
+    InvitingReseller,
     ManagerRef,
     Profile,
     Referral,
@@ -95,6 +96,34 @@ class ReferralSelector:
         if row is None or row["invited_at"] is None:
             return None
         return Referral(reseller_id=row["invited_by_id"], since=row["invited_at"])
+
+    # the active reseller who invited each client, with no time limit, in one query
+    def inviting_resellers(self, client_ids: Iterable[int]) -> dict[int, InvitingReseller]:
+        clients = (
+            User.objects.filter(
+                pk__in=set(client_ids),
+                invited_by__is_active=True,
+                invited_by__role=Role.RESELLER.value,
+            )
+            .select_related("invited_by")
+            .only(
+                "id",
+                "invited_at",
+                "invited_by__id",
+                "invited_by__first_name",
+                "invited_by__last_name",
+                "invited_by__email",
+            )
+        )
+        return {
+            client.pk: InvitingReseller(
+                id=inviter.pk,
+                name=inviter.get_full_name() or inviter.email,
+                invited_at=client.invited_at,
+            )
+            for client in clients
+            if (inviter := client.invited_by) is not None
+        }
 
     def check(self, code: str) -> ReferralCheck:
         reseller = (

@@ -152,3 +152,12 @@ class Referral:
 
     reseller_id: int
     since: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class InvitingReseller:
+    """The active reseller who invited a client, with no time limit (assignment suggestion)."""
+
+    id: int
+    name: str
+    invited_at: datetime | None

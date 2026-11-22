@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from decimal import Decimal
 from typing import Protocol
 
@@ -6,7 +6,7 @@ from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
 from apps.catalog.domain.read_models import PricedLine
 from apps.orders.domain.commands import DeliveryAddress
-from apps.orders.domain.read_models import PersonBrief
+from apps.orders.domain.read_models import PersonBrief, SuggestedReseller
 from apps.orders.models import Order
 
 
@@ -38,6 +38,9 @@ class ResellerDirectory(Protocol):
     def active(self, reseller_id: int) -> PersonBrief | None: ...
 
     def assignable(self, search: str | None) -> list[PersonBrief]: ...
+
+    # the active reseller who invited each client, keyed by client id
+    def inviters(self, client_ids: Iterable[int]) -> dict[int, SuggestedReseller]: ...
 
 
 class OrderThreads(Protocol):

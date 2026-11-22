@@ -278,6 +278,19 @@ class OrderSummaryOutput(serializers.Serializer[Any]):
     refund_status = serializers.CharField(allow_null=True)
 
 
+class SuggestedResellerOutput(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    # "invited_client": the active reseller who invited the client, whenever that was
+    reason = serializers.CharField()
+    invited_at = serializers.DateTimeField(allow_null=True)
+
+
+# back-office list: staff who can assign also get the reseller who invited the client
+class BackofficeOrderSummaryOutput(OrderSummaryOutput):
+    suggested_reseller = SuggestedResellerOutput(allow_null=True)
+
+
 class OrderLineOutput(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     product_id = serializers.IntegerField(allow_null=True)
@@ -324,6 +337,8 @@ class DeliveryAddressOutput(serializers.Serializer[Any]):
 
 
 class OrderDetailOutput(serializers.Serializer[Any]):
+    summary_output: type[OrderSummaryOutput] = BackofficeOrderSummaryOutput
+
     items = OrderLineOutput(many=True)
     address = DeliveryAddressOutput()
     payment_method = serializers.CharField()
@@ -355,10 +370,12 @@ class OrderDetailOutput(serializers.Serializer[Any]):
     conversation_id = serializers.IntegerField(allow_null=True)
 
     def to_representation(self, instance: Any) -> dict[str, Any]:
-        return {**OrderSummaryOutput(instance.summary).data, **super().to_representation(instance)}
+        return {**self.summary_output(instance.summary).data, **super().to_representation(instance)}
 
 
 class ClientOrderDetailOutput(OrderDetailOutput):
+    summary_output = OrderSummaryOutput
+
     def to_representation(self, instance: Any) -> dict[str, Any]:
         data = super().to_representation(instance)
         data.pop("client", None)

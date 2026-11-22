@@ -55,6 +55,7 @@ from apps.orders.domain.read_models import (
     QuotableOrder,
     QuoteView,
     ShippingZoneView,
+    SuggestedReseller,
     TrackingView,
 )
 from apps.orders.models import Order
@@ -296,13 +297,15 @@ class DispatchFacade:
         orders, total, counts = self._selector.backoffice_page(
             actor, filters, offset=offset, limit=limit
         )
-        return OrderPage(orders, total, counts)
+        return OrderPage(self._with_suggestions(actor, orders), total, counts)
 
     def detail(self, actor: Actor, order_id: int) -> OrderDetail:
         detail = self._selector.backoffice_detail(actor, order_id)
         order = _existing(self._orders.get(order_id))
+        (summary,) = self._with_suggestions(actor, [detail.summary])
         return replace(
             detail,
+            summary=summary,
             allowed_transitions=self._lifecycle.allowed(order, actor),
             conversation_id=self._threads.thread_for(order_id),
             points_earned=self._wallet.earned(order_id),
@@ -442,6 +445,14 @@ class DispatchFacade:
             raise OrderNotFound
         return order
 
+    # staff who assign orders see the active reseller who invited the client (one lookup per page);
+    # resellers never get it
+    def _with_suggestions(self, actor: Actor, orders: list[OrderSummary]) -> list[OrderSummary]:
+        if not actor.is_staff or not orders:
+            return orders
+        inviters = self._resellers.inviters({order.client_id for order in orders})
+        return [replace(order, suggested_reseller=_suggestion(order, inviters)) for order in orders]
+
 
 @logged_facade
 class OrderExpiryFacade:
@@ -508,6 +519,14 @@ def _handover_note(handover: Handover) -> str:
     if handover.without_code is not None:
         return f"Livraison confirmée sans code par un responsable : {handover.without_code}"[:500]
     return "Remise confirmée avec le code de livraison du client"
+
+
+# the inviter is suggested until the order is assigned to them
+def _suggestion(
+    order: OrderSummary, inviters: dict[int, SuggestedReseller]
+) -> SuggestedReseller | None:
+    inviter = inviters.get(order.client_id)
+    return None if inviter is None or inviter.id == order.reseller_id else inviter
 
 
 def _existing(order: Order | None) -> Order:

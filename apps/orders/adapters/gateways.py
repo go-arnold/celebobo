@@ -1,16 +1,16 @@
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from decimal import Decimal
 
 from django.db.models import Sum
 
-from apps.accounts.selectors import AddressSelector, ResellerSelector
+from apps.accounts.selectors import AddressSelector, ReferralSelector, ResellerSelector
 from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
 from apps.catalog.domain.read_models import PricedLine
 from apps.catalog.facades import InventoryFacade
 from apps.orders.domain.commands import DeliveryAddress
 from apps.orders.domain.enums import OrderStatus
-from apps.orders.domain.read_models import PersonBrief
+from apps.orders.domain.read_models import PersonBrief, SuggestedReseller
 from apps.orders.models import Order, OrderItem
 from core.container import container
 
@@ -68,6 +68,14 @@ class AccountsResellerDirectory:
             )
             for reseller in ResellerSelector().assignable(search)
         ]
+
+    def inviters(self, client_ids: Iterable[int]) -> dict[int, SuggestedReseller]:
+        return {
+            client_id: SuggestedReseller(
+                id=inviter.id, name=inviter.name, invited_at=inviter.invited_at
+            )
+            for client_id, inviter in ReferralSelector().inviting_resellers(client_ids).items()
+        }
 
 
 class NoWallet:

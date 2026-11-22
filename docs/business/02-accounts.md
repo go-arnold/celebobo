@@ -10,7 +10,9 @@
   name/email, not a common password, not only digits (`weak_password`).
 - A **referral code** must belong to an active reseller (`unknown_referral_code`). The new client is
   then permanently linked to that reseller (an "invitee"); `invited_at` records when, since referral
-  points run for 12 months from then (§12, *Referral points*).
+  points run for 12 months from then (§12, *Referral points*). Whatever the date, while that
+  reseller stays active, staff assigning the client's orders see them as the **suggested reseller**
+  ([orders](04-cart-checkout-orders.md#assignment)).
 - Every self-registered account is a **client**.
 - **Email verification is mandatory**: a link to `/verifier-email/{key}` is emailed; logging in
   before confirming the address is refused. The link can be re-sent (`POST /auth/email/resend/`).
