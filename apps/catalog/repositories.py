@@ -59,6 +59,13 @@ class ReviewRepository:
             },
         )
 
+    # account retention: the client's reviews go (returns the products they were about)
+    def delete_for_user(self, user_id: int) -> list[int]:
+        reviews = Review.objects.filter(user_id=user_id)
+        product_ids = sorted(set(reviews.values_list("product_id", flat=True)))
+        reviews.delete()
+        return product_ids
+
 
 class FavoriteRepository:
     def add(self, user_id: int, product_id: int) -> bool:
@@ -68,6 +75,10 @@ class FavoriteRepository:
     def remove(self, user_id: int, product_id: int) -> bool:
         deleted, _ = Favorite.objects.filter(user_id=user_id, product_id=product_id).delete()
         return deleted > 0
+
+    def delete_for_user(self, user_id: int) -> int:
+        deleted, _ = Favorite.objects.filter(user_id=user_id).delete()
+        return deleted
 
 
 class StockRepository:

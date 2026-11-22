@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from datetime import datetime
 from typing import Any, Protocol
 
@@ -93,6 +93,22 @@ class PasswordSetupLinks(Protocol):
 
 class AvatarSource(Protocol):
     def url_for(self, owner_id: int, upload_id: int) -> str | None: ...
+
+
+# account retention: when each user last did something in another part of the shop
+class ActivitySource(Protocol):
+    def last_activity(self, user_ids: Collection[int]) -> dict[int, datetime]: ...
+
+
+# account retention: removes what another part of the shop holds about an anonymised client
+class PersonalDataEraser(Protocol):
+    def erase(self, user_id: int) -> None: ...
+
+
+# the newsletter subscription of an e-mail address that is about to disappear (account deleted or
+# anonymised); an opposition already expressed (unsubscribed address) stays
+class NewsletterSubscriptions(Protocol):
+    def forget(self, email: str) -> None: ...
 
 
 class ConsentStore(Protocol):

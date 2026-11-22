@@ -1,5 +1,6 @@
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from typing import Protocol
 
@@ -25,6 +26,8 @@ class OrderGateway(Protocol):
     def accept_shipping(
         self, actor: Actor, order_id: int, fee: Decimal, delivery_estimate: str
     ) -> None: ...
+
+    def last_orders(self, client_ids: Iterable[int]) -> dict[int, datetime]: ...
 
 
 class Directory(Protocol):

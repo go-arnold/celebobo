@@ -27,9 +27,12 @@ class InvoiceBuilder:
             {
                 "order": order,
                 "issued_at": timezone.localtime(),
-                # the client's points statement, printed on each invoice (loyalty policy)
+                # the client's points statement, printed on each invoice (loyalty policy); not
+                # on a reseller's copy (it gives the client's purchase totals), nor for a deleted
+                # or anonymised account, whose points history is gone (it would be recomputed at
+                # today's rate and shown as pending)
                 "points": self._points.statement(order.client.id, order.summary.id)
-                if points
+                if points and not order.client.anonymized
                 else None,
                 **self._branding,
             },

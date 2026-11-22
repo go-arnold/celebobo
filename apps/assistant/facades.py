@@ -12,6 +12,7 @@ from apps.assistant.domain.read_models import (
     SessionDetail,
     SessionView,
 )
+from apps.assistant.repositories import SessionRepository
 from apps.assistant.selectors import LogSelector, SessionSelector, to_session_view
 from apps.assistant.services.chat import ChatService, PendingTurn
 from apps.assistant.services.conversations import ConversationStore
@@ -94,3 +95,15 @@ class AssistantInsightsFacade:
 
     def reindex(self) -> dict[str, int]:
         return self._embeddings.reindex()
+
+
+# retention of client accounts (privacy policy, section 6): the conversations of an anonymised
+# client with the assistant go with their messages (questions often hold personal details)
+@logged_facade
+class AssistantPrivacyFacade:
+    def __init__(self, *, sessions: SessionRepository) -> None:
+        self._sessions = sessions
+
+    def forget(self, user_id: int) -> int:
+        with transaction.atomic():
+            return self._sessions.delete_for_user(user_id)

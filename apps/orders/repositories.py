@@ -19,6 +19,7 @@ from apps.orders.models import (
     Order,
     OrderItem,
     OrderLineReturn,
+    OrderRating,
     OrderStatusEvent,
     ShippingZone,
 )
@@ -81,6 +82,17 @@ class CartRepository:
 
 
 class OrderRepository:
+    # retention (inactive account anonymised): the client's phone, notes, delivery codes, rating
+    # comments and cart go. The recipient name and delivery address stay with the order, as
+    # printed on its invoice, kept 10 years for the accounts (OHADA).
+    def forget_client(self, client_id: int) -> int:
+        updated = Order.objects.filter(client_id=client_id).update(
+            phone="", note="", delivery_code=""
+        )
+        OrderRating.objects.filter(client_id=client_id).update(comment="")
+        Cart.objects.filter(user_id=client_id).delete()
+        return updated
+
     def create(self, **fields: Any) -> Order:
         for attempt in range(NUMBER_ATTEMPTS):
             try:

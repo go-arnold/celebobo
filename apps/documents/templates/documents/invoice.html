@@ -9,7 +9,7 @@
     </td>
     <td style="border: none;">
       <strong>Livraison</strong><br>{% if order.contact_hidden %}{{ order.address.recipient }}<br>
-      <span class="muted">Coordonnées masquées (7 jours après la livraison)</span><br>{% else %}{{ order.address.recipient }} · {{ order.address.phone }}<br>
+      <span class="muted">Coordonnées masquées (7 jours après la livraison)</span><br>{% else %}{{ order.address.recipient }}{% if order.address.phone %} · {{ order.address.phone }}{% endif %}<br>
       {{ order.address.line1 }}, {{ order.address.quarter }}<br>{% endif %}{{ order.address.city }}, {{ order.address.country }}
     </td>
   </tr>

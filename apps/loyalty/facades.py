@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from datetime import datetime
 from decimal import Decimal
 
@@ -6,6 +7,7 @@ from django.db import transaction
 from apps.loyalty.domain.events import LoyaltySettingsChanged
 from apps.loyalty.domain.points import Balance, InvoiceStatement
 from apps.loyalty.domain.settings import LoyaltySettingsChanges, Programmes
+from apps.loyalty.repositories import PointsRepository
 from apps.loyalty.selectors import to_programmes
 from apps.loyalty.services.points import PointsService
 from apps.loyalty.services.settings import LoyaltySettingsService
@@ -73,3 +75,18 @@ class PointsFacade:
     def expire(self) -> int:
         with transaction.atomic():
             return self._points.expire()
+
+
+# retention of client accounts (privacy policy, section 6): the points history goes with the
+# account, 3 years after the last activity; the points paid on orders stay on the orders
+@logged_facade
+class PointsPrivacyFacade:
+    def __init__(self, *, points: PointsRepository) -> None:
+        self._points = points
+
+    def last_movements(self, user_ids: Iterable[int]) -> dict[int, datetime]:
+        return self._points.last_client_movements(user_ids)
+
+    def forget(self, user_id: int) -> int:
+        with transaction.atomic():
+            return self._points.delete_for(user_id)

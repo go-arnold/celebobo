@@ -1,4 +1,4 @@
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -60,7 +60,12 @@ from apps.orders.domain.read_models import (
 )
 from apps.orders.models import Order
 from apps.orders.repositories import CartRepository, OrderRepository
-from apps.orders.selectors import OrderSelector, PromotionSelector, scoped_orders
+from apps.orders.selectors import (
+    OrderSelector,
+    PromotionSelector,
+    last_order_dates,
+    scoped_orders,
+)
 from apps.orders.services.adjustments import AdjustmentService
 from apps.orders.services.attempts import DeliveryAttemptService
 from apps.orders.services.cart import CartOwner, CartService
@@ -648,3 +653,17 @@ class PromotionFacade:
         with transaction.atomic():
             self._coupons.deactivate(coupon_id)
         return self._selector.coupon(coupon_id)
+
+
+# retention of client accounts (privacy policy, section 6)
+@logged_facade
+class OrderPrivacyFacade:
+    def __init__(self, *, orders: OrderRepository) -> None:
+        self._orders = orders
+
+    def last_orders(self, client_ids: Iterable[int]) -> dict[int, datetime]:
+        return last_order_dates(client_ids)
+
+    def forget_client(self, client_id: int) -> int:
+        with transaction.atomic():
+            return self._orders.forget_client(client_id)

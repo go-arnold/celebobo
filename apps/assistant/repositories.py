@@ -48,6 +48,11 @@ class SessionRepository:
             AssistantSession.objects.filter(pk=session.pk, title="").update(title=title)
         session.refresh_from_db(fields=("message_count", "title", "updated_at"))
 
+    # account retention: the user's conversations go, with their messages
+    def delete_for_user(self, user_id: int) -> int:
+        _, deleted = AssistantSession.objects.filter(user_id=user_id).delete()
+        return deleted.get(AssistantSession._meta.label, 0)
+
     def delete(self, session: AssistantSession) -> None:
         session.delete()
 

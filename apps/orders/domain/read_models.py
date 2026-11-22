@@ -91,6 +91,8 @@ class PersonBrief:
     email: str | None
     phone: str | None = None
     availability: str | None = None
+    # the account was deleted by the client or anonymised (retention): a placeholder is left
+    anonymized: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

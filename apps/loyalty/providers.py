@@ -6,7 +6,7 @@ from apps.loyalty.adapters.gateways import (
     LoyaltyWallet,
     OrdersLedger,
 )
-from apps.loyalty.facades import LoyaltyFacade, PointsFacade
+from apps.loyalty.facades import LoyaltyFacade, PointsFacade, PointsPrivacyFacade
 from apps.loyalty.repositories import LoyaltySettingsRepository, PointsRepository
 from apps.loyalty.services.contracts import OrderLedger, Referrals, ReturnPolicy
 from apps.loyalty.services.points import PointsService
@@ -23,6 +23,11 @@ def register(container: Container) -> None:
     container.register(Referrals, lambda _: AccountsReferrals())
     container.register(PointsFacade, _points_facade, lifetime=Lifetime.TRANSIENT)
     container.register(LoyaltyFacade, _loyalty_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(
+        PointsPrivacyFacade,
+        lambda _: PointsPrivacyFacade(points=PointsRepository()),
+        lifetime=Lifetime.TRANSIENT,
+    )
 
 
 def _loyalty_facade(container: Container) -> LoyaltyFacade:

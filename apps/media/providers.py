@@ -5,9 +5,9 @@ from django.utils import timezone
 
 from apps.media.adapters import cloudinary
 from apps.media.conf import media_settings
-from apps.media.facades import MediaFacade, MediaMaintenanceFacade
+from apps.media.facades import MediaFacade, MediaMaintenanceFacade, MediaPrivacyFacade
 from apps.media.repositories import MediaRepository
-from apps.media.services.cleanup import OrphanSweeper
+from apps.media.services.cleanup import OrphanSweeper, OwnerFilesEraser
 from apps.media.services.contracts import MediaStorage
 from apps.media.services.uploads import UploadService, storage_registry
 from core.authz.catalog import permission_catalog
@@ -22,6 +22,13 @@ def register(container: Container) -> None:
     container.register(MediaStorage, lambda _: storage_registry.create(media_settings().storage))
     container.register(MediaFacade, _media_facade, lifetime=Lifetime.TRANSIENT)
     container.register(MediaMaintenanceFacade, _maintenance_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(
+        MediaPrivacyFacade,
+        lambda c: MediaPrivacyFacade(
+            eraser=OwnerFilesEraser(MediaRepository(), c.resolve(MediaStorage))
+        ),
+        lifetime=Lifetime.TRANSIENT,
+    )
 
 
 def _media_facade(container: Container) -> MediaFacade:

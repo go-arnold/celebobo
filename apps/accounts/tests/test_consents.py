@@ -320,7 +320,8 @@ class TestNewsletterAndClosure:
 
         assert not Consent.objects.filter(user=client_user, withdrawn_at__isnull=True).exists()
         assert Consent.objects.filter(user=client_user).count() == 3
-        assert not Subscriber.objects.get(email="aline@celebobo.test").is_active
+        # the subscription goes with the account: no row kept with the address (retention, 6.4)
+        assert not Subscriber.objects.filter(email="aline@celebobo.test").exists()
 
 
 def test_promotions_only_reach_marketing_consents(as_user):

@@ -214,6 +214,18 @@ class ReferralFacade:
         return self._invitees.own_page(_user_id(actor), offset=offset, limit=limit)
 
 
+# retention of client accounts (privacy policy, section 6): an anonymised client's reseller
+# applications go, unless approved
+@logged_facade
+class ApplicationPrivacyFacade:
+    def __init__(self, *, applications: ApplicationRepository) -> None:
+        self._applications = applications
+
+    def forget_applicant(self, user_id: int) -> int:
+        with transaction.atomic():
+            return self._applications.delete_unapproved_for(user_id)
+
+
 def _user_id(actor: Actor) -> int:
     if actor.user_id is None:
         raise Unauthenticated

@@ -8,6 +8,7 @@ from apps.catalog.facades import (
     BrandAdminFacade,
     CatalogCache,
     CatalogFacade,
+    CatalogPrivacyFacade,
     CategoryAdminFacade,
     DealAdminFacade,
     FavoriteFacade,
@@ -99,6 +100,16 @@ def register(container: Container) -> None:
     container.register(ReviewModerationFacade, _moderation_facade, lifetime=Lifetime.TRANSIENT)
     container.register(DealAdminFacade, _deal_admin_facade, lifetime=Lifetime.TRANSIENT)
     container.register(BrandAdminFacade, _brand_admin_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(
+        CatalogPrivacyFacade,
+        lambda c: CatalogPrivacyFacade(
+            favorites=FavoriteRepository(),
+            reviews=ReviewRepository(),
+            products=ProductRepository(),
+            publisher=c.resolve(EventPublisher),
+        ),
+        lifetime=Lifetime.TRANSIENT,
+    )
 
 
 def _indexer(container: Container) -> ProductIndexer:

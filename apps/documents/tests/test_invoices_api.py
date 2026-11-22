@@ -1,6 +1,12 @@
-import pytest
+from decimal import Decimal
 
+import pytest
+from django.utils import timezone
+
+from apps.accounts.models import User
 from apps.accounts.tests.factories import ResellerFactory
+from apps.documents.adapters.gateways import LoyaltyPointsStatements
+from apps.loyalty.domain.points import InvoiceStatement
 from apps.orders.models import Order
 
 pytestmark = pytest.mark.django_db
@@ -50,6 +56,39 @@ def test_cancelled_orders_have_no_invoice(as_user, shopper, order, renderer):
 
     assert response.status_code == 409
     assert response.json()["code"] == "invoice_unavailable"
+
+
+@pytest.fixture
+def statement(monkeypatch) -> InvoiceStatement:
+    printed = InvoiceStatement(
+        earned=Decimal(12),
+        earned_pending=True,
+        used=Decimal(0),
+        available=Decimal(0),
+        orders_count=1,
+        orders_total=Decimal(240),
+        return_days=7,
+    )
+    monkeypatch.setattr(LoyaltyPointsStatements, "statement", lambda *_: printed)
+    return printed
+
+
+def test_invoice_prints_the_points_statement(as_user, manager, order, renderer, statement):
+    as_user(manager).get(f"/api/v1/bo/orders/{order.pk}/invoice/")
+
+    assert renderer.calls[0][1]["points"] == statement
+
+
+# deleted or anonymised: the points history is gone, a statement would be recomputed wrongly
+def test_no_points_statement_once_the_client_account_is_deleted(
+    as_user, manager, order, renderer, statement
+):
+    User.objects.filter(pk=order.client_id).update(deleted_at=timezone.now())
+
+    response = as_user(manager).get(f"/api/v1/bo/orders/{order.pk}/invoice/")
+
+    assert response.status_code == 200
+    assert renderer.calls[0][1]["points"] is None
 
 
 def test_the_reseller_copy_has_no_points_statement_nor_contact_after_the_return_period(
