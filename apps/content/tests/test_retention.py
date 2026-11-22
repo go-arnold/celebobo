@@ -49,6 +49,15 @@ def test_unsubscribed_addresses_stay_on_the_opposition_list():
     assert Subscriber.objects.filter(pk=row.pk).exists()
 
 
+def test_account_subscriptions_follow_the_marketing_consent_instead():
+    row = subscriber("client@example.com", since=CUTOFF - timedelta(days=400))
+    Subscriber.objects.filter(pk=row.pk).update(source="compte")
+
+    # the account's marketing consent has its own 3-year rule, counting the account's activity
+    assert apply().affected == 0
+    assert Subscriber.objects.filter(pk=row.pk).exists()
+
+
 def test_subscribing_again_restarts_the_period():
     row = subscriber("grace@example.com", since=CUTOFF - timedelta(days=1), unsubscribed=True)
 

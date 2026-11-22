@@ -42,11 +42,13 @@ from apps.catalog.domain.errors import (
 from apps.catalog.domain.management import BackofficeProductFilters, ProductStatus, ReviewFilters
 from apps.catalog.domain.management_rules import margin
 from apps.catalog.domain.read_models import (
+    AuthoredReview,
     BrandRef,
     BrandView,
     CatalogSitemap,
     CategoryRef,
     CategoryView,
+    FavoriteEntry,
     OptionView,
     ProductCard,
     ProductDetail,
@@ -301,6 +303,26 @@ class ReviewSelector:
         )
         return ReviewSummary(average=average, count=total, distribution=rating_distribution(counts))
 
+    # every review the user wrote, hidden ones included (personal data export)
+    def by_author(self, user_id: int) -> list[AuthoredReview]:
+        rows = (
+            Review.objects.filter(user_id=user_id)
+            .order_by("-created_at", "-pk")
+            .values("pk", "product__name", "rating", "message", "verified", "status", "created_at")
+        )
+        return [
+            AuthoredReview(
+                id=row["pk"],
+                product_name=row["product__name"],
+                rating=row["rating"],
+                message=row["message"],
+                verified=row["verified"],
+                status=ReviewStatus(row["status"]),
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
+
     @staticmethod
     def _published(product_id: int) -> QuerySet[Review]:
         return Review.objects.filter(product_id=product_id, status=ReviewStatus.PUBLISHED.value)
@@ -317,6 +339,15 @@ class FavoriteSelector:
     def all_ids(self, user_id: int) -> list[int]:
         queryset = Favorite.objects.filter(user_id=user_id, product__in=visible_products())
         return list(queryset.values_list("product_id", flat=True))
+
+    # every favorite, products no longer sold included (personal data export)
+    def entries(self, user_id: int) -> list[FavoriteEntry]:
+        rows = (
+            Favorite.objects.filter(user_id=user_id)
+            .order_by("-created_at", "-pk")
+            .values_list("product__name", "created_at")
+        )
+        return [FavoriteEntry(product_name=name, added_at=added_at) for name, added_at in rows]
 
     def page(self, user_id: int, *, offset: int, limit: int) -> tuple[tuple[int, ...], int]:
         queryset = Favorite.objects.filter(user_id=user_id, product__in=visible_products())

@@ -18,9 +18,10 @@ Public content is cached and refreshed automatically when content or categories 
 
 Unpublished pages and FAQ entries are visible only in the back-office.
 
-**Policies.** The five policies are pages, loaded once by a migration from `apps/content/policies/*.md`
-(a page that already exists is never overwritten), then edited in the back-office:
-`politique-de-confidentialite` (0.9.2), `politique-de-livraison` (0.9.2), `garantie-et-retours`,
+**Policies.** The conditions of sale and the five policies are pages, loaded once by a migration from
+`apps/content/policies/*.md` (a page that already exists is never overwritten), then edited in the
+back-office: `conditions-de-vente` (0.9, migration `content/0008_conditions_of_sale`; the `terms`
+consent is given on it), `politique-de-confidentialite` (0.9.2), `politique-de-livraison` (0.9.2), `garantie-et-retours`,
 `programme-de-fidelite`, `politique-revendeurs` (0.9.2). The site footer links to them. When a policy
 changes, staff update its text, version and effective date together.
 

@@ -65,6 +65,17 @@ class JobOutput(serializers.Serializer[Any]):
     finished_at = serializers.DateTimeField(allow_null=True)
 
 
+class PersonalDataJobOutput(JobOutput):
+    expires_at = serializers.DateTimeField(allow_null=True)
+    expired = serializers.BooleanField()
+
+
+class PersonalDataStatusOutput(serializers.Serializer[Any]):
+    job = PersonalDataJobOutput(allow_null=True)
+    # null: a new export can be requested now
+    available_at = serializers.DateTimeField(allow_null=True)
+
+
 class VerifyReceiptInput(serializers.Serializer[Any]):
     number = serializers.CharField(max_length=24)
     signature = serializers.CharField(max_length=64)

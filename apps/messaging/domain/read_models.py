@@ -94,3 +94,16 @@ class ProposalContext:
     reason: str
     order_number: str = ""
     delivery_estimate: str = ""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ThreadRecord:
+    """A discussion of the user and its messages, for the personal data export.
+
+    In their own discussions (as the client) the user gets every message; in those assigned to
+    them as a reseller, only the messages they wrote: the client's messages are the client's.
+    """
+
+    conversation: ConversationView
+    messages: tuple[MessageView, ...]
+    own_messages_only: bool

@@ -12,6 +12,8 @@ from rest_framework.response import Response
 from apps.documents.api.v1.serializers import (
     AnalyticsReportInput,
     JobOutput,
+    PersonalDataJobOutput,
+    PersonalDataStatusOutput,
     ProductsExportInput,
     ProductsImportInput,
     ReceiptVerificationOutput,
@@ -21,7 +23,12 @@ from apps.documents.api.v1.serializers import (
 from apps.documents.domain.enums import JobFormat, JobKind
 from apps.documents.domain.read_models import JobView
 from apps.documents.domain.tables import RenderedFile
-from apps.documents.facades import DocumentJobFacade, InvoiceFacade, ReceiptFacade
+from apps.documents.facades import (
+    DocumentJobFacade,
+    InvoiceFacade,
+    PersonalDataFacade,
+    ReceiptFacade,
+)
 from apps.documents.permissions import (
     EXPORTS_PRODUCTS,
     EXPORTS_SALES,
@@ -29,6 +36,7 @@ from apps.documents.permissions import (
     INVOICES_VIEW,
     INVOICES_VIEW_OWN,
     JOBS_VIEW_OWN,
+    PERSONAL_DATA_EXPORT_OWN,
     REPORTS_ANALYTICS,
 )
 from core.api.pagination import page_of, page_request, page_response
@@ -123,6 +131,32 @@ class JobViewSet(UseCaseViewSet):
     @extend_schema(responses={(200, "application/octet-stream"): OpenApiTypes.BINARY})
     def download(self, request: Request, job_id: UUID) -> HttpResponse:
         return file_response(self.documents.download(self.actor, job_id))
+
+
+class PersonalDataViewSet(UseCaseViewSet):
+    """ "Télécharger mes données": every signed-in user, for their own data only."""
+
+    # the right of access does not wait for the completion step: a client asked to accept a new
+    # version (or to give a phone) can still take a copy of their data, e.g. before closing
+    allow_incomplete_account = True
+    action_permissions = {
+        "retrieve": (PERSONAL_DATA_EXPORT_OWN,),
+        "create": (PERSONAL_DATA_EXPORT_OWN,),
+        "download": (PERSONAL_DATA_EXPORT_OWN,),
+    }
+    exports = Inject(PersonalDataFacade)
+
+    @extend_schema(responses=PersonalDataStatusOutput)
+    def retrieve(self, request: Request) -> Response:
+        return self.respond(PersonalDataStatusOutput, self.exports.status(self.actor))
+
+    @extend_schema(request=None, responses={202: PersonalDataJobOutput})
+    def create(self, request: Request) -> Response:
+        return self.respond(PersonalDataJobOutput, self.exports.request(self.actor), status=202)
+
+    @extend_schema(responses={(200, "application/zip"): OpenApiTypes.BINARY})
+    def download(self, request: Request, job_id: UUID) -> HttpResponse:
+        return file_response(self.exports.download(self.actor, job_id))
 
 
 class InvoiceViewSet(UseCaseViewSet):

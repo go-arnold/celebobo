@@ -173,6 +173,34 @@ class InvitingReseller:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class InviterBrief:
+    """The reseller who invited a user, as the user sees them (code and first name)."""
+
+    referral_code: str | None
+    first_name: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AccountRecord:
+    """Everything the account holds about its owner, for the personal data export."""
+
+    id: int
+    email: str
+    email_verified: bool
+    first_name: str
+    last_name: str
+    phone_number: str | None
+    avatar: str
+    role: Role
+    date_joined: datetime
+    last_login: datetime | None
+    referral_code: str | None
+    invited_by: InviterBrief | None
+    invited_at: datetime | None
+    addresses: tuple[AddressView, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ConsentRecord:
     """One acceptance, as kept for proof."""
 

@@ -173,6 +173,35 @@ def _due(cutoff: datetime) -> QuerySet[User]:
 
 
 class ConsentRepository:
+    # consent retention: accounts whose open marketing consent was given before the cutoff, with
+    # no login or visit since, by ascending account id
+    def quiet_marketing(self, cutoff: datetime, *, after_id: int, limit: int) -> list[Expired]:
+        rows = (
+            Consent.objects.filter(
+                kind=ConsentKind.MARKETING.value,
+                withdrawn_at__isnull=True,
+                accepted_at__lt=cutoff,
+                user_id__gt=after_id,
+            )
+            .exclude(user__last_login__gte=cutoff)
+            .exclude(user__last_seen_at__gte=cutoff)
+            # a newer acceptance (another version, or given again) is an interaction too
+            .exclude(
+                user_id__in=Consent.objects.filter(
+                    kind=ConsentKind.MARKETING.value, accepted_at__gte=cutoff
+                ).values("user_id")
+            )
+            .order_by("user_id", "-accepted_at")
+            .distinct("user_id")
+            .values_list("user_id", "accepted_at")[:limit]
+        )
+        return [
+            Expired(
+                user_id, f"consentement aux offres du compte #{user_id}, donné le {at:%Y-%m-%d}"
+            )
+            for user_id, at in rows
+        ]
+
     def accepted(self, user_id: int) -> dict[ConsentKind, str]:
         return Consent.objects.open_versions(user_id)
 

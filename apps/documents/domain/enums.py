@@ -6,12 +6,15 @@ class JobKind(StrEnum):
     PRODUCTS_EXPORT = "products_export"
     PRODUCTS_IMPORT = "products_import"
     ANALYTICS_REPORT = "analytics_report"
+    # "Télécharger mes données" (privacy policy, art. 211): a ZIP of everything about the owner
+    PERSONAL_DATA = "personal_data"
 
 
 class JobFormat(StrEnum):
     CSV = "csv"
     XLSX = "xlsx"
     PDF = "pdf"
+    ZIP = "zip"
 
 
 class JobStatus(StrEnum):
@@ -26,4 +29,5 @@ ALLOWED_FORMATS = {
     JobKind.PRODUCTS_EXPORT: frozenset({JobFormat.CSV, JobFormat.XLSX}),
     JobKind.PRODUCTS_IMPORT: frozenset({JobFormat.CSV}),
     JobKind.ANALYTICS_REPORT: frozenset({JobFormat.PDF}),
+    JobKind.PERSONAL_DATA: frozenset({JobFormat.ZIP}),
 }

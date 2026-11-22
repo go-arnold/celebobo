@@ -95,6 +95,15 @@ class OrderSelector:
     def client_detail(self, client_id: int, number: str) -> OrderDetail:
         return self._detail(Order.objects.filter(client_id=client_id, number=number), staff=True)
 
+    # every order of the client, newest first (personal data export)
+    def client_history(self, client_id: int, *, limit: int) -> list[OrderDetail]:
+        numbers = (
+            Order.objects.filter(client_id=client_id)
+            .order_by("-created_at", "-pk")
+            .values_list("number", flat=True)[:limit]
+        )
+        return [self.client_detail(client_id, number) for number in numbers]
+
     def backoffice_detail(self, actor: Actor, order_id: int) -> OrderDetail:
         return self._detail(scoped_orders(actor).filter(pk=order_id), staff=actor.is_staff)
 

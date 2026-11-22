@@ -13,6 +13,17 @@ from apps.accounts.services.profiles import scrub_identity
 from apps.audit.domain.retention import Expired
 
 
+def active_since(
+    sources: Sequence[ActivitySource], user_ids: Sequence[int], cutoff: datetime
+) -> set[int]:
+    active: set[int] = set()
+    for source in sources:
+        active |= {
+            user_id for user_id, at in source.last_activity(user_ids).items() if at >= cutoff
+        }
+    return active
+
+
 class InactiveAccountService:
     def __init__(
         self,
@@ -35,13 +46,7 @@ class InactiveAccountService:
 
     # among them, those with an order, a message, a points movement or a session since the cutoff
     def recently_active(self, batch: Sequence[Expired], cutoff: datetime) -> set[int]:
-        user_ids = [row.id for row in batch]
-        active: set[int] = set()
-        for source in self._activity:
-            active |= {
-                user_id for user_id, at in source.last_activity(user_ids).items() if at >= cutoff
-            }
-        return active
+        return active_since(self._activity, [row.id for row in batch], cutoff)
 
     # the account stays (orders point to it) but nothing identifies the client any more and it
     # can no longer be used; checked again under lock in case the client came back meanwhile.

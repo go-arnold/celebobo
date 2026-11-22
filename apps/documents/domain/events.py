@@ -15,3 +15,16 @@ class JobFinished(DomainEvent):
 @domain_event
 class JobRequested(DomainEvent):
     job_id: UUID
+
+
+# audit trail of the right of access: who asked for their data, and each download
+@domain_event
+class PersonalDataRequested(DomainEvent):
+    job_id: UUID
+    owner_id: int
+
+
+@domain_event
+class PersonalDataDownloaded(DomainEvent):
+    job_id: UUID
+    owner_id: int

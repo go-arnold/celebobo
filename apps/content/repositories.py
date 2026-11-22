@@ -6,6 +6,7 @@ from uuid import UUID
 from django.db.models import Max, Model, QuerySet
 
 from apps.audit.domain.retention import Expired
+from apps.content.domain.retention import ACCOUNT_SOURCE
 from apps.content.models import Banner, ContactMessage, HomeSection, SiteSettings, Subscriber
 
 SETTINGS_ID = 1
@@ -113,7 +114,9 @@ class ContactMessageRepository:
 
 # still subscribed, with no (re)subscription since the cutoff
 def _stale_before(cutoff: datetime) -> QuerySet[Subscriber]:
-    return Subscriber.objects.filter(unsubscribed_at__isnull=True, subscribed_at__lt=cutoff)
+    return Subscriber.objects.filter(
+        unsubscribed_at__isnull=True, subscribed_at__lt=cutoff
+    ).exclude(source=ACCOUNT_SOURCE)
 
 
 class SettingsRepository:

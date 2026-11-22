@@ -114,6 +114,8 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 |---|---|---|
 | 404 | `job_not_found` | Tâche introuvable. |
 | 409 | `job_not_ready` | Le fichier n'est pas encore disponible. |
+| 404 | `job_expired` | Ce lien de téléchargement a expiré. Demandez un nouvel export. |
+| 429 | `personal_data_export_too_soon` | Vous avez déjà demandé vos données récemment. Réessayez plus tard. (`meta.available_at`) |
 | 400 | `unsupported_format` | Format non pris en charge pour ce document. |
 | 400 | `invalid_import_file` | Fichier d'import invalide. |
 | 409 | `invoice_unavailable` | La facture n'est pas disponible pour une commande annulée. |

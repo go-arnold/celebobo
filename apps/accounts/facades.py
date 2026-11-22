@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -47,7 +48,7 @@ from apps.accounts.domain.read_models import (
     UserRow,
     WsTicket,
 )
-from apps.accounts.domain.retention import INACTIVITY_YEARS, Outcome
+from apps.accounts.domain.retention import INACTIVITY_YEARS, MARKETING_CONSENT_YEARS, Outcome
 from apps.accounts.models import User
 from apps.accounts.selectors import (
     AddressSelector,
@@ -60,9 +61,12 @@ from apps.accounts.selectors import (
 from apps.accounts.services.addresses import AddressBookService
 from apps.accounts.services.consents import ConsentService
 from apps.accounts.services.contracts import (
+    ActivitySource,
+    ConsentStore,
     EmailVerifier,
     MarketingList,
     PasswordSetupLinks,
+    PersonalDataEraser,
     TokenRevoker,
     UserStore,
 )
@@ -70,7 +74,7 @@ from apps.accounts.services.preferences import Preferences, PreferenceService
 from apps.accounts.services.profiles import ProfileService
 from apps.accounts.services.registration import RegistrationService
 from apps.accounts.services.resellers import ResellerAccountService
-from apps.accounts.services.retention import InactiveAccountService
+from apps.accounts.services.retention import InactiveAccountService, active_since
 from apps.accounts.services.roles import RoleService
 from apps.accounts.services.tickets import TicketService
 from apps.accounts.services.user_admin import UserAdminService
@@ -82,6 +86,7 @@ from core.events.contracts import EventPublisher
 from core.observability.decorators import logged_facade
 
 INACTIVE_CLIENTS_RULE = "accounts.inactive_clients"
+STALE_MARKETING_RULE = "accounts.stale_marketing_consents"
 
 logger = structlog.get_logger(__name__)
 
@@ -109,7 +114,9 @@ class AccountFacade:
         revoker: TokenRevoker,
         publisher: EventPublisher,
         verification_required: bool,
+        identities: Sequence[PersonalDataEraser] = (),
     ) -> None:
+        self._identities = identities
         self._registration = registration
         self._profiles = profiles
         self._roles = roles
@@ -169,6 +176,11 @@ class AccountFacade:
                     self._publisher, self._newsletter, user, withdrawn, unsubscribe=False
                 )
             self._profiles.anonymize(user_id, now=timezone.now())
+            # like the retention anonymisation: e-mail addresses known to allauth, the Google
+            # link and push devices go with the account; orders, messages and points stay (an
+            # order may still be on its way)
+            for identity in self._identities:
+                identity.erase(user_id)
             self._revoker.revoke_all(user_id)
             self._publisher.publish(AccountDeleted(user_id=user_id, actor_id=user_id))
 
@@ -474,10 +486,16 @@ class AccountRetentionFacade:
         self,
         *,
         retention: InactiveAccountService,
+        consents: ConsentService,
+        users: UserStore,
+        newsletter: MarketingList,
         revoker: TokenRevoker,
         publisher: EventPublisher,
     ) -> None:
         self._retention = retention
+        self._consents = consents
+        self._users = users
+        self._newsletter = newsletter
         self._revoker = revoker
         self._publisher = publisher
 
@@ -501,6 +519,12 @@ class AccountRetentionFacade:
                 with transaction.atomic():
                     outcome = self._retention.anonymize(user_id, cutoff=cutoff, now=now)
                     if outcome is Outcome.ANONYMIZED:
+                        # the consent rows stay, as proof; the newsletter row of the e-mail went
+                        # with the identity scrub, so nothing is unsubscribed here (no e-mail)
+                        withdrawn = self._consents.withdraw_all(user_id)
+                        retention_withdrew(
+                            self._publisher, self._newsletter, user_id, "", withdrawn
+                        )
                         self._revoker.revoke_all(user_id)
                         self._publisher.publish(
                             AccountDeleted(user_id=user_id, inactivity=True, actor_id=None)
@@ -511,3 +535,65 @@ class AccountRetentionFacade:
             if outcome is not Outcome.SKIPPED:
                 processed += 1
         return processed
+
+
+# withdrawn by a retention task, not by the client: no actor; the newsletter follows the
+# marketing consent as it does on a withdrawal from the account
+def retention_withdrew(
+    publisher: EventPublisher,
+    newsletter: MarketingList,
+    user_id: int,
+    email: str,
+    kinds: tuple[ConsentKind, ...],
+) -> None:
+    for kind in kinds:
+        publisher.publish(ConsentWithdrawn(user_id=user_id, kind=kind, actor_id=None))
+    if ConsentKind.MARKETING in kinds and email:
+        newsletter.unsubscribe(email)
+
+
+@logged_facade
+class MarketingConsentRetentionFacade:
+    label = "Consentements aux offres sans interaction depuis 3 ans, retirés"
+
+    def __init__(
+        self,
+        *,
+        consents: ConsentService,
+        store: ConsentStore,
+        users: UserStore,
+        activity: Sequence[ActivitySource],
+        newsletter: MarketingList,
+        publisher: EventPublisher,
+    ) -> None:
+        self._consents = consents
+        self._store = store
+        self._users = users
+        self._activity = activity
+        self._newsletter = newsletter
+        self._publisher = publisher
+
+    def apply(self, *, now: datetime, dry_run: bool) -> RetentionReport:
+        cutoff = years_before(now, MARKETING_CONSENT_YEARS)
+        return purge_expired(
+            rule=STALE_MARKETING_RULE,
+            label=self.label,
+            fetch=lambda after: self._store.quiet_marketing(
+                cutoff, after_id=after, limit=BATCH_SIZE
+            ),
+            keep=lambda batch: active_since(self._activity, [row.id for row in batch], cutoff),
+            delete=self._withdraw,
+            dry_run=dry_run,
+        )
+
+    # the rows stay, as proof: only `withdrawn_at` is set
+    def _withdraw(self, user_ids: list[int]) -> int:
+        withdrawn_count = 0
+        for user_id in user_ids:
+            user = self._users.get(user_id)
+            withdrawn = self._consents.withdraw(user_id, (ConsentKind.MARKETING,))
+            if withdrawn:
+                email = user.email if user else ""
+                retention_withdrew(self._publisher, self._newsletter, user_id, email, withdrawn)
+                withdrawn_count += 1
+        return withdrawn_count

@@ -1,8 +1,11 @@
 # privacy policy, section 6: consent to marketing lasts until it is withdrawn, or 3 years without
-# interaction with us. Until the marketing consents of the accounts are wired in, the only
-# interaction the newsletter records is the (re)subscription itself: `subscribed_at`.
+# interaction with us. For an address subscribed from the site footer, the only interaction the
+# newsletter records is the (re)subscription itself: `subscribed_at`.
 # Unsubscribed addresses are the opposition list ("ne plus m'écrire") and are kept.
 SUBSCRIBER_INACTIVITY_YEARS = 3
+# subscriptions made from an account follow its marketing consent, which has its own 3-year rule
+# counting the account's activity (accounts.stale_marketing_consents): this rule leaves them alone
+ACCOUNT_SOURCE = "compte"
 
 # A message sent through the contact form (name, e-mail, phone, text) is a message with customer
 # service: the policy keeps those "3 years after the last order". The form is open to visitors

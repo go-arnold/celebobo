@@ -51,12 +51,17 @@ CONSENT_LABELS: Mapping[ConsentKind, str] = MappingProxyType(
 
 REQUIRED_CONSENTS: tuple[ConsentKind, ...] = (ConsentKind.TERMS, ConsentKind.HOSTING_ABROAD)
 
-# the document each consent is given on: its version is recorded with the consent. The conditions
-# of sale are not a versioned policy page yet, so every consent refers to the privacy policy, which
-# describes the processing (§3), the hosting abroad (§5) and the commercial offers (§8).
+# the document each consent is given on: its version is recorded with the consent, and a new
+# version of that page asks for the consent again. `terms` is given on the conditions of sale; the
+# hosting abroad (§5) and the commercial offers (§8) on the privacy policy.
 PRIVACY_POLICY = "politique-de-confidentialite"
+CONDITIONS_OF_SALE = "conditions-de-vente"
 CONSENT_DOCUMENTS: Mapping[ConsentKind, str] = MappingProxyType(
-    dict.fromkeys(ConsentKind, PRIVACY_POLICY)
+    {
+        ConsentKind.TERMS: CONDITIONS_OF_SALE,
+        ConsentKind.HOSTING_ABROAD: PRIVACY_POLICY,
+        ConsentKind.MARKETING: PRIVACY_POLICY,
+    }
 )
 
 # staff accounts (managers, admins) are Celebobo's own team and do not sign up on the site

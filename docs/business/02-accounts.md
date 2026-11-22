@@ -97,9 +97,10 @@ record, kept as proof:
 - A record holds the **version** of the document accepted, `accepted_at`, `withdrawn_at` and how it was
   given (`source`: `signup`, `account`, `google` for the completion step right after a Google
   sign-up; `checkout` is reserved for a box on the checkout page, none yet).
-- The version comes from the content app (`SiteContentFacade.policy_versions`): every consent refers
-  to the **privacy policy** page (`politique-de-confidentialite`), which describes the processing, the
-  hosting abroad and the offers. The conditions of sale have no versioned page yet.
+- The version comes from the content app (`SiteContentFacade.policy_versions`): `terms` refers to
+  the **conditions of sale** page (`conditions-de-vente`), `hosting_abroad` and `marketing` to the
+  **privacy policy** page (`politique-de-confidentialite`), which describes the hosting abroad (§5)
+  and the offers (§8). A new version of a page asks again for the required consents given on it.
 - History is never rewritten: accepting again (a new version) adds a record, withdrawing sets
   `withdrawn_at` on the records still open. Giving a consent already given on the current version
   records nothing. The back-office shows them read-only on the user.
@@ -226,6 +227,63 @@ the next run, the others go ahead; each account is checked again under lock):
   history; sales, commissions and statements are untouched.
 
 An `AccountDeleted` event (`inactivity: true`, no author) is written to the audit log per account.
+
+## Download my data
+
+"Mes données" (`/compte/donnees`) — privacy policy §11, right to get one's account and order data
+in a readable format (art. 211). Every signed-in user, for their **own** data only
+(`personal_data.export.own`, granted to every role).
+
+- `POST /me/data-export/` starts a background job (`202`), built like the other document jobs (§10);
+  `GET /me/data-export/` returns the latest export and `available_at` (next request allowed, or
+  `null`); `GET /me/data-export/{id}/download/` returns the ZIP.
+- **One request per hour** per user (`personal_data_export_too_soon`, `429`, with
+  `meta.available_at`); after a **failed** export, a new request is allowed **10 minutes** after
+  the failure. Requests of one user are serialised (a lock per user until the request is saved), so
+  parallel clicks start a single export.
+- An export still pending or running **30 minutes** after the request was lost by the worker: it is
+  shown as failed ("La préparation a pris trop de temps…") and a new request is allowed at once
+  (the lost job is then marked failed). The page polls the status every 3 s the first minute, every
+  10 s up to 5 minutes, then every 30 s, and stops after 31 minutes.
+- The **download link is valid 48 hours** after the file is ready (`job_expired` afterwards), and
+  the file is deleted then (hourly purge). Only the owner can download it (`404` for anyone else);
+  the back-office job routes (`/jobs/…`) never list or serve it.
+- **Audit**: each request (`PersonalDataRequested`) and each download (`PersonalDataDownloaded`) is
+  recorded in the business events journal, with the user as author.
+- A self-service download answers the request at once (the policy's 72 h acknowledgement and 30-day
+  answer still apply to written requests).
+
+**The ZIP** holds `mes-donnees.json` (machine-readable: format `celebobo.personal-data`, version 1,
+stable English keys, ISO 8601 dates, money as strings with two decimals), `mes-donnees.html` (the
+same content in French, readable in a browser) and `LISEZMOI.txt` (the 72 h / 30-day reminder and
+the data-protection contact the privacy policy names, celestinbahiga@gmail.com — setting
+`DOCUMENTS_PRIVACY_CONTACT`; the company contact on invoices is separate). In the HTML page, only date
+fields (keys ending in `_at`, `_date` or `_on`, plus `at`, `date_joined`, `last_login`,
+`next_expiry`) are shown as French dates — free text (messages, notes, reviews, addresses) is
+printed as typed, and a date value that cannot be read is printed as stored. Sections, in this order (a role
+section with nothing to show is left out):
+
+| Key | Content |
+|---|---|
+| `account` | Profile, e-mail (verified or not), phone, role, sign-up and last login, own referral code, who invited the user (their code and first name) and when, addresses |
+| `notification_preferences` | E-mail / push choice per topic |
+| `consents` | Reserved for the consent records (step 6.1) |
+| `orders` | Every order: number, dates, status, items and prices (discount, points, amount paid, returns), totals, payment method, delivery (address, zone, estimate, attempts), the reseller's **name**, refund, status history, the rating given, invoice and delivery receipt references |
+| `points` | Balance (available, pending, expiry) and the full movement history |
+| `reviews` | Reviews written, hidden ones included |
+| `favorites` | Favorite products and when they were added |
+| `messages` | The user's own discussions (every message); in discussions assigned to them as a reseller, only the messages they wrote — the client's messages are the client's data. Sender: the person's name, "Celebobo" for automatic messages, "Compte supprimé" when the author's account was deleted. At most 5,000 messages (`truncated`) |
+| `reseller_applications` | Applications sent (or that made the user a reseller), with the decision and its reason |
+| `reseller` | Resellers (or anyone with sales or commissions): commission summary, own sales, commission entries, payout statements with their lines, payouts received |
+
+Left out on purpose: other people's contact details (a reseller's phone or e-mail on an order, the
+customer on a reseller's sale), the staff member who reviewed or paid, purchase costs and margins,
+the delivery code (a one-time handover secret), notifications (copies of the events above), push
+devices, assistant chats and the newsletter subscription.
+
+Each app gives its part through its own selectors or facades (one collector per app, in
+`apps/documents/adapters/personal_data.py`), assembled by `PersonalDataExport`; a new section is a
+collector registered under its key in `register_collectors`.
 
 ## Notification preferences
 

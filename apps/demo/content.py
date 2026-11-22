@@ -22,13 +22,6 @@ PAGES = (
         "RDC.",
     ),
     (
-        "conditions",
-        "Conditions générales de vente",
-        "Les règles qui encadrent vos achats.",
-        "Les prix sont indiqués en dollars américains, toutes taxes comprises. Toute commande est "
-        "confirmée par un conseiller. Les produits bénéficient de la garantie constructeur.",
-    ),
-    (
         "retours",
         "Retours et remboursements",
         "7 jours pour changer d'avis.",

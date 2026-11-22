@@ -8,8 +8,9 @@ EXPORTS_SALES = "exports.sales"
 REPORTS_ANALYTICS = "reports.analytics"
 EXPORTS_PRODUCTS = "exports.products"
 IMPORTS_PRODUCTS = "imports.products"
+PERSONAL_DATA_EXPORT_OWN = "personal_data.export.own"
 
-permission_catalog.grant(Role.CLIENT, INVOICES_VIEW_OWN)
+permission_catalog.grant(Role.CLIENT, INVOICES_VIEW_OWN, PERSONAL_DATA_EXPORT_OWN)
 permission_catalog.grant(
     Role.RESELLER, INVOICES_VIEW, JOBS_VIEW_OWN, EXPORTS_SALES, REPORTS_ANALYTICS
 )

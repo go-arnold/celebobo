@@ -27,6 +27,11 @@ class Outcome(Enum):
     ERASED = "erased"
 
 
+# privacy policy, section 6: the consent to commercial offers lasts until it is withdrawn, or
+# 3 years without interaction with us. An interaction is giving the consent (again) or any
+# activity counted for the account above (login, session renewal, order, message, points movement).
+MARKETING_CONSENT_YEARS = 3
+
 ANONYMIZED_EMAIL_DOMAIN = "deleted.invalid"
 
 

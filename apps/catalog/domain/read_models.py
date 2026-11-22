@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from apps.catalog.domain.enums import Badge, CategoryIcon, ProductOrigin
+from apps.catalog.domain.enums import Badge, CategoryIcon, ProductOrigin, ReviewStatus
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -210,3 +210,22 @@ class ProductLabel:
     category_id: int
     stock: int
     created_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AuthoredReview:
+    """A review as its author wrote it, whatever its moderation status (personal data export)."""
+
+    id: int
+    product_name: str
+    rating: int
+    message: str
+    verified: bool
+    status: ReviewStatus
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class FavoriteEntry:
+    product_name: str
+    added_at: datetime

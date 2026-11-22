@@ -4,6 +4,7 @@ from typing import Any, Protocol
 
 from apps.accounts.domain.consents import ConsentKind, ConsentSource
 from apps.accounts.models import Address, Consent, User
+from apps.audit.domain.retention import Expired
 from core.domain.actor import Role
 
 
@@ -129,6 +130,8 @@ class ConsentStore(Protocol):
     def withdraw(
         self, user_id: int, *, kinds: Iterable[ConsentKind], at: datetime
     ) -> tuple[ConsentKind, ...]: ...
+
+    def quiet_marketing(self, cutoff: datetime, *, after_id: int, limit: int) -> list[Expired]: ...
 
 
 class MarketingList(Protocol):

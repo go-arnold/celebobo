@@ -26,6 +26,13 @@ class ApplicationSelector:
             raise ApplicationNotFound
         return to_application_view(application)
 
+    # the applications the user sent, or that made them a reseller (personal data export)
+    def for_user(self, user_id: int) -> list[ApplicationView]:
+        applications = ResellerApplication.objects.filter(
+            Q(applicant_id=user_id) | Q(reseller_id=user_id)
+        ).select_related("reviewed_by")
+        return [to_application_view(item) for item in applications.order_by("created_at", "pk")]
+
     def counts(self) -> dict[str, int]:
         totals = ResellerApplication.objects.aggregate(
             **{

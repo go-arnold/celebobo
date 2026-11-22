@@ -17,6 +17,7 @@ pytestmark = pytest.mark.django_db
 
 RULES = {
     "accounts.inactive_clients",
+    "accounts.stale_marketing_consents",
     "messaging.stale_conversations",
     "resellers.rejected_applications",
     "content.stale_subscribers",

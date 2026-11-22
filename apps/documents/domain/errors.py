@@ -1,4 +1,6 @@
-from core.domain.errors import Conflict, NotFound, ValidationFailed
+from datetime import datetime
+
+from core.domain.errors import Conflict, NotFound, RateLimited, ValidationFailed
 
 
 class JobNotFound(NotFound):
@@ -35,3 +37,16 @@ class InvoiceUnavailable(Conflict):
 class ReceiptUnavailable(Conflict):
     default_code = "receipt_unavailable"
     default_detail = "Le reçu de livraison n'existe qu'une fois la commande livrée."
+
+
+class JobExpired(NotFound):
+    default_code = "job_expired"
+    default_detail = "Ce lien de téléchargement a expiré. Demandez un nouvel export."
+
+
+class PersonalDataExportTooSoon(RateLimited):
+    default_code = "personal_data_export_too_soon"
+    default_detail = "Vous avez déjà demandé vos données récemment. Réessayez plus tard."
+
+    def __init__(self, available_at: datetime) -> None:
+        super().__init__(meta={"available_at": available_at.isoformat()})

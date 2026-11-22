@@ -416,9 +416,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "loyalty.expire_points",
         "schedule": 24 * 60 * 60,
     },
+    # hourly: personal data exports are deleted as soon as their download link expires
     "purge-document-jobs": {
         "task": "documents.purge_jobs",
-        "schedule": 24 * 60 * 60,
+        "schedule": 60 * 60,
     },
     "purge-audit-trail": {
         "task": "audit.purge",
@@ -433,6 +434,7 @@ CELERY_BEAT_SCHEDULE = {
         }
         for rule in (
             "accounts.inactive_clients",
+            "accounts.stale_marketing_consents",
             "messaging.stale_conversations",
             "resellers.rejected_applications",
             "content.stale_subscribers",
@@ -489,6 +491,7 @@ DOCUMENTS = {
     "COMPANY_NAME": env.str("DOCUMENTS_COMPANY_NAME", default="Celebobo"),
     "COMPANY_ADDRESS": env.str("DOCUMENTS_COMPANY_ADDRESS", default="Bukavu · Goma, RD Congo"),
     "COMPANY_CONTACT": env.str("DOCUMENTS_COMPANY_CONTACT", default="contact@celebobo.cd"),
+    "PRIVACY_CONTACT": env.str("DOCUMENTS_PRIVACY_CONTACT", default="celestinbahiga@gmail.com"),
     "RETENTION_DAYS": env.int("DOCUMENTS_RETENTION_DAYS", default=7),
 }
 
