@@ -197,6 +197,8 @@ class OrderItem(models.Model):
     # copied from the product at checkout: each unit gets its serial number or IMEI before the
     # order leaves (warranty policy)
     serial_required = models.BooleanField(default=False)
+    # copied from the product: taken back for a change of mind only if still sealed
+    sealed_return_only = models.BooleanField(default=False)
 
     class Meta:
         ordering = ("pk",)

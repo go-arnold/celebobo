@@ -72,6 +72,8 @@ class AdminProductDetail:
     shipping_fee: Decimal | None
     # each unit sold gets its serial number or IMEI before it leaves (warranty policy)
     serial_required: bool
+    # in-ear earphones…: taken back for a change of mind only if still sealed (warranty policy)
+    sealed_return_only: bool
     sell_by: date | None
     features: tuple[str, ...]
     options: tuple[OptionView, ...]

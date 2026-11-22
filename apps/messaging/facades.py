@@ -66,6 +66,7 @@ from apps.orders.domain.events import (
     ResellerRated,
 )
 from apps.sales.domain.events import PayoutRecorded, PayoutStatementPrepared
+from apps.warranty.domain.events import ClaimSubmitted, ClaimUpdated
 from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
 from core.events.contracts import EventPublisher
@@ -393,6 +394,20 @@ class NotificationRouter:
             event.statement_id,
             amount=str(event.amount),
             date=f"{event.payout_date:%d/%m/%Y}",
+        )
+
+    def claim_submitted(self, event: ClaimSubmitted) -> None:
+        self._fanout.claim_submitted(
+            event.claim_id,
+            number=event.number,
+            client=event.client_name,
+            product=event.product,
+            kind=event.kind_label,
+        )
+
+    def claim_updated(self, event: ClaimUpdated) -> None:
+        self._fanout.claim_update(
+            event.client_id, event.claim_id, number=event.number, message=event.message
         )
 
     def delivery_code_locked(self, event: DeliveryCodeLocked) -> None:

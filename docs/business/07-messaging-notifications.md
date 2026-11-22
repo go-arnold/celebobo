@@ -104,6 +104,8 @@ Every notification is stored **in the app** (bell / notifications page) and may 
 | Failed delivery attempt (not the last one) | The client | status changed | `/compte/commandes/{number}` |
 | Payout statement prepared (1st / 16th) | The reseller | status changed | `/admin/commissions?releve={id}` |
 | Payout statement paid | The reseller | status changed | `/admin/commissions?releve={id}` |
+| New warranty claim | Staff | order assigned | `/admin/reclamations/{id}` |
+| Claim step (answer, reception, diagnosis, outcome) | The client (e-mail always) | status changed | `/compte/reclamations/{id}` |
 
 Notifications can be marked read one by one or all at once; `/notifications/unread-counts/` returns
 unread notifications and unread conversations (also pushed live as `unread.counts`).

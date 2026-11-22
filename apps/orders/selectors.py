@@ -20,6 +20,7 @@ from apps.orders.domain.pricing import ZonePricing
 from apps.orders.domain.read_models import (
     AddressSnapshot,
     AttemptView,
+    ClaimableLine,
     ClientOrderTotals,
     ConvertibleItem,
     ConvertibleOrder,
@@ -652,3 +653,51 @@ def _coupon_usage(coupon_ids: Iterable[int]) -> dict[int, tuple[int, Decimal]]:
         .annotate(uses=Count("pk"), amount=Sum("amount"))
     )
     return {row["coupon_id"]: (int(row["uses"]), Decimal(row["amount"] or 0)) for row in rows}
+
+
+class ClaimableLineSelector:
+    """Order lines for the warranty claims: what was bought, when it was delivered, its serials."""
+
+    def line(self, order_id: int, item_id: int) -> ClaimableLine | None:
+        item = (
+            OrderItem.objects.select_related("order")
+            .prefetch_related("serials")
+            .filter(order_id=order_id, pk=item_id)
+            .first()
+        )
+        return _claimable(item) if item is not None else None
+
+    def of_order(self, order_id: int) -> tuple[ClaimableLine, ...]:
+        items = (
+            OrderItem.objects.select_related("order")
+            .prefetch_related("serials")
+            .filter(order_id=order_id)
+            .order_by("pk")
+        )
+        return tuple(_claimable(item) for item in items)
+
+
+def _claimable(item: OrderItem) -> ClaimableLine:
+    order = item.order
+    delivered = (
+        OrderStatusEvent.objects.filter(order=order, to_status=OrderStatus.DELIVERED.value)
+        .order_by("-created_at")
+        .values_list("created_at", flat=True)
+        .first()
+    )
+    return ClaimableLine(
+        order_id=order.pk,
+        order_number=order.number,
+        client_id=order.client_id,
+        status=order.order_status,
+        ordered_at=order.created_at,
+        delivered_at=delivered,
+        item_id=item.pk,
+        product_id=item.product_id,
+        name=item.product_name,
+        variant_label=item.variant_label,
+        quantity=item.quantity,
+        returned_quantity=item.returned_quantity,
+        serials=tuple(entry.serial for entry in item.serials.all()),
+        sealed_return_only=item.sealed_return_only,
+    )

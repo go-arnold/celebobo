@@ -25,6 +25,7 @@ from apps.orders.domain.events import (
     ResellerRated,
 )
 from apps.sales.domain.events import PayoutRecorded, PayoutStatementPrepared
+from apps.warranty.domain.events import ClaimSubmitted, ClaimUpdated
 from core.container import container
 from core.events.bus import event_bus
 
@@ -91,6 +92,16 @@ def notify_payout_statement(event: PayoutStatementPrepared) -> None:
 @event_bus.on(PayoutRecorded, background=True)
 def notify_payout_paid(event: PayoutRecorded) -> None:
     container.resolve(NotificationRouter).payout_recorded(event)
+
+
+@event_bus.on(ClaimSubmitted, background=True)
+def notify_claim_submitted(event: ClaimSubmitted) -> None:
+    container.resolve(NotificationRouter).claim_submitted(event)
+
+
+@event_bus.on(ClaimUpdated, background=True)
+def notify_claim_updated(event: ClaimUpdated) -> None:
+    container.resolve(NotificationRouter).claim_updated(event)
 
 
 @event_bus.on(DeliveryCodeLocked, background=True)

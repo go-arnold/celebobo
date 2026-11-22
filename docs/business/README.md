@@ -19,6 +19,7 @@ When the code and this document disagree, the code wins — update the document.
 | 10 | [Back-office tools](10-backoffice-tools.md) | Dashboard, analytics, exports/imports, uploads, audit log, scheduled tasks |
 | 11 | [Error codes](11-error-codes.md) | Every business error the API can return |
 | 12 | [Loyalty programmes](12-loyalty.md) | Fidelity points, mobile app links and their settings |
+| 13 | [Warranty claims](13-warranty-claims.md) | Trial, CeLE BoBO warranty and authenticity claims: windows, steps, outcomes |
 
 ## The business in one paragraph
 

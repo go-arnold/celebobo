@@ -36,6 +36,7 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `reviews.create` | Review a product (only if received, see §3) | | ✓ | ✓ | ✓ | ✓ |
 | `favorites.manage` | Own favorites | | ✓ | ✓ | ✓ | ✓ |
 | `invoices.view.own` | Download the invoice and delivery receipt of own orders | | ✓ | ✓ | ✓ | ✓ |
+| `claims.submit.own` | Claim on own delivered orders (§13) | | ✓ | ✓ | ✓ | ✓ |
 | `personal_data.export.own` | Download one's own data ("Mes données", ZIP) | | ✓ | ✓ | ✓ | ✓ |
 | `media.upload` | Upload an avatar or a message attachment | | ✓ | ✓ | ✓ | ✓ |
 | `conversations.use` | Read and write in own conversations | | ✓ | ✓ | ✓ | ✓ |
@@ -85,6 +86,7 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `orders.refund` | Record the refund of a paid order that was cancelled | | | | ✓ | ✓ |
 | `shipping.manage` | Shipping zones | | | | ✓ | ✓ |
 | `coupons.manage` | Coupons | | | | ✓ | ✓ |
+| `claims.manage` | Handle warranty claims: answer, reception, diagnosis, outcome (§13) | | | | ✓ | ✓ |
 | `presence.view` | Who is online | | | | ✓ | ✓ |
 | `resellers.view` / `resellers.manage` | Reseller list, manager, activation | | | | ✓ | ✓ |
 | `reseller_applications.review` | Approve / reject applications | | | | ✓ | ✓ |

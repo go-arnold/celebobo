@@ -52,3 +52,5 @@ class NotificationKind(StrEnum):
     DELIVERY_ATTEMPT = "delivery_attempt"
     PAYOUT_STATEMENT = "payout_statement"
     PAYOUT_PAID = "payout_paid"
+    CLAIM_SUBMITTED = "claim_submitted"
+    CLAIM_UPDATE = "claim_update"

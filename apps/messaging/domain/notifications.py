@@ -149,6 +149,19 @@ TEMPLATES: Mapping[NotificationKind, NotificationTemplate] = MappingProxyType(
             link="/admin/commissions?releve={statement_id}",
             topic=STATUS_CHANGED_TOPIC,
         ),
+        NotificationKind.CLAIM_SUBMITTED: NotificationTemplate(
+            title="Nouvelle réclamation {number}",
+            body="{client} signale un problème sur {product} ({claim_kind}). Répondez sous 72 h.",
+            link="/admin/reclamations/{claim_id}",
+            topic=ORDER_ASSIGNED_TOPIC,
+        ),
+        NotificationKind.CLAIM_UPDATE: NotificationTemplate(
+            title="Réclamation {number}",
+            body="{message}",
+            link="/compte/reclamations/{claim_id}",
+            topic=STATUS_CHANGED_TOPIC,
+            essential=True,
+        ),
         NotificationKind.PAYOUT_PAID: NotificationTemplate(
             title="Paiement reçu : {amount} $",
             body="Celebobo vous a versé {amount} $ pour votre relevé du {date}.",
