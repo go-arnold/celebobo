@@ -67,6 +67,7 @@ class ProductDraft:
     delivery_policy_primary: str = ""
     delivery_policy_secondary: str = ""
     free_shipping: bool = False
+    serial_required: bool = False
     shipping_fee: Decimal | None = None
     stock: int = 0
     stock_threshold: int = 5
@@ -97,6 +98,7 @@ class ProductChanges:
     delivery_policy_primary: Maybe[str] = UNSET
     delivery_policy_secondary: Maybe[str] = UNSET
     free_shipping: Maybe[bool] = UNSET
+    serial_required: Maybe[bool] = UNSET
     shipping_fee: Maybe[Decimal | None] = UNSET
     stock_threshold: Maybe[int] = UNSET
     sell_by: Maybe[date | None] = UNSET

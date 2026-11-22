@@ -19,7 +19,7 @@
   <thead><tr><th>Article</th><th>Réf.</th><th class="num">Qté</th><th class="num">Prix unitaire</th><th class="num">Total</th></tr></thead>
   <tbody>
   {% for item in order.items %}
-    <tr><td>{{ item.name }}{% if item.variant_label %} — {{ item.variant_label }}{% endif %}</td><td>{{ item.sku }}</td>
+    <tr><td>{{ item.name }}{% if item.variant_label %} — {{ item.variant_label }}{% endif %}{% if item.serials %}<br><span class="muted">N° de série / IMEI : {{ item.serials|join:", " }}</span>{% endif %}</td><td>{{ item.sku }}</td>
       <td class="num">{{ item.quantity }}</td><td class="num">{{ item.unit_price }} $</td><td class="num">{{ item.total }} $</td></tr>
   {% endfor %}
   </tbody>
@@ -31,6 +31,7 @@
     <tr class="totals"><td colspan="4" class="num">Total</td><td class="num">{{ order.summary.total }} $</td></tr>
   </tfoot>
 </table>
+<p class="muted">{% if warranty.trial_until %}Délai d'essai jusqu'au {{ warranty.trial_until|date:"d/m/Y" }} · garantie CeLE BoBO jusqu'au {{ warranty.warranty_until|date:"d/m/Y" }}{% else %}Délai d'essai de {{ warranty.trial_days }} jours puis garantie CeLE BoBO d'{{ warranty.warranty_months }} mois, à partir de la livraison{% endif %}. Pour tout retour, présentez cette facture : le numéro de série ou l'IMEI du produit doit être le même.</p>
 {% if points %}
 <h2>Vos points de fidélité</h2>
 <table>

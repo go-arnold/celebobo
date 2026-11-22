@@ -83,6 +83,7 @@ class ProductFieldsSerializer(serializers.Serializer[Any]):
         required=False, allow_blank=True, max_length=4000
     )
     free_shipping = serializers.BooleanField(required=False)
+    serial_required = serializers.BooleanField(required=False)
     shipping_fee = money(min_value=0, allow_null=True, required=False)
     stock_threshold = serializers.IntegerField(min_value=0, required=False, max_value=MAX_INTEGER)
     sell_by = serializers.DateField(required=False, allow_null=True)
@@ -359,6 +360,7 @@ class AdminProductDetailOutput(serializers.Serializer[Any]):
     delivery_policy_secondary = serializers.CharField()
     free_shipping = serializers.BooleanField()
     shipping_fee = money(allow_null=True)
+    serial_required = serializers.BooleanField()
     sell_by = serializers.DateField(allow_null=True)
     features = serializers.ListField(child=serializers.CharField())
     options = OptionOutput(many=True)

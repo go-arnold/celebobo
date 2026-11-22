@@ -26,7 +26,7 @@
   <thead><tr><th>Article</th><th class="num">Qté</th><th class="num">Prix unitaire</th><th class="num">Total</th></tr></thead>
   <tbody>
   {% for item in receipt.items %}
-    <tr><td>{{ item.name }}{% if item.variant %} — {{ item.variant }}{% endif %}</td>
+    <tr><td>{{ item.name }}{% if item.variant %} — {{ item.variant }}{% endif %}{% if item.serials %}<br><span class="muted">N° de série / IMEI : {{ item.serials|join:", " }}</span>{% endif %}</td>
       <td class="num">{{ item.quantity }}</td><td class="num">{{ item.unit_price }} $</td><td class="num">{{ item.total }} $</td></tr>
   {% endfor %}
   </tbody>

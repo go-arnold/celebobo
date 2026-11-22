@@ -70,6 +70,8 @@ class AdminProductDetail:
     delivery_policy_secondary: str
     free_shipping: bool
     shipping_fee: Decimal | None
+    # each unit sold gets its serial number or IMEI before it leaves (warranty policy)
+    serial_required: bool
     sell_by: date | None
     features: tuple[str, ...]
     options: tuple[OptionView, ...]

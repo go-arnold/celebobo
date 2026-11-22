@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 from django.db.models.functions import Lower
+from django.utils import timezone
 
 from apps.orders.domain.enums import (
     AttemptReason,
@@ -193,6 +194,9 @@ class OrderItem(models.Model):
         max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
     )
     returned_quantity = models.PositiveSmallIntegerField(default=0)
+    # copied from the product at checkout: each unit gets its serial number or IMEI before the
+    # order leaves (warranty policy)
+    serial_required = models.BooleanField(default=False)
 
     class Meta:
         ordering = ("pk",)
@@ -224,6 +228,26 @@ class OrderItem(models.Model):
     @property
     def total(self) -> Decimal:
         return self.unit_price * self.quantity
+
+
+class OrderItemSerial(models.Model):
+    """The serial number or IMEI of one unit of a line, printed on the invoice and the receipt."""
+
+    item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, related_name="serials")
+    serial = models.CharField("numéro de série ou IMEI", max_length=40, db_index=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    recorded_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("pk",)
+        constraints = (
+            models.UniqueConstraint(fields=("item", "serial"), name="orders_item_serial_once"),
+        )
+
+    def __str__(self) -> str:
+        return self.serial
 
 
 class OrderLineReturn(models.Model):

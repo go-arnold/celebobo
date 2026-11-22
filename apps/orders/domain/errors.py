@@ -217,3 +217,39 @@ class AttemptNotAllowed(BusinessRuleViolation):
 class PointsUnavailable(Conflict):
     default_code = "points_unavailable"
     default_detail = "Votre solde de points a changé. Vérifiez le montant puis confirmez."
+
+
+class InvalidSerialNumber(ValidationFailed):
+    default_code = "invalid_serial_number"
+    default_detail = "Un numéro de série ou IMEI est invalide."
+
+
+class TooManySerialNumbers(ValidationFailed):
+    default_code = "too_many_serial_numbers"
+    default_detail = "Il y a plus de numéros que d'unités sur cette ligne."
+
+
+class SerialNumberAlreadySold(Conflict):
+    default_code = "serial_number_already_sold"
+    default_detail = "Ce numéro de série ou IMEI figure déjà sur une autre commande en cours."
+
+    def __init__(self, serial: str, order_number: str) -> None:
+        super().__init__(meta={"serial": serial, "order_number": order_number})
+
+
+class SerialNumbersNotEditable(BusinessRuleViolation):
+    default_code = "serial_numbers_not_editable"
+    default_detail = (
+        "Les numéros de série se saisissent avant la livraison ; après, seul un responsable peut "
+        "les corriger."
+    )
+
+
+class SerialNumbersMissing(BusinessRuleViolation):
+    default_code = "serial_numbers_missing"
+    default_detail = (
+        "Saisissez le numéro de série ou l'IMEI de chaque unité avant de faire partir la commande."
+    )
+
+    def __init__(self, lines: list[dict[str, object]]) -> None:
+        super().__init__(meta={"lines": lines})

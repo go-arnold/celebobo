@@ -130,6 +130,16 @@ class RecordAttemptInput(serializers.Serializer[Any]):
         return AttemptReason(value)
 
 
+class RecordSerialsInput(serializers.Serializer[Any]):
+    # the whole list for the line: numbers left out are removed
+    serials = serializers.ListField(
+        child=serializers.CharField(max_length=60, allow_blank=True), max_length=100
+    )
+
+    def validate_serials(self, value: list[str]) -> tuple[str, ...]:
+        return tuple(value)
+
+
 class AttemptOutput(serializers.Serializer[Any]):
     at = serializers.DateTimeField()
     reason = serializers.CharField()
@@ -309,6 +319,9 @@ class OrderLineOutput(serializers.Serializer[Any]):
     # units given back after delivery and the real money owed back for them
     returned_quantity = serializers.IntegerField()
     returned_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    # each unit's serial number or IMEI, when the product needs one
+    serial_required = serializers.BooleanField()
+    serials = serializers.ListField(child=serializers.CharField())
 
 
 class StatusEntryOutput(serializers.Serializer[Any]):
