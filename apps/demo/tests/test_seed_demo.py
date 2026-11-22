@@ -112,9 +112,10 @@ def test_e2e_seed_is_repeatable():
     }
     slugs = {"galaxy-a55", "redmi-note-13", "iphone-15", "ecouteurs-bluetooth"}
     assert set(Product.objects.values_list("slug", flat=True)) == slugs
-    # the reset empties the pages the migration loaded: the policies are back
+    # the reset empties the pages the migration loaded: the conditions of sale and the policies are
+    # back
     assert Page.objects.filter(slug="politique-de-livraison", version="0.9.2").exists()
-    assert Page.objects.exclude(version="").count() == 5
+    assert Page.objects.exclude(version="").count() == 6
     assert Product.objects.get(slug="galaxy-a55").sale_price is not None
     assert Product.objects.get(slug="redmi-note-13").stock == 0
     assert ProductVariant.objects.filter(product__slug="iphone-15").count() == 2

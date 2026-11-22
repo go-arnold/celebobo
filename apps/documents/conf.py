@@ -20,6 +20,8 @@ class DocumentSettings:
     company_name: str = "Celebobo"
     company_address: str = "Bukavu · Goma, RD Congo"
     company_contact: str = "contact@celebobo.cd"
+    # the data-protection contact named by the privacy policy (§1), for personal data requests
+    privacy_contact: str = "celestinbahiga@gmail.com"
 
 
 def document_settings() -> DocumentSettings:

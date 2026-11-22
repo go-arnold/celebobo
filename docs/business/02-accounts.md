@@ -97,9 +97,10 @@ record, kept as proof:
 - A record holds the **version** of the document accepted, `accepted_at`, `withdrawn_at` and how it was
   given (`source`: `signup`, `account`, `google` for the completion step right after a Google
   sign-up; `checkout` is reserved for a box on the checkout page, none yet).
-- The version comes from the content app (`SiteContentFacade.policy_versions`): every consent refers
-  to the **privacy policy** page (`politique-de-confidentialite`), which describes the processing, the
-  hosting abroad and the offers. The conditions of sale have no versioned page yet.
+- The version comes from the content app (`SiteContentFacade.policy_versions`): `terms` refers to
+  the **conditions of sale** page (`conditions-de-vente`), `hosting_abroad` and `marketing` to the
+  **privacy policy** page (`politique-de-confidentialite`), which describes the hosting abroad (§5)
+  and the offers (§8). A new version of a page asks again for the required consents given on it.
 - History is never rewritten: accepting again (a new version) adds a record, withdrawing sets
   `withdrawn_at` on the records still open. Giving a consent already given on the current version
   records nothing. The back-office shows them read-only on the user.
@@ -254,7 +255,9 @@ in a readable format (art. 211). Every signed-in user, for their **own** data on
 
 **The ZIP** holds `mes-donnees.json` (machine-readable: format `celebobo.personal-data`, version 1,
 stable English keys, ISO 8601 dates, money as strings with two decimals), `mes-donnees.html` (the
-same content in French, readable in a browser) and `LISEZMOI.txt`. In the HTML page, only date
+same content in French, readable in a browser) and `LISEZMOI.txt` (the 72 h / 30-day reminder and
+the data-protection contact the privacy policy names, celestinbahiga@gmail.com — setting
+`DOCUMENTS_PRIVACY_CONTACT`; the company contact on invoices is separate). In the HTML page, only date
 fields (keys ending in `_at`, `_date` or `_on`, plus `at`, `date_joined`, `last_login`,
 `next_expiry`) are shown as French dates — free text (messages, notes, reviews, addresses) is
 printed as typed, and a date value that cannot be read is printed as stored. Sections, in this order (a role

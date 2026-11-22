@@ -3,6 +3,7 @@ from allauth.socialaccount.models import SocialAccount
 from rest_framework.test import APIClient
 
 from apps.accounts.domain.consents import (
+    CONDITIONS_OF_SALE,
     PRIVACY_POLICY,
     ConsentKind,
     missing_consents,
@@ -40,12 +41,18 @@ PAYLOAD = {
 TERMS, HOSTING, MARKETING = ConsentKind.TERMS, ConsentKind.HOSTING_ABROAD, ConsentKind.MARKETING
 
 
-def policy_version() -> str:
-    return Page.objects.get(slug=PRIVACY_POLICY).version
+# `terms` is given on the conditions of sale, the other consents on the privacy policy
+def policy_version(slug: str = PRIVACY_POLICY) -> str:
+    return Page.objects.get(slug=slug).version
 
 
+def terms_version() -> str:
+    return policy_version(CONDITIONS_OF_SALE)
+
+
+# a new version of both documents: every required consent is asked again
 def publish_policy(version: str) -> None:
-    Page.objects.filter(slug=PRIVACY_POLICY).update(version=version)
+    Page.objects.filter(slug__in=(PRIVACY_POLICY, CONDITIONS_OF_SALE)).update(version=version)
     ContentCache().bump()
 
 
@@ -87,7 +94,7 @@ class TestSignUp:
         rows = list(user.consents.order_by("kind").values("kind", "version", "source"))
         assert rows == [
             {"kind": "hosting_abroad", "version": policy_version(), "source": "signup"},
-            {"kind": "terms", "version": policy_version(), "source": "signup"},
+            {"kind": "terms", "version": terms_version(), "source": "signup"},
         ]
         assert not Subscriber.objects.exists()
 
@@ -196,7 +203,7 @@ class TestGiveAndWithdraw:
         assert list(by_kind) == ["terms", "hosting_abroad", "marketing"]
         assert by_kind["terms"]["given"] is True
         assert by_kind["terms"]["required"] is True
-        assert by_kind["terms"]["version"] == policy_version()
+        assert by_kind["terms"]["version"] == terms_version()
         assert by_kind["terms"]["outdated"] is False
         assert by_kind["marketing"] == {
             "kind": "marketing",
@@ -240,7 +247,7 @@ class TestGiveAndWithdraw:
         assert client_user.consents.filter(kind="terms").count() == 1
 
     def test_new_version_is_accepted_again_and_history_kept(self, as_user, client_user):
-        old = policy_version()
+        old, old_terms = policy_version(), terms_version()
         publish_policy("1.0.0")
         api = as_user(client_user)
 
@@ -254,7 +261,7 @@ class TestGiveAndWithdraw:
         assert after["missing"] == []
         versions = {(item["kind"], item["version"]) for item in after["history"]}
         assert versions == {
-            ("terms", old),
+            ("terms", old_terms),
             ("hosting_abroad", old),
             ("terms", "1.0.0"),
             ("hosting_abroad", "1.0.0"),

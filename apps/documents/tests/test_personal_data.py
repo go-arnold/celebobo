@@ -186,6 +186,8 @@ class TestClientExport:
 
         assert sorted(files) == ["LISEZMOI.txt", "mes-donnees.html", "mes-donnees.json"]
         assert "30 jours" in files["LISEZMOI.txt"].decode()
+        # the data-protection contact the privacy policy names (§1)
+        assert "celestinbahiga@gmail.com" in files["LISEZMOI.txt"].decode()
 
     def test_json_layout_is_stable(self, as_user, shopper, run_jobs):
         document, _, _ = download(as_user(shopper), run_jobs)

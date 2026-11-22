@@ -11,6 +11,7 @@ from apps.content.policies import policies
 pytestmark = pytest.mark.django_db
 
 SLUGS = [
+    "conditions-de-vente",
     "politique-de-confidentialite",
     "politique-de-livraison",
     "garantie-et-retours",

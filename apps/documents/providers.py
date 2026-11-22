@@ -71,6 +71,7 @@ def branding(settings: DocumentSettings) -> dict[str, str]:
         "company_name": settings.company_name,
         "company_address": settings.company_address,
         "company_contact": settings.company_contact,
+        "privacy_contact": settings.privacy_contact,
     }
 
 

@@ -491,6 +491,7 @@ DOCUMENTS = {
     "COMPANY_NAME": env.str("DOCUMENTS_COMPANY_NAME", default="Celebobo"),
     "COMPANY_ADDRESS": env.str("DOCUMENTS_COMPANY_ADDRESS", default="Bukavu · Goma, RD Congo"),
     "COMPANY_CONTACT": env.str("DOCUMENTS_COMPANY_CONTACT", default="contact@celebobo.cd"),
+    "PRIVACY_CONTACT": env.str("DOCUMENTS_PRIVACY_CONTACT", default="celestinbahiga@gmail.com"),
     "RETENTION_DAYS": env.int("DOCUMENTS_RETENTION_DAYS", default=7),
 }
 

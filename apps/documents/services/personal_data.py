@@ -97,7 +97,7 @@ class PersonalDataExport:
                     generated=document["generated_at"],
                     html=HTML_NAME,
                     json=JSON_NAME,
-                    contact=self._branding.get("company_contact", ""),
+                    contact=self._branding.get("privacy_contact", ""),
                 ),
             )
         return buffer.getvalue()
