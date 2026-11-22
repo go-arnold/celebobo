@@ -167,7 +167,9 @@ class OrderSelector:
     def _detail(self, orders: QuerySet[Order], *, staff: bool) -> OrderDetail:
         order = (
             orders.select_related("client", "assigned_reseller", "rating")
-            .prefetch_related("items__returns", "history__actor", "delivery_attempts")
+            .prefetch_related(
+                "items__returns", "items__serials", "history__actor", "delivery_attempts"
+            )
             .annotate(items_count=Count("items", distinct=True))
             .first()
         )
@@ -405,6 +407,8 @@ def _line(item: OrderItem) -> OrderLineView:
         amount_paid=item.amount_paid,
         returned_quantity=item.returned_quantity,
         returned_amount=sum((entry.amount_paid for entry in item.returns.all()), Decimal(0)),
+        serial_required=item.serial_required,
+        serials=tuple(entry.serial for entry in item.serials.all()),
     )
 
 

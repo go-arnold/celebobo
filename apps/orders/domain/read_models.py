@@ -72,6 +72,9 @@ class OrderLineView:
     amount_paid: Decimal
     returned_quantity: int = 0
     returned_amount: Decimal = Decimal(0)
+    # each unit's serial number or IMEI, when the product needs one (warranty policy)
+    serial_required: bool = False
+    serials: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

@@ -20,6 +20,7 @@ from apps.orders.domain.commands import (
     RateReseller,
     RecordAttempt,
     RecordRefund,
+    RecordSerials,
     ReturnLine,
     TrackOrder,
     TransitionOrder,
@@ -42,6 +43,7 @@ from apps.orders.domain.events import (
     OrderStatusChanged,
     RefundDue,
     ResellerRated,
+    SerialNumbersRecorded,
     ShippingFeeAccepted,
 )
 from apps.orders.domain.numbers import normalize_order_number
@@ -77,6 +79,7 @@ from apps.orders.services.promotions import CouponAdminService, ShippingZoneServ
 from apps.orders.services.ratings import RatingService
 from apps.orders.services.refunds import RefundService
 from apps.orders.services.returns import LineReturnService
+from apps.orders.services.serials import SerialNumberService
 from apps.orders.services.shipping_quotes import ShippingQuoteService
 from core.domain.actor import Actor
 from core.domain.errors import DomainError, Unauthenticated
@@ -285,9 +288,11 @@ class DispatchFacade:
         returns: LineReturnService,
         refunds: RefundService,
         attempts: DeliveryAttemptService,
+        serials: SerialNumberService,
         publisher: EventPublisher,
     ) -> None:
         self._attempts = attempts
+        self._serials = serials
         self._refunds = refunds
         self._orders = orders
         self._lifecycle = lifecycle
@@ -392,6 +397,20 @@ class DispatchFacade:
             )
             if outcome.cancellation is not None:
                 _announce(self._publisher, outcome.cancellation, Actor.system())
+        return self.detail(actor, order_id)
+
+    # the serial number or IMEI of each unit of a line, printed on the invoice and the receipt
+    def record_serials(
+        self, actor: Actor, order_id: int, item_id: int, command: RecordSerials
+    ) -> OrderDetail:
+        with transaction.atomic():
+            order = self._locked(actor, order_id)
+            recorded = self._serials.record(order, actor, item_id, command)
+            self._publisher.publish(
+                SerialNumbersRecorded(
+                    order_id=order.pk, item_id=item_id, count=len(recorded), actor_id=actor.user_id
+                )
+            )
         return self.detail(actor, order_id)
 
     # a paid order was cancelled: staff record that the money went back to the client

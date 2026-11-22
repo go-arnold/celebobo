@@ -197,6 +197,28 @@ One rating per order (`already_rated`); not before delivery, nor for an order no
 (`order_not_ratable`). The client's order detail says `can_rate` and shows the `rating` given. The
 reseller is notified, and the average and count appear in the resellers directory (§6).
 
+### Serial numbers and IMEIs
+
+Warranty policy: a product brought back must carry "the same serial number or IMEI as on the
+invoice". A product marked `serial_required` (§3) passes the flag to the order line at checkout.
+
+- `PUT /bo/orders/{id}/items/{item_id}/serials/` `{serials: [...]}` — the **whole list** for the line
+  (numbers left out are removed), by the **assigned reseller** or staff (`orders.status.advance`),
+  until the delivery; after it, only staff correct them (`serial_numbers_not_editable`); never on a
+  cancelled or returned order.
+- Spaces are ignored and letters upper-cased. **15 digits is an IMEI**: its check digit (Luhn) must
+  be right; anything else is a maker serial of 4 to 40 letters or digits (`-`, `.`, `/` allowed)
+  (`invalid_serial_number`, the faulty values in `errors.serials`). No more numbers than units
+  (`too_many_serial_numbers`).
+- One unit is on one running order only: a number already on another order that is not cancelled
+  or returned is refused (`serial_number_already_sold`, `meta.serial`, `meta.order_number`).
+- **Before the order leaves** (to `shipping`, or straight to `delivered` for staff), every unit of
+  such a line needs its number (`serial_numbers_missing`, `meta.lines`: `item_id`, `name`,
+  `missing`). Lines of other products are not concerned.
+- The lines carry `serial_required` and `serials` (client and back-office order details); the
+  invoice and the delivery receipt print them, the invoice with the warranty dates
+  ([§10](10-backoffice-tools.md#invoices)). Event `SerialNumbersRecorded` (audit).
+
 ### Delivery code
 
 Delivery is confirmed by the client, through a code (owner's decision of 16 Nov 2026):

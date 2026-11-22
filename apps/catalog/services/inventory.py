@@ -100,6 +100,7 @@ class InventoryService:
             deal_id=deal.id if deal is not None else None,
             origin=ProductOrigin(product.origin),
             partner_gain=product.partner_gain,
+            serial_required=product.serial_required,
         )
 
 

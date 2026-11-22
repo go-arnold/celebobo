@@ -22,6 +22,7 @@ from apps.orders.models import Order
 from apps.orders.repositories import OrderRepository
 from apps.orders.services.checkout import ORDER_SOURCE, actor_role
 from apps.orders.services.contracts import Inventory, ResellerDirectory
+from apps.orders.services.serials import ensure_complete as ensure_serials
 from core.domain.actor import Actor, Role
 from core.domain.errors import DomainError
 
@@ -86,6 +87,7 @@ class OrderLifecycleService:
 
     def transition(self, order: Order, actor: Actor, command: TransitionOrder) -> StatusChange:
         self._machine.ensure(state_of(order), command.to, actor)
+        ensure_serials(order, command.to)
         return self._move(order, actor, command.to, note=command.note or command.reason)
 
     # the reseller enters the client's code; staff may confirm without it, giving a reason. A wrong

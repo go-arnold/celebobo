@@ -47,6 +47,7 @@ from apps.orders.services.pricing import PricingService
 from apps.orders.services.promotions import CouponAdminService, ShippingZoneService
 from apps.orders.services.refunds import RefundService
 from apps.orders.services.returns import LineReturnService
+from apps.orders.services.serials import SerialNumberService
 from apps.orders.services.shipping import ShippingResolver
 from apps.orders.services.shipping_quotes import ShippingQuoteService
 from core.container import Container, Lifetime
@@ -152,6 +153,7 @@ def _dispatch_facade(container: Container) -> DispatchFacade:
         returns=LineReturnService(OrderRepository(), container.resolve(Inventory)),
         refunds=RefundService(OrderRepository(), clock=timezone.now),
         attempts=DeliveryAttemptService(_lifecycle(container), clock=timezone.now),
+        serials=SerialNumberService(clock=timezone.now),
         orders=OrderRepository(),
         lifecycle=_lifecycle(container),
         selector=OrderSelector(),

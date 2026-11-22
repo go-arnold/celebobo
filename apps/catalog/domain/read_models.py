@@ -193,6 +193,7 @@ class PricedLine:
     shipping_fee: Decimal | None
     cost_price: Decimal | None = None
     deal_id: int | None = None
+    serial_required: bool = False
     # for the commission rules: snapshot onto the sale with the cost
     origin: ProductOrigin = ProductOrigin.CELEBOBO
     partner_gain: Decimal | None = None

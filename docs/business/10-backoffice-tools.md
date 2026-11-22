@@ -62,6 +62,12 @@ Not available for cancelled orders. When fidelity points are on, it ends with th
 return period is over), points used on it, available balance, total and count of the client's
 delivered orders (§12).
 
+Each line shows the units' **serial numbers or IMEIs** (§4), and the invoice states the warranty
+(warranty policy): before the delivery « délai d'essai de 7 jours puis garantie CeLE BoBO d'1 mois,
+à partir de la livraison », after it the dates (« délai d'essai jusqu'au …, garantie CeLE BoBO
+jusqu'au … »), with the reminder that a return must carry the same number. The delivery receipt
+lists the numbers too.
+
 ### Delivery receipts
 
 A **signed delivery receipt** (PDF) is the proof that the order was handed over (plan step 3.4,

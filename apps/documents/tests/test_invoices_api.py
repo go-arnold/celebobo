@@ -124,3 +124,30 @@ def test_the_reseller_copy_has_no_points_statement_nor_contact_after_the_return_
     assert staff_copy["points"] == "statement"
     assert staff_copy["order"].contact_hidden is False
     assert staff_copy["order"].address.phone == "+243 81 234 5678"
+
+
+# warranty policy: the invoice carries each unit's serial number or IMEI and the warranty dates
+def test_the_invoice_prints_serials_and_warranty_dates(as_user, manager, order, renderer):
+    from datetime import timedelta
+
+    from apps.orders.models import OrderItemSerial
+
+    item = order.items.get()
+    OrderItemSerial.objects.create(item=item, serial="352099001761481")
+    staff = as_user(manager)
+
+    staff.get(f"/api/v1/bo/orders/{order.pk}/invoice/")
+    before = renderer.calls[-1][1]["warranty"]
+    staff.post(
+        f"/api/v1/bo/orders/{order.pk}/transition/",
+        {"to": "delivered", "reason": "Remise vérifiée par téléphone"},
+    )
+    staff.get(f"/api/v1/bo/orders/{order.pk}/invoice/")
+    context = renderer.calls[-1][1]
+
+    assert context["order"].items[0].serials == ("352099001761481",)
+    # before the delivery the durations, after it the dates
+    assert (before.trial_days, before.warranty_months, before.trial_until) == (7, 1, None)
+    today = timezone.localdate()
+    assert context["warranty"].trial_until == today + timedelta(days=7)
+    assert context["warranty"].warranty_until > context["warranty"].trial_until

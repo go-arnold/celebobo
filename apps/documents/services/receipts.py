@@ -57,6 +57,7 @@ def snapshot(order: OrderDetail) -> dict[str, Any]:
                 "quantity": item.quantity,
                 "unit_price": str(item.unit_price),
                 "total": str(item.total),
+                "serials": list(item.serials),
             }
             for item in order.items
         ],

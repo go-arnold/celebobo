@@ -128,6 +128,8 @@ class Product(SafeDeleteModel, TimestampedModel):
     delivery_policy_primary = models.TextField(blank=True)
     delivery_policy_secondary = models.TextField(blank=True)
     free_shipping = models.BooleanField(default=False)
+    # phones, laptops…: each unit sold gets its serial number or IMEI (warranty policy)
+    serial_required = models.BooleanField("numéro de série requis", default=False)
     shipping_fee = models.DecimalField(
         null=True, blank=True, max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES
     )

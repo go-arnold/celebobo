@@ -45,6 +45,13 @@ class CancelOrder:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class RecordSerials:
+    """The serial numbers or IMEIs of a line's units, replacing those already recorded."""
+
+    serials: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class RecordAttempt:
     reason: AttemptReason
     note: str = ""

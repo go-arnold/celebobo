@@ -78,6 +78,13 @@ class DeliveryAttemptFailed(DomainEvent):
 
 
 @domain_event
+class SerialNumbersRecorded(DomainEvent):
+    order_id: int
+    item_id: int
+    count: int
+
+
+@domain_event
 class OrderRefunded(DomainEvent):
     order_id: int
     amount: Decimal

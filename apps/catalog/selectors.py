@@ -489,6 +489,7 @@ class AdminProductSelector:
             free_shipping=product.free_shipping,
             shipping_fee=product.shipping_fee,
             sell_by=product.sell_by,
+            serial_required=product.serial_required,
             features=tuple(feature.name for feature in product.features.all()),
             options=tuple(
                 OptionView(name=option.name, values=tuple(option.values))

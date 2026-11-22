@@ -35,6 +35,7 @@ Managed by staff (`products.manage`) at `/bo/products/`. Resellers can read the 
 | `partner_gain` ("Gain Celebobo par unité ($)") | Required and > 0 when `origin` is `partner`, empty otherwise (`invalid_product_origin`). Managers only. |
 | Badge | none, `new` ("Nouveauté") or `best_seller` ("Best-seller"). During its first **20 days** a product always displays `new`, whatever badge was chosen. |
 | Free shipping / own shipping fee | Overrides the zone fee for this product (see §4). |
+| `serial_required` (« Numéro de série / IMEI requis ») | Phones, laptops…: each unit sold gets its serial number or IMEI before the order leaves; copied onto the order line at checkout ([§4](04-cart-checkout-orders.md#serial-numbers-and-imeis)). Off by default. |
 | Stock threshold | Below or at this level the product is "low stock" (default 5). |
 | `sell_by` | "Should be sold before" date; cannot be in the past (`sell_by_in_past`). |
 | Visible in the shop | Inactive products stay in the back-office only. |
