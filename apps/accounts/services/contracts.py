@@ -1,7 +1,9 @@
 from collections.abc import Iterable
+from datetime import datetime
 from typing import Any, Protocol
 
-from apps.accounts.models import Address, User
+from apps.accounts.domain.consents import ConsentKind, ConsentSource
+from apps.accounts.models import Address, Consent, User
 from core.domain.actor import Role
 
 
@@ -25,6 +27,8 @@ class UserStore(Protocol):
     def active_reseller_by_code(self, code: str) -> User | None: ...
 
     def referral_code_taken(self, code: str) -> bool: ...
+
+    def signed_up_with_google(self, user_id: int) -> bool: ...
 
 
 class AddressStore(Protocol):
@@ -89,3 +93,33 @@ class PasswordSetupLinks(Protocol):
 
 class AvatarSource(Protocol):
     def url_for(self, owner_id: int, upload_id: int) -> str | None: ...
+
+
+class ConsentStore(Protocol):
+    def accepted(self, user_id: int) -> dict[ConsentKind, str]: ...
+
+    def any_for(self, user_id: int) -> bool: ...
+
+    def create(
+        self,
+        user_id: int,
+        *,
+        kind: ConsentKind,
+        version: str,
+        source: ConsentSource,
+        accepted_at: datetime,
+    ) -> Consent: ...
+
+    def withdraw(
+        self, user_id: int, *, kinds: Iterable[ConsentKind], at: datetime
+    ) -> tuple[ConsentKind, ...]: ...
+
+
+class MarketingList(Protocol):
+    """The newsletter, kept in step with the marketing consent."""
+
+    def subscribe(self, email: str) -> None: ...
+
+    def unsubscribe(self, email: str) -> None: ...
+
+    def email_of(self, subscriber_id: int) -> str | None: ...

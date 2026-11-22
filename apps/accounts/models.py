@@ -4,7 +4,9 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.functions import Lower
+from django.utils import timezone
 
+from apps.accounts.domain.consents import ConsentKind, ConsentSource
 from apps.accounts.domain.enums import (
     ACCOUNT_ROLES,
     ROLE_LABELS,
@@ -17,6 +19,8 @@ from core.domain.actor import Role
 ROLE_CHOICES = [(role.value, ROLE_LABELS[role]) for role in ACCOUNT_ROLES]
 AVAILABILITY_CHOICES = [(item.value, item.label) for item in Availability]
 ADDRESS_LABEL_CHOICES = [(item.value, item.label) for item in AddressLabel]
+CONSENT_KIND_CHOICES = [(item.value, item.label) for item in ConsentKind]
+CONSENT_SOURCE_CHOICES = [(item.value, item.value) for item in ConsentSource]
 
 
 class User(AbstractUser):
@@ -134,3 +138,37 @@ class NotificationPreference(models.Model):
 
     def __str__(self) -> str:
         return f"Préférences de {self.user}"
+
+
+class ConsentQuerySet(models.QuerySet["Consent"]):
+    # the version each consent still open was accepted on last (latest acceptance wins)
+    def open_versions(self, user_id: int) -> dict[ConsentKind, str]:
+        rows = (
+            self.filter(user_id=user_id, withdrawn_at__isnull=True)
+            .order_by("kind", "-accepted_at", "-pk")
+            .distinct("kind")
+            .values_list("kind", "version")
+        )
+        return {ConsentKind(kind): version for kind, version in rows}
+
+
+# one row per acceptance, kept as proof: accepting again (e.g. a new version of the document) adds
+# a row, withdrawing sets withdrawn_at on the rows still open
+class Consent(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="consents")
+    kind = models.CharField("consentement", max_length=16, choices=CONSENT_KIND_CHOICES)
+    version = models.CharField("version acceptée", max_length=20, blank=True)
+    source = models.CharField("donné depuis", max_length=16, choices=CONSENT_SOURCE_CHOICES)
+    accepted_at = models.DateTimeField("accepté le", default=timezone.now)
+    withdrawn_at = models.DateTimeField("retiré le", null=True, blank=True)
+
+    objects = ConsentQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "consentement"
+        verbose_name_plural = "consentements"
+        ordering = ("-accepted_at", "-pk")
+        indexes = (models.Index(fields=("user", "kind"), name="accounts_consent_user_kind"),)
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} — {self.user_id} ({self.version or '-'})"

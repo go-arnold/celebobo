@@ -9,7 +9,7 @@ from apps.accounts.api.v1.serializers import ProfileOutput
 from apps.accounts.domain.errors import TooManyLoginAttempts
 from apps.accounts.models import User
 from apps.accounts.selectors import ProfileSelector
-from core.authz.catalog import permission_catalog
+from core.container import container
 
 
 class FrontendPasswordResetSerializer(PasswordResetSerializer):
@@ -30,5 +30,5 @@ class LockoutAwareLoginSerializer(LoginSerializer):
 
 class SessionUserSerializer(serializers.Serializer[User]):
     def to_representation(self, instance: User) -> dict[str, Any]:
-        profile = ProfileSelector(permission_catalog).profile(instance.pk)
+        profile = container.resolve(ProfileSelector).profile(instance.pk)
         return dict(ProfileOutput(profile).data)

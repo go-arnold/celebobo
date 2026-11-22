@@ -1,3 +1,7 @@
+from collections.abc import Iterable, Mapping
+from types import MappingProxyType
+from typing import ClassVar
+
 from core.domain.errors import (
     BusinessRuleViolation,
     Conflict,
@@ -137,3 +141,36 @@ class InvalidAvatar(ValidationFailed):
 
     def __init__(self) -> None:
         super().__init__(errors={"avatar_upload_id": [self.default_detail]})
+
+
+class ConsentRequired(ValidationFailed):
+    default_code = "consent_required"
+    default_detail = "Vous devez accepter les conditions obligatoires pour créer un compte."
+
+    MESSAGES: ClassVar[Mapping[str, str]] = MappingProxyType(
+        {
+            "terms": (
+                "Vous devez accepter les conditions générales de vente et le traitement de vos "
+                "données personnelles."
+            ),
+            "hosting_abroad": "Vous devez accepter l'hébergement de vos données hors de RDC.",
+        }
+    )
+
+    def __init__(self, kinds: Iterable[str]) -> None:
+        super().__init__(
+            errors={f"accept_{kind}": [self.MESSAGES[kind]] for kind in kinds},
+        )
+
+
+class UnknownConsent(NotFound):
+    default_code = "consent_not_found"
+    default_detail = "Ce consentement n'existe pas."
+
+
+class AccountIncomplete(Forbidden):
+    default_code = "account_incomplete"
+    default_detail = "Acceptez les conditions obligatoires pour continuer à utiliser votre compte."
+
+    def __init__(self, *, missing_consents: Iterable[str]) -> None:
+        super().__init__(meta={"missing_consents": list(missing_consents)})

@@ -2,7 +2,8 @@
 
 ## Sign up (client)
 
-`POST /auth/register/` — first name, last name, email, password; optional phone and referral code.
+`POST /auth/register/` — first name, last name, email, password; optional phone and referral code;
+the consent boxes `accept_terms`, `accept_hosting_abroad` and `accept_marketing` (see *Consents* below).
 
 - The email is normalised (trimmed, lower-cased) and must be unique (`email_already_used`).
 - The phone, if given, must be unique (`phone_already_used`).
@@ -13,6 +14,8 @@
   points run for 12 months from then (§12, *Referral points*). Whatever the date, while that
   reseller stays active, staff assigning the client's orders see them as the **suggested reseller**
   ([orders](04-cart-checkout-orders.md#assignment)).
+- `accept_terms` and `accept_hosting_abroad` must both be ticked (`consent_required`, with one
+  field error per missing box); `accept_marketing` is optional and never pre-checked.
 - Every self-registered account is a **client**.
 - **Email verification is mandatory**: a link to `/verifier-email/{key}` is emailed; logging in
   before confirming the address is refused. The link can be re-sent (`POST /auth/email/resend/`).
@@ -24,7 +27,8 @@
 - **Lockout**: 5 failed attempts → login blocked for 15 minutes (`too_many_login_attempts`).
 - A deactivated account cannot log in (`inactive_account`); deactivation revokes its tokens.
 - **Google sign-in**: the frontend sends the OAuth `code`; the backend exchanges it, creates the
-  account if needed (client, email already verified by Google) and opens the session.
+  account if needed (client, email already verified by Google) and opens the session. A new Google
+  account has given no consent yet: it goes through the **completion step** (below).
 - **Forgot password**: `POST /auth/password/reset/` emails a link to
   `/reinitialiser-mot-de-passe?uid=…&token=…`. The answer is the same whether or not the email exists.
 - **Change password** (logged in): old password + new password twice.
@@ -38,6 +42,68 @@
 - **Referral code** can be added **once**, if the account has none yet (`referral_already_set`),
   and never one's own code (`self_referral`). The 12 months of referral points start then.
 - The email cannot be changed by the user (an admin can, see below).
+
+## Consents
+
+Privacy policy §3, §5 and §8 (Code du numérique art. 68–70, 192, 196, 202). Each consent is its own
+record, kept as proof:
+
+| Consent (`kind`) | What the person accepts | Required |
+|---|---|:-:|
+| `terms` | Conditions of sale and processing of personal data | yes |
+| `hosting_abroad` | Express consent to the hosting of the data outside the DRC (Germany, United States) | yes |
+| `marketing` | Commercial offers by SMS, WhatsApp or e-mail | no |
+
+- A record holds the **version** of the document accepted, `accepted_at`, `withdrawn_at` and how it was
+  given (`source`: `signup`, `account`, `google` for the completion step right after a Google
+  sign-up; `checkout` is reserved for a box on the checkout page, none yet).
+- The version comes from the content app (`SiteContentFacade.policy_versions`): every consent refers
+  to the **privacy policy** page (`politique-de-confidentialite`), which describes the processing, the
+  hosting abroad and the offers. The conditions of sale have no versioned page yet.
+- History is never rewritten: accepting again (a new version) adds a record, withdrawing sets
+  `withdrawn_at` on the records still open. Giving a consent already given on the current version
+  records nothing. The back-office shows them read-only on the user.
+- Only **clients and resellers** must give the required consents; staff accounts (managers, admins)
+  are Celebobo's own team.
+
+`GET /me/consents/` lists, per consent: `given`, the version and date of the last acceptance still
+open, `current_version` of the document, `outdated` (given on an older version), plus `missing` and the
+full `history`. `POST /me/consents/ {kinds: [...]}` gives consents (`source` `account`);
+`DELETE /me/consents/{kind}/` withdraws one (`consent_not_found` for an unknown kind). Both answer the
+updated list.
+
+### Completion step
+
+`GET /me/` (and the login answer) carries `missing_consents`: the required consents not given, or given
+on an older version of the policy (when its version changes, everyone accepts again). While it is not
+empty, every authenticated endpoint answers **403 `account_incomplete`** (`meta.missing_consents`),
+except:
+
+- `/me/` (read, edit, and `DELETE` to close the account) and `/me/consents/`;
+- login, logout, token refresh, password change, e-mail verification;
+- public endpoints (catalogue, policy pages, settings), which do not need an account.
+
+The site then shows a completion page asking for the missing consents. This concerns existing accounts
+(created before consents were recorded), accounts opened with Google, resellers onboarded by staff and
+everyone after a new policy version.
+
+### Withdrawing
+
+- `marketing` is withdrawn and given again in one click from the account ("Mes consentements").
+- Withdrawing `terms` or `hosting_abroad` is possible, but the account can then no longer be used: the
+  completion step comes back, offering to accept again or to **close the account** (`DELETE /me/`,
+  clients). A reseller who withdraws must ask an administrator to deactivate the account
+  (`staff_account_deletion`).
+- Closing the account withdraws every consent still open.
+
+### Newsletter and promotions
+
+The newsletter (e-mail) follows the `marketing` consent: giving it subscribes the account's e-mail
+(source `compte`), withdrawing it unsubscribes that e-mail. The unsubscribe link of a newsletter
+e-mail also withdraws the account's `marketing` consent (policy §8: "STOP" stops the offers). A
+subscription from the footer form alone is an e-mail-only opt-in with its own record (subscriber,
+date, source): it does not create a `marketing` consent, which also covers SMS and WhatsApp.
+Notifications of the `promotions` topic only reach accounts with the `marketing` consent.
 
 ## Address book
 
@@ -54,7 +120,8 @@
 
 The account is **anonymised**, not erased, so orders and sales keep their history:
 email → `deleted-{id}@deleted.invalid`, names, phone and avatar cleared, password made unusable,
-account deactivated, `deleted_at` set, all addresses deleted.
+account deactivated, `deleted_at` set, all addresses deleted. Consents still open are withdrawn
+(their records stay, as proof).
 
 ## Notification preferences
 

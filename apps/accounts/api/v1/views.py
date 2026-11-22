@@ -20,6 +20,8 @@ from apps.accounts.api.v1.serializers import (
     AddressPatchInput,
     AvailabilityInput,
     ChangeRoleInput,
+    ConsentOverviewOutput,
+    GiveConsentsInput,
     PreferencesInput,
     PreferencesOutput,
     ProfileOutput,
@@ -33,14 +35,18 @@ from apps.accounts.domain.commands import (
     AddressChanges,
     AddressFields,
     ChangeRole,
+    GiveConsents,
     RegisterUser,
     SetAvailability,
     UpdatePreferences,
     UpdateProfile,
 )
+from apps.accounts.domain.consents import ConsentKind
+from apps.accounts.domain.errors import UnknownConsent
 from apps.accounts.facades import (
     AccountFacade,
     AddressBookFacade,
+    ConsentFacade,
     PreferencesFacade,
     RealtimeAccessFacade,
 )
@@ -57,7 +63,6 @@ from apps.accounts.permissions import (
 )
 from apps.accounts.selectors import AddressSelector, ProfileSelector, ReferralSelector
 from core.api.views import UseCaseViewSet
-from core.authz.catalog import permission_catalog
 from core.container import Inject
 
 ADDRESS_PERMISSIONS = (ADDRESSES_MANAGE,)
@@ -80,13 +85,16 @@ class RegisterViewSet(UseCaseViewSet):
 
 
 class MeViewSet(UseCaseViewSet):
+    # reachable while the account is incomplete: the completion step reads the flags here, and
+    # closing the account is the way out for someone who refuses a required consent
+    allow_incomplete_account = True
     action_permissions = {
         "retrieve": (ACCOUNT_VIEW,),
         "partial_update": (ACCOUNT_UPDATE,),
         "destroy": (ACCOUNT_DELETE,),
     }
     accounts = Inject(AccountFacade)
-    profiles = ProfileSelector(permission_catalog)
+    profiles = Inject(ProfileSelector)
 
     @extend_schema(responses=ProfileOutput)
     def retrieve(self, request: Request) -> Response:
@@ -103,6 +111,32 @@ class MeViewSet(UseCaseViewSet):
         response = Response(status=204)
         unset_jwt_cookies(response)
         return response
+
+
+class ConsentViewSet(UseCaseViewSet):
+    allow_incomplete_account = True
+    action_permissions = {
+        "list": (ACCOUNT_VIEW,),
+        "create": (ACCOUNT_UPDATE,),
+        "destroy": (ACCOUNT_UPDATE,),
+    }
+    consents = Inject(ConsentFacade)
+
+    @extend_schema(responses=ConsentOverviewOutput)
+    def list(self, request: Request) -> Response:
+        return self.respond(ConsentOverviewOutput, self.consents.overview(self.actor))
+
+    @extend_schema(request=GiveConsentsInput, responses=ConsentOverviewOutput)
+    def create(self, request: Request) -> Response:
+        command = self.parse(GiveConsentsInput, into=GiveConsents)
+        return self.respond(ConsentOverviewOutput, self.consents.give(self.actor, command))
+
+    @extend_schema(responses=ConsentOverviewOutput)
+    def destroy(self, request: Request, kind: str) -> Response:
+        if kind not in ConsentKind:
+            raise UnknownConsent
+        overview = self.consents.withdraw(self.actor, ConsentKind(kind))
+        return self.respond(ConsentOverviewOutput, overview)
 
 
 class AddressViewSet(UseCaseViewSet):

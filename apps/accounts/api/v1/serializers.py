@@ -3,6 +3,7 @@ from typing import Any
 from django_stubs_ext import StrPromise
 from rest_framework import serializers
 
+from apps.accounts.domain.consents import ConsentKind, ConsentSource
 from apps.accounts.domain.enums import (
     ACCOUNT_ROLES,
     AddressLabel,
@@ -32,6 +33,10 @@ class RegisterInput(serializers.Serializer[Any]):
     referral_code = serializers.RegexField(
         REFERRAL_PATTERN, required=False, allow_null=True, error_messages=REFERRAL_ERROR
     )
+    # distinct boxes: terms and hosting abroad are required, marketing is optional
+    accept_terms = serializers.BooleanField(default=False)
+    accept_hosting_abroad = serializers.BooleanField(default=False)
+    accept_marketing = serializers.BooleanField(default=False)
 
 
 class RegistrationOutput(serializers.Serializer[Any]):
@@ -69,6 +74,48 @@ class ProfileOutput(serializers.Serializer[Any]):
     invited_by_code = serializers.CharField(allow_null=True)
     permissions = serializers.ListField(child=serializers.CharField())
     reseller = ResellerProfileOutput(allow_null=True)
+    missing_consents = serializers.ListField(
+        child=serializers.ChoiceField(choices=[kind.value for kind in ConsentKind])
+    )
+
+
+CONSENT_KINDS = [kind.value for kind in ConsentKind]
+CONSENT_SOURCES = [source.value for source in ConsentSource]
+
+
+class GiveConsentsInput(serializers.Serializer[Any]):
+    kinds = serializers.ListField(
+        child=serializers.ChoiceField(choices=CONSENT_KINDS), allow_empty=False, max_length=3
+    )
+
+    def validate_kinds(self, value: list[str]) -> tuple[ConsentKind, ...]:
+        return tuple(dict.fromkeys(ConsentKind(kind) for kind in value))
+
+
+class ConsentStatusOutput(serializers.Serializer[Any]):
+    kind = serializers.ChoiceField(choices=CONSENT_KINDS)
+    label = serializers.CharField()  # type: ignore[assignment]
+    required = serializers.BooleanField()  # type: ignore[assignment]
+    given = serializers.BooleanField()
+    version = serializers.CharField(allow_null=True)
+    accepted_at = serializers.DateTimeField(allow_null=True)
+    source = serializers.ChoiceField(choices=CONSENT_SOURCES, allow_null=True)  # type: ignore[assignment]
+    current_version = serializers.CharField()
+    outdated = serializers.BooleanField()
+
+
+class ConsentRecordOutput(serializers.Serializer[Any]):
+    kind = serializers.ChoiceField(choices=CONSENT_KINDS)
+    version = serializers.CharField()
+    source = serializers.ChoiceField(choices=CONSENT_SOURCES)  # type: ignore[assignment]
+    accepted_at = serializers.DateTimeField()
+    withdrawn_at = serializers.DateTimeField(allow_null=True)
+
+
+class ConsentOverviewOutput(serializers.Serializer[Any]):
+    consents = ConsentStatusOutput(many=True)
+    missing = serializers.ListField(child=serializers.ChoiceField(choices=CONSENT_KINDS))
+    history = ConsentRecordOutput(many=True)
 
 
 class AddressPatchInput(serializers.Serializer[Any]):

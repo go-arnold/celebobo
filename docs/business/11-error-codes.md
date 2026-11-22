@@ -45,6 +45,9 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 422 | `inactive_account` | Ce compte est désactivé. |
 | 429 | `too_many_login_attempts` | Trop de tentatives de connexion. Réessayez dans quelques minutes. |
 | 400 | `invalid_avatar` | Cette photo est introuvable ou ne vous appartient pas. |
+| 400 | `consent_required` | Vous devez accepter les conditions obligatoires pour créer un compte. (`errors.accept_terms`, `errors.accept_hosting_abroad`) |
+| 404 | `consent_not_found` | Ce consentement n'existe pas. |
+| 403 | `account_incomplete` | Acceptez les conditions obligatoires pour continuer à utiliser votre compte. (`meta.missing_consents`) |
 
 ## Assistant
 
