@@ -10,7 +10,9 @@
   name/email, not a common password, not only digits (`weak_password`).
 - A **referral code** must belong to an active reseller (`unknown_referral_code`). The new client is
   then permanently linked to that reseller (an "invitee"); `invited_at` records when, since referral
-  points run for 12 months from then (§12, *Referral points*). Whatever the date, while that
+  points run for 12 months from then (§12, *Referral points*). The reseller's own list of invitees
+  shows only the name, sign-up date and that period, never the e-mail or purchases
+  ([resellers](06-resellers.md#their-invitees)). Whatever the date, while that
   reseller stays active, staff assigning the client's orders see them as the **suggested reseller**
   ([orders](04-cart-checkout-orders.md#assignment)).
 - Every self-registered account is a **client**.

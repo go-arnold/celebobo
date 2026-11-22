@@ -53,7 +53,8 @@ the first rating) and number of ratings (`rating_count`).
 - **Deactivate / activate**: a deactivated reseller cannot log in and is no longer assignable.
 - `/bo/resellers/stats/`: totals (resellers, active, invited clients, pending applications) and the
   **top reseller** over the last 30 days.
-- `/bo/resellers/{id}/invitees/`: the clients who signed up with their code.
+- `/bo/resellers/{id}/invitees/`: the clients who signed up with their code, with their e-mail,
+  orders count and amount ordered (staff only).
 
 ## The reseller's own space
 
@@ -64,8 +65,19 @@ the first rating) and number of ratings (`rating_count`).
 | Their sales, recording and conversion | `/bo/sales/`, `/bo/orders/{id}/convert-to-sales/` |
 | Their commissions and payouts | `/bo/commissions/summary/`, `/series/`, `/bo/payouts/`, `/bo/payout-statements/` |
 | Referral kit | `/bo/me/referral/` |
-| Their invitees (with orders count and amount ordered) | `/bo/me/invitees/` |
+| Their invitees (name, sign-up date, referral period) | `/bo/me/invitees/` |
 | Availability | `PATCH /bo/me/availability/` |
+
+### Their invitees
+
+`/bo/me/invitees/` lists the clients who signed up with the reseller's code, newest first: **name**
+("Client sans nom" when the account has none), **sign-up date**, the end of the **12-month referral
+period** (`referral_ends_at`, from `invited_at` and the loyalty settings) and whether it is still
+running (`referral_active`: their purchases still earn referral points). The summary gives the code
+and the number of invitees.
+
+No e-mail, no orders count and no amounts: a reseller never sees a client's purchase history
+(privacy policy §4). Their own gains from invitees show in their referral points.
 
 ### Referral kit
 

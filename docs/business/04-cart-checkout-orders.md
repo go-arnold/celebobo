@@ -299,7 +299,9 @@ quantity is more than what is left on the line (`invalid_return_quantity`, with 
 - `/me/orders/` (own orders), `/me/orders/{number}/` detail, cancel until out for delivery.
 - **Invoice PDF** `/me/orders/{number}/invoice/` — not available for a cancelled order (`invoice_unavailable`).
   Back-office users get the invoice of any order they can see. It prints the points used in the
-  totals and the client's **"Vos points de fidélité"** statement (§12).
+  totals and the client's **"Vos points de fidélité"** statement (§12) — except on a reseller's
+  copy: the statement gives the client's purchase totals, which a reseller never sees (privacy
+  policy §4). Past the contact window below, a reseller's copy also leaves out the phone and street.
 - **Delivery receipt PDF** `/me/orders/{number}/receipt/` — signed, issued and e-mailed at delivery
   (see [back-office tools](10-backoffice-tools.md#delivery-receipts)); before delivery
   `receipt_unavailable`.
@@ -309,5 +311,34 @@ quantity is more than what is left on the line (`invalid_return_quantity`, with 
 ## Back-office order list
 
 `/bo/orders/` with filters (status, `unassigned`, reseller, payment method, dates, search on number,
-client name or email — e-mail for staff only) and **counts per status**. Resellers only see orders
-assigned to them, without the client's e-mail ([roles](01-roles-and-permissions.md#data-scoping-same-page-filtered-data)).
+client name, recipient, phone or email — e-mail for staff only) and **counts per status**. Resellers
+only see orders assigned to them, without the client's e-mail ([roles](01-roles-and-permissions.md#data-scoping-same-page-filtered-data)).
+
+### The reseller's contact window
+
+The assigned reseller gets the client's phone and delivery address to deliver the order, and only
+for as long as that takes (privacy policy §4 and §6: "effacées de son espace 7 jours après la
+livraison, fin du délai de retour"):
+
+| Order | The assigned reseller sees the client's phone, street, quarter and delivery note |
+|---|---|
+| Open (pending to out for delivery), whatever its age | Yes: they still have to deliver it |
+| Delivered or returned, less than **7 days** after the delivery | Yes: returns are still possible |
+| Delivered or returned, 7 days or more after the delivery | **No** |
+| Cancelled (by the client, expired, or after failed deliveries) | **No, at once**: nothing is left to deliver |
+
+- The 7 days run from the order's **delivered** status event (`RESELLER_CONTACT_DAYS` in
+  `apps/orders/domain/contact.py`, fixed by the policy, not by the configurable return period).
+  A delivered order without that event counts as past the window.
+- It is a **read rule**: nothing is deleted. The order keeps the address for staff and accounting
+  (10 years). Managers and admins always see everything; the client always sees their own order.
+- Past the window the back-office detail returns `contact_hidden: true` with `address.phone`,
+  `line1`, `quarter`, `note` and `client.phone` empty. The recipient's name, the city and the
+  country stay (the reseller keeps the name through their sales and ratings anyway).
+- The same rule covers every other path: searching by phone (order list and the sales conversion
+  search) no longer finds those orders for the reseller, the invoice and the delivery receipt
+  they download leave the contact out (the signed receipt itself is unchanged and still verifies).
+  A reseller the order is reassigned away from no longer sees the order at all. Order list rows,
+  conversations, sales and exports carry no phone or address.
+- An order that is never delivered keeps its contact visible while open; it either gets delivered
+  or ends cancelled (48 h without assignment, or failed deliveries), which hides it.

@@ -106,6 +106,10 @@ class Invitee:
     name: str
     email: str
     joined_at: datetime
+    # the name alone ("" when the account has none): the reseller's own list never shows e-mails
+    full_name: str = ""
+    # start of the referral period (12 months by default, loyalty settings)
+    invited_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

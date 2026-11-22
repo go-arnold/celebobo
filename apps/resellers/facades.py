@@ -21,6 +21,7 @@ from apps.resellers.domain.events import (
 from apps.resellers.domain.read_models import (
     ApplicationView,
     InviteesPage,
+    OwnInviteesPage,
     ReferralKit,
     ResellerOverview,
     ResellerStats,
@@ -209,8 +210,8 @@ class ReferralFacade:
             raise NoReferralCode
         return self._kits.build(code)
 
-    def invitees(self, actor: Actor, *, offset: int, limit: int) -> tuple[InviteesPage, int]:
-        return self._invitees.page(_user_id(actor), offset=offset, limit=limit)
+    def invitees(self, actor: Actor, *, offset: int, limit: int) -> tuple[OwnInviteesPage, int]:
+        return self._invitees.own_page(_user_id(actor), offset=offset, limit=limit)
 
 
 def _user_id(actor: Actor) -> int:

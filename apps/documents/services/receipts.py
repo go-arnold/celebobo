@@ -19,6 +19,7 @@ RECEIPT_TEMPLATE = "documents/delivery_receipt.html"
 SIGNING_SALT = "celebobo.documents.delivery-receipt"
 # a delivered order stays delivered for the receipt even once returned
 RECEIPTED = frozenset({OrderStatus.DELIVERED, OrderStatus.RETURNED})
+CONTACT_HIDDEN = "Coordonnées masquées (7 jours après la livraison)"
 
 
 def sign(payload: Mapping[str, Any]) -> str:
@@ -67,6 +68,16 @@ def snapshot(order: OrderDetail) -> dict[str, Any]:
     }
 
 
+def _without_contact(payload: Mapping[str, Any]) -> dict[str, Any]:
+    pickup = bool(payload.get("pickup"))
+    return {
+        **payload,
+        "recipient": CONTACT_HIDDEN,
+        # a pickup happens at the shop's address, which is not the client's
+        "address": payload.get("address", "") if pickup else CONTACT_HIDDEN,
+    }
+
+
 def _moment(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value) if value else None
 
@@ -112,14 +123,16 @@ class ReceiptService:
         )
         return receipt
 
-    def render(self, receipt: DeliveryReceipt) -> RenderedFile:
+    # contact_hidden: printed for a reseller past the return period, without the client's phone
+    # and delivery address; the signed payload itself is unchanged and still verifies
+    def render(self, receipt: DeliveryReceipt, *, contact_hidden: bool = False) -> RenderedFile:
         link = f"{self._verify_page}?" + urlencode(
             {"numero": receipt.number, "signature": receipt.signature}
         )
         content = self._renderer.render(
             RECEIPT_TEMPLATE,
             {
-                "receipt": receipt.payload,
+                "receipt": _without_contact(receipt.payload) if contact_hidden else receipt.payload,
                 "number": receipt.number,
                 "signature": receipt.signature,
                 "issued_at": receipt.issued_at,

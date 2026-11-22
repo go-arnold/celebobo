@@ -10,6 +10,7 @@ from apps.accounts.domain.read_models import (
 )
 from apps.accounts.facades import ResellerAccountFacade
 from apps.accounts.selectors import ResellerDirectorySelector
+from apps.loyalty.facades import LoyaltyFacade
 from apps.orders.domain.read_models import ClientOrderTotals, RatingSummary, ResellerRatingRow
 from apps.orders.selectors import client_order_totals, rating_summaries, reseller_ratings
 from apps.sales.domain.read_models import SellerPerformance
@@ -71,6 +72,11 @@ class SalesPerformanceLedger:
     def top(self, seller_ids: Iterable[int], *, since: datetime) -> SellerPerformance | None:
         ranked = top_sellers(seller_ids, since=since)
         return ranked[0] if ranked else None
+
+
+class LoyaltyReferralTerms:
+    def months(self) -> int:
+        return container.resolve(LoyaltyFacade).programmes().points.referral_months
 
 
 class OrdersInviteeTotals:

@@ -58,6 +58,11 @@ class InviteeOrders(Protocol):
     def totals(self, client_ids: Iterable[int]) -> dict[int, ClientOrderTotals]: ...
 
 
+class ReferralTerms(Protocol):
+    # how long an invited client stays attached to their reseller (loyalty settings)
+    def months(self) -> int: ...
+
+
 class QrRenderer(Protocol):
     def svg_data_uri(self, content: str, *, scale: int) -> str: ...
 

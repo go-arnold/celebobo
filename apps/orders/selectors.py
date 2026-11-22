@@ -2,10 +2,11 @@ from collections.abc import Iterable
 from datetime import date, datetime, time
 from decimal import Decimal
 
-from django.db.models import Avg, Count, Q, QuerySet, Sum
+from django.db.models import Avg, Count, Exists, OuterRef, Q, QuerySet, Sum
 from django.utils import timezone
 
 from apps.orders.domain.commands import OrderFilters
+from apps.orders.domain.contact import HANDED_OVER, contact_cutoff, reseller_contact_hidden
 from apps.orders.domain.enums import (
     FINAL_STATUSES,
     RATABLE_STATUSES,
@@ -162,21 +163,27 @@ class OrderSelector:
         if order is None:
             raise OrderNotFound
         items = list(order.items.all())
+        history = list(order.history.all())
         client = order.client
         reseller = order.assigned_reseller
+        # staff keep the contact details; the reseller loses them after the return period
+        hidden = not staff and reseller_contact_hidden(
+            order.order_status, _delivered_at(history), now=timezone.now()
+        )
         return OrderDetail(
             summary=_summary(order, items[0] if items else None, staff=staff),
             items=tuple(_line(item) for item in items),
             address=AddressSnapshot(
                 recipient=order.recipient,
-                phone=order.phone,
-                line1=order.line1,
-                quarter=order.quarter,
+                phone="" if hidden else order.phone,
+                line1="" if hidden else order.line1,
+                quarter="" if hidden else order.quarter,
                 city=order.city,
                 country=order.country,
             ),
             payment_method=PaymentMethod(order.payment_method),
-            note=order.note,
+            # free-text delivery instructions, often a landmark or a second number
+            note="" if hidden else order.note,
             subtotal=order.subtotal,
             discount=order.discount,
             coupon_code=order.coupon_code,
@@ -215,14 +222,14 @@ class OrderSelector:
                     actor_name=_display_name(event.actor) if event.actor else None,
                     note=event.note,
                 )
-                for event in order.history.all()
+                for event in history
             ),
             allowed_transitions=(),
             client=PersonBrief(
                 id=client.pk,
                 name=_client_name(order, staff=staff),
                 email=client.email if staff else None,
-                phone=getattr(client, "phone_number", None),
+                phone=None if hidden else getattr(client, "phone_number", None),
             ),
             reseller=(
                 PersonBrief(
@@ -235,7 +242,26 @@ class OrderSelector:
                 else None
             ),
             conversation_id=None,
+            contact_hidden=hidden,
         )
+
+
+def _delivered_at(history: Iterable[OrderStatusEvent]) -> datetime | None:
+    moments = [event.created_at for event in history if event.to_status == OrderStatus.DELIVERED]
+    return max(moments, default=None)
+
+
+# the orders on which a reseller still sees the client's contact details (see _detail): open,
+# or delivered less than 7 days ago. Cancelled orders and older deliveries never match.
+def reseller_contact_visible(now: datetime) -> Q:
+    recent_delivery = OrderStatusEvent.objects.filter(
+        order=OuterRef("pk"),
+        to_status=OrderStatus.DELIVERED.value,
+        created_at__gt=contact_cutoff(now),
+    )
+    return Q(status__in=[status.value for status in OrderStatus if status.is_open]) | Q(
+        Exists(recent_delivery), status__in=[status.value for status in HANDED_OVER]
+    )
 
 
 _REFUND_PENDING = Q(refund_due__gt=0, refunded_at__isnull=True)
@@ -265,11 +291,13 @@ def _filtered(
             | Q(client__first_name__icontains=term)
             | Q(client__last_name__icontains=term)
             | Q(recipient__icontains=term)
-            | Q(phone__icontains=term)
         )
         if staff:
             # searching by e-mail would let a reseller confirm a client's address
-            matches |= Q(client__email__icontains=term)
+            matches |= Q(client__email__icontains=term) | Q(phone__icontains=term)
+        else:
+            # nor may a phone number find an order whose contact details they no longer see
+            matches |= Q(phone__icontains=term) & reseller_contact_visible(timezone.now())
         orders = orders.filter(matches)
     return orders
 
