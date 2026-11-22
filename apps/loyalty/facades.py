@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.db import transaction
 
 from apps.loyalty.domain.events import LoyaltySettingsChanged
-from apps.loyalty.domain.points import Balance, InvoiceStatement
+from apps.loyalty.domain.points import Balance, InvoiceStatement, Movement
 from apps.loyalty.domain.settings import LoyaltySettingsChanges, Programmes
 from apps.loyalty.selectors import to_programmes
 from apps.loyalty.services.points import PointsService
@@ -44,6 +44,9 @@ class PointsFacade:
 
     def mine(self, actor: Actor) -> Balance:
         return self._points.balance(_user_id(actor))
+
+    def history(self, user_id: int, *, limit: int) -> tuple[Movement, ...]:
+        return self._points.history(user_id, limit=limit)
 
     def invoice_statement(self, user_id: int, order_id: int) -> InvoiceStatement | None:
         return self._points.invoice_statement(user_id, order_id)

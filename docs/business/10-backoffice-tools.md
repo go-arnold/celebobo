@@ -38,6 +38,11 @@ event is pushed when it finishes. Users see only their own jobs; files are delet
 | Catalogue export | `exports.products` | CSV, XLSX | 20,000 rows |
 | Analytics report | `reports.analytics` | PDF | — |
 | Catalogue import | `imports.products` | CSV | 2,000 rows, 2 MB |
+| Personal data ("Mes données") | `personal_data.export.own` (everyone, own data) | ZIP (JSON + HTML) | 1 per hour, link 48 h |
+
+The personal data export has its own routes (`/me/data-export/`, see [§2](02-accounts.md#download-my-data)):
+it is not listed or served by `/jobs/`, its download link expires after **48 hours** and its file is
+deleted then, and each request and download is audited.
 
 ### Catalogue CSV import
 
@@ -117,7 +122,7 @@ Two journals, kept **365 days**:
 | Task | Frequency |
 |---|---|
 | Refresh sales aggregates (dashboard, analytics) | every 10 minutes (configurable) |
-| Delete expired job files | daily |
+| Delete expired job files (7 days; personal data exports 48 h after they are ready) | hourly |
 | Purge audit entries older than the retention period | daily |
 | Delete orphan uploads | daily |
 | Announce deals that start or end | every minute |

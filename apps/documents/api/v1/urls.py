@@ -4,6 +4,7 @@ from apps.documents.api.v1.views import (
     ExportViewSet,
     InvoiceViewSet,
     JobViewSet,
+    PersonalDataViewSet,
     ReceiptVerificationViewSet,
     ReceiptViewSet,
 )
@@ -31,6 +32,16 @@ urlpatterns = [
         "jobs/<uuid:job_id>/download/",
         JobViewSet.as_view({"get": "download"}),
         name="job-download",
+    ),
+    path(
+        "me/data-export/",
+        PersonalDataViewSet.as_view({"get": "retrieve", "post": "create"}),
+        name="my-data-export",
+    ),
+    path(
+        "me/data-export/<uuid:job_id>/download/",
+        PersonalDataViewSet.as_view({"get": "download"}),
+        name="my-data-export-download",
     ),
     path(
         "me/orders/<str:number>/invoice/",

@@ -19,6 +19,7 @@ from apps.messaging.domain.read_models import (
     NotificationView,
     ParticipantView,
     ProposalContext,
+    ThreadRecord,
     UnreadCounts,
 )
 from apps.messaging.models import (
@@ -87,6 +88,31 @@ class ConversationSelector:
             messages=[to_message_view(message) for message in batch],
             next_before=batch[-1].pk if has_more and batch else None,
         )
+
+    # the user's discussions, oldest first, with at most `limit` messages in all
+    def threads_of(self, user_id: int, *, limit: int) -> list[ThreadRecord]:
+        conversations = (
+            Conversation.objects.filter(Q(client_id=user_id) | Q(assigned_reseller_id=user_id))
+            .select_related("client", "assigned_reseller", "order")
+            .order_by("created_at", "pk")
+        )
+        threads: list[ThreadRecord] = []
+        remaining = limit
+        for conversation in conversations:
+            own_only = conversation.client_id != user_id
+            messages = Message.objects.filter(conversation_id=conversation.pk)
+            if own_only:
+                messages = messages.filter(sender_id=user_id)
+            batch = list(messages.select_related("sender").order_by("pk")[: max(remaining, 0)])
+            remaining -= len(batch)
+            threads.append(
+                ThreadRecord(
+                    conversation=_conversation_view(conversation, None),
+                    messages=tuple(to_message_view(message) for message in batch),
+                    own_messages_only=own_only,
+                )
+            )
+        return threads
 
     def message(self, message_id: int) -> MessageView:
         return to_message_view(Message.objects.select_related("sender").get(pk=message_id))

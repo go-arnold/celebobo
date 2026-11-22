@@ -55,16 +55,23 @@ class PointsService:
             next_expiry=self._valid_until(user_id, settings) if available > 0 else None,
             orders_count=count,
             orders_total=total,
-            history=tuple(
-                Movement(
-                    kind=EntryKind(entry.kind),
-                    amount=entry.amount,
-                    at=entry.created_at,
-                    order_number=entry.order.number if entry.order else None,
-                    pending=entry.kind in EARNINGS and entry.available_at > now,
-                )
-                for entry in self._entries.recent(user_id, limit=HISTORY_SIZE)
-            ),
+            history=self._movements(user_id, now, limit=HISTORY_SIZE),
+        )
+
+    # every movement, newest first (personal data export)
+    def history(self, user_id: int, *, limit: int) -> tuple[Movement, ...]:
+        return self._movements(user_id, self._clock(), limit=limit)
+
+    def _movements(self, user_id: int, now: datetime, *, limit: int) -> tuple[Movement, ...]:
+        return tuple(
+            Movement(
+                kind=EntryKind(entry.kind),
+                amount=entry.amount,
+                at=entry.created_at,
+                order_number=entry.order.number if entry.order else None,
+                pending=entry.kind in EARNINGS and entry.available_at > now,
+            )
+            for entry in self._entries.recent(user_id, limit=limit)
         )
 
     # before delivery the order shows what it will earn, pending (loyalty policy)

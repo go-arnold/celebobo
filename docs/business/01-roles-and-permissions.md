@@ -36,6 +36,7 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `reviews.create` | Review a product (only if received, see §3) | | ✓ | ✓ | ✓ | ✓ |
 | `favorites.manage` | Own favorites | | ✓ | ✓ | ✓ | ✓ |
 | `invoices.view.own` | Download the invoice and delivery receipt of own orders | | ✓ | ✓ | ✓ | ✓ |
+| `personal_data.export.own` | Download one's own data ("Mes données", ZIP) | | ✓ | ✓ | ✓ | ✓ |
 | `media.upload` | Upload an avatar or a message attachment | | ✓ | ✓ | ✓ | ✓ |
 | `conversations.use` | Read and write in own conversations | | ✓ | ✓ | ✓ | ✓ |
 | `conversations.open_support` | Open a support thread | | ✓ | ✓ | ✓ | ✓ |

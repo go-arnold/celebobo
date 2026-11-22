@@ -15,9 +15,11 @@ from apps.accounts.domain.enums import (
 from apps.accounts.domain.errors import AddressNotFound, ResellerNotFound, UserNotFound
 from apps.accounts.domain.preferences import DEFAULT_PREFERENCES
 from apps.accounts.domain.read_models import (
+    AccountRecord,
     AddressView,
     Contact,
     Invitee,
+    InviterBrief,
     InviterRef,
     InvitingReseller,
     ManagerRef,
@@ -65,6 +67,38 @@ class ProfileSelector:
             invited_by_code=user.invited_by.referral_code if user.invited_by else None,
             permissions=tuple(sorted(self._catalog.permissions_for(role))),
             reseller=_reseller_profile(user) if role is Role.RESELLER else None,
+        )
+
+
+class AccountRecordSelector:
+    """The account's own data, for the personal data export (privacy policy, art. 211)."""
+
+    def record(self, user_id: int) -> AccountRecord:
+        user = User.objects.select_related("invited_by").filter(pk=user_id).first()
+        if user is None:
+            raise UserNotFound
+        inviter = user.invited_by
+        return AccountRecord(
+            id=user.pk,
+            email=user.email,
+            email_verified=EmailAddress.objects.filter(
+                user_id=user.pk, email__iexact=user.email, verified=True
+            ).exists(),
+            first_name=user.first_name,
+            last_name=user.last_name,
+            phone_number=user.phone_number,
+            avatar=user.avatar,
+            role=user.account_role,
+            date_joined=user.date_joined,
+            last_login=user.last_login,
+            referral_code=user.referral_code,
+            invited_by=InviterBrief(
+                referral_code=inviter.referral_code, first_name=inviter.first_name
+            )
+            if inviter
+            else None,
+            invited_at=user.invited_at,
+            addresses=tuple(AddressSelector().for_user(user.pk)),
         )
 
 

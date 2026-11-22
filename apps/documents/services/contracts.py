@@ -10,6 +10,7 @@ from apps.analytics.domain.read_models import (
 )
 from apps.catalog.domain.backoffice import AdminProductRow
 from apps.catalog.domain.management import ProductChanges, ProductDraft
+from apps.documents.domain.personal_data import DataSubject
 from apps.documents.domain.tables import RenderedFile, Table
 from apps.documents.models import DeliveryReceipt
 from apps.loyalty.domain.points import InvoiceStatement
@@ -86,3 +87,14 @@ class QrCode(Protocol):
 
 class PointsStatements(Protocol):
     def statement(self, client_id: int, order_id: int) -> InvoiceStatement | None: ...
+
+
+class PersonalDataCollector(Protocol):
+    """One app's part of the personal data export.
+
+    Returns JSON-ready content (stable keys, ISO dates, money as strings), or None when the
+    section has nothing to show for this person. Only the subject's own data, and only what
+    they can already see in the app.
+    """
+
+    def collect(self, subject: DataSubject) -> Any: ...

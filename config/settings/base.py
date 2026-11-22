@@ -411,9 +411,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "loyalty.expire_points",
         "schedule": 24 * 60 * 60,
     },
+    # hourly: personal data exports are deleted as soon as their download link expires
     "purge-document-jobs": {
         "task": "documents.purge_jobs",
-        "schedule": 24 * 60 * 60,
+        "schedule": 60 * 60,
     },
     "purge-audit-trail": {
         "task": "audit.purge",
