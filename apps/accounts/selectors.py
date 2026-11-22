@@ -20,7 +20,7 @@ from apps.accounts.domain.enums import (
     ResellerOrdering,
 )
 from apps.accounts.domain.errors import AddressNotFound, ResellerNotFound, UserNotFound
-from apps.accounts.domain.phone import parse_drc_phone, phone_missing
+from apps.accounts.domain.phone import parse_drc_phone, phone_missing, phone_search_fragment
 from apps.accounts.domain.preferences import DEFAULT_PREFERENCES
 from apps.accounts.domain.read_models import (
     AddressView,
@@ -434,10 +434,13 @@ def _invitee(user: User) -> Invitee:
     )
 
 
-# phones are stored as +243…: "0812345678" finds "+243812345678"
+# phones are stored as +243…: "0812345678" finds "+243812345678", and a partial number typed in
+# the national form ("081234") is looked up without its trunk 0 or country code
 def _phone_matches(term: str) -> Q:
     phone = parse_drc_phone(term)
-    return Q(phone_number=phone) if phone else Q(phone_number__icontains=term)
+    if phone:
+        return Q(phone_number=phone)
+    return Q(phone_number__icontains=phone_search_fragment(term) or term)
 
 
 class UserDirectorySelector:

@@ -85,7 +85,7 @@ class ResellerAccountService:
 
     def _create(self, email: str, command: OnboardReseller) -> User:
         phone = self._available_phone(command.phone_number)
-        if phone is None:
+        if phone is None and command.require_phone:
             raise PhoneRequired
         return self._users.create_invited(
             email=email,

@@ -1,13 +1,31 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Any
 
 from allauth.socialaccount.models import SocialAccount
+from django.db import IntegrityError, transaction
 from django.db.models import QuerySet
 
 from apps.accounts.domain.consents import ConsentKind, ConsentSource
+from apps.accounts.domain.errors import PhoneAlreadyUsed
 from apps.accounts.models import Address, Consent, NotificationPreference, User
 from core.domain.actor import Role
+
+PHONE_CONSTRAINT = "accounts_user_phone_unique"
+
+
+# the services check `phone_taken` first, but another account may take the number between that
+# check and the save: the unique constraint then refuses it, reported like the check would
+@contextmanager
+def _unique_phone() -> Iterator[None]:
+    try:
+        with transaction.atomic():
+            yield
+    except IntegrityError as error:
+        if PHONE_CONSTRAINT in str(error):
+            raise PhoneAlreadyUsed from error
+        raise
 
 
 class UserRepository:
@@ -16,10 +34,12 @@ class UserRepository:
         return queryset.filter(pk=user_id).first()
 
     def create(self, *, email: str, password: str, **fields: Any) -> User:
-        return User.objects.create_user(email=email, password=password, **fields)
+        with _unique_phone():
+            return User.objects.create_user(email=email, password=password, **fields)
 
     def create_invited(self, *, email: str, **fields: Any) -> User:
-        return User.objects.create_user(email=email, password=None, **fields)
+        with _unique_phone():
+            return User.objects.create_user(email=email, password=None, **fields)
 
     def by_email(self, email: str, *, for_update: bool = False) -> User | None:
         queryset = User.objects.select_for_update() if for_update else User.objects.all()
@@ -31,7 +51,8 @@ class UserRepository:
         ).first()
 
     def save(self, user: User, *, fields: Iterable[str]) -> None:
-        user.save(update_fields=[*fields])
+        with _unique_phone():
+            user.save(update_fields=[*fields])
 
     def email_taken(self, email: str, *, exclude_id: int | None = None) -> bool:
         return self._others(exclude_id).filter(email__iexact=email).exists()

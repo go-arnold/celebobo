@@ -1,5 +1,6 @@
 from django.db.models import Count, Q, QuerySet
 
+from apps.accounts.domain.phone import phone_search_fragment
 from apps.resellers.domain.commands import ApplicationFilters
 from apps.resellers.domain.enums import ApplicationStatus
 from apps.resellers.domain.errors import ApplicationNotFound
@@ -46,6 +47,7 @@ class ApplicationSelector:
                 | Q(last_name__icontains=term)
                 | Q(email__icontains=term)
                 | Q(phone_number__icontains=term)
+                | Q(phone_number__icontains=phone_search_fragment(term) or term)
                 | Q(city__icontains=term)
             )
         return applications

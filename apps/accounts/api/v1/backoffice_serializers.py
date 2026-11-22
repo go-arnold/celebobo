@@ -22,12 +22,12 @@ class EditUserInput(serializers.Serializer[Any]):
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
-    phone_number = account_phone()
+    # left out or empty: kept empty for an account without a phone, refused for one that has it
+    phone_number = account_phone(required=False)
 
 
 class CreateUserInput(EditUserInput):
     role = serializers.ChoiceField(choices=ROLE_CHOICES)
-    phone_number = account_phone(required=False)
 
     def validate_role(self, value: str) -> Role:
         return Role(value)
