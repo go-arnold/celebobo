@@ -1,3 +1,4 @@
+from apps.accounts.domain.consents import ConsentKind, ConsentSource
 from apps.accounts.domain.enums import Availability
 from core.domain.actor import Role
 from core.events.base import DomainEvent, domain_event
@@ -73,3 +74,16 @@ class UserEdited(DomainEvent):
 @domain_event
 class PasswordResetRequested(DomainEvent):
     user_id: int
+
+
+@domain_event
+class ConsentsGiven(DomainEvent):
+    user_id: int
+    kinds: tuple[ConsentKind, ...]
+    source: ConsentSource
+
+
+@domain_event
+class ConsentWithdrawn(DomainEvent):
+    user_id: int
+    kind: ConsentKind

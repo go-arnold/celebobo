@@ -104,6 +104,9 @@ are always kept.
 | New message | on | on |
 | Promotions | on | **off** |
 
+Promotions only reach accounts that gave the `marketing` consent
+([accounts](02-accounts.md#consents)), whatever the preference says.
+
 ### Push notifications
 
 - The browser subscribes with the VAPID public key (`/push/public-key/`) and registers the device

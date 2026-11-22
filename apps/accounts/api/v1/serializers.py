@@ -3,6 +3,7 @@ from typing import Any
 from django_stubs_ext import StrPromise
 from rest_framework import serializers
 
+from apps.accounts.domain.consents import ConsentKind, ConsentSource
 from apps.accounts.domain.enums import (
     ACCOUNT_ROLES,
     AddressLabel,
@@ -21,17 +22,25 @@ REFERRAL_ERROR: dict[str, str | StrPromise] = {
 PHONE_ERROR: dict[str, str | StrPromise] = {"invalid": "Numéro de téléphone invalide."}
 
 
+# an account's phone: checked and normalised (+243…) by the domain, with its own error codes
+# (`invalid_phone`, `phone_required`, `phone_already_used`)
+def account_phone(**kwargs: Any) -> serializers.CharField:
+    return serializers.CharField(max_length=30, allow_null=True, allow_blank=True, **kwargs)
+
+
 class RegisterInput(serializers.Serializer[Any]):
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, trim_whitespace=False, min_length=8)
-    phone_number = serializers.RegexField(
-        PHONE_PATTERN, required=False, allow_null=True, error_messages=PHONE_ERROR
-    )
+    phone_number = account_phone(required=False)
     referral_code = serializers.RegexField(
         REFERRAL_PATTERN, required=False, allow_null=True, error_messages=REFERRAL_ERROR
     )
+    # distinct boxes: terms and hosting abroad are required, marketing is optional
+    accept_terms = serializers.BooleanField(default=False)
+    accept_hosting_abroad = serializers.BooleanField(default=False)
+    accept_marketing = serializers.BooleanField(default=False)
 
 
 class RegistrationOutput(serializers.Serializer[Any]):
@@ -43,9 +52,7 @@ class RegistrationOutput(serializers.Serializer[Any]):
 class UpdateProfileInput(serializers.Serializer[Any]):
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
-    phone_number = serializers.RegexField(
-        PHONE_PATTERN, allow_null=True, error_messages=PHONE_ERROR
-    )
+    phone_number = account_phone()
     avatar_upload_id = serializers.IntegerField(min_value=1, allow_null=True, max_value=MAX_INTEGER)
     referral_code = serializers.RegexField(REFERRAL_PATTERN, error_messages=REFERRAL_ERROR)
 
@@ -64,11 +71,55 @@ class ProfileOutput(serializers.Serializer[Any]):
     phone_number = serializers.CharField(allow_null=True)
     avatar = serializers.CharField()
     role = serializers.ChoiceField(choices=[role.value for role in ACCOUNT_ROLES])
+    # a client or reseller without a phone number: asked in the completion step
+    phone_required = serializers.BooleanField()
     email_verified = serializers.BooleanField()
     date_joined = serializers.DateTimeField()
     invited_by_code = serializers.CharField(allow_null=True)
     permissions = serializers.ListField(child=serializers.CharField())
     reseller = ResellerProfileOutput(allow_null=True)
+    missing_consents = serializers.ListField(
+        child=serializers.ChoiceField(choices=[kind.value for kind in ConsentKind])
+    )
+
+
+CONSENT_KINDS = [kind.value for kind in ConsentKind]
+CONSENT_SOURCES = [source.value for source in ConsentSource]
+
+
+class GiveConsentsInput(serializers.Serializer[Any]):
+    kinds = serializers.ListField(
+        child=serializers.ChoiceField(choices=CONSENT_KINDS), allow_empty=False, max_length=3
+    )
+
+    def validate_kinds(self, value: list[str]) -> tuple[ConsentKind, ...]:
+        return tuple(dict.fromkeys(ConsentKind(kind) for kind in value))
+
+
+class ConsentStatusOutput(serializers.Serializer[Any]):
+    kind = serializers.ChoiceField(choices=CONSENT_KINDS)
+    label = serializers.CharField()  # type: ignore[assignment]
+    required = serializers.BooleanField()  # type: ignore[assignment]
+    given = serializers.BooleanField()
+    version = serializers.CharField(allow_null=True)
+    accepted_at = serializers.DateTimeField(allow_null=True)
+    source = serializers.ChoiceField(choices=CONSENT_SOURCES, allow_null=True)  # type: ignore[assignment]
+    current_version = serializers.CharField()
+    outdated = serializers.BooleanField()
+
+
+class ConsentRecordOutput(serializers.Serializer[Any]):
+    kind = serializers.ChoiceField(choices=CONSENT_KINDS)
+    version = serializers.CharField()
+    source = serializers.ChoiceField(choices=CONSENT_SOURCES)  # type: ignore[assignment]
+    accepted_at = serializers.DateTimeField()
+    withdrawn_at = serializers.DateTimeField(allow_null=True)
+
+
+class ConsentOverviewOutput(serializers.Serializer[Any]):
+    consents = ConsentStatusOutput(many=True)
+    missing = serializers.ListField(child=serializers.ChoiceField(choices=CONSENT_KINDS))
+    history = ConsentRecordOutput(many=True)
 
 
 class AddressPatchInput(serializers.Serializer[Any]):

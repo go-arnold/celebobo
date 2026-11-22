@@ -6,6 +6,7 @@ from apps.accounts.domain.errors import (
     AlreadyReseller,
     InvalidManager,
     PhoneAlreadyUsed,
+    PhoneRequired,
     ResellerNotFound,
     StaffCannotBecomeReseller,
 )
@@ -56,6 +57,10 @@ class ResellerAccountService:
         user.availability = Availability.OFFLINE.value
         user.manager_id = manager_id
         fields = ["role", "is_staff", "is_active", "availability", "manager"]
+        if not created and not user.phone_number and command.phone_number:
+            # an existing account without a phone takes the one given at onboarding
+            user.phone_number = self._available_phone(command.phone_number, exclude_id=user.pk)
+            fields.append("phone_number")
         if not user.referral_code:
             user.referral_code = self._referrals.issue_code()
             fields.append("referral_code")
@@ -79,15 +84,21 @@ class ResellerAccountService:
         return self._access.set_active(self._reseller(reseller_id), active=active)
 
     def _create(self, email: str, command: OnboardReseller) -> User:
-        phone = normalize_phone(command.phone_number)
-        if phone and self._users.phone_taken(phone):
-            raise PhoneAlreadyUsed
+        phone = self._available_phone(command.phone_number)
+        if phone is None and command.require_phone:
+            raise PhoneRequired
         return self._users.create_invited(
             email=email,
             first_name=clean_text(command.first_name),
             last_name=clean_text(command.last_name),
             phone_number=phone,
         )
+
+    def _available_phone(self, phone: str | None, *, exclude_id: int | None = None) -> str | None:
+        normalized = normalize_phone(phone)
+        if normalized and self._users.phone_taken(normalized, exclude_id=exclude_id):
+            raise PhoneAlreadyUsed
+        return normalized
 
     def _reseller(self, reseller_id: int) -> User:
         user = self._users.get(reseller_id, for_update=True)

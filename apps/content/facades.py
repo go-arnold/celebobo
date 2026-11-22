@@ -22,6 +22,7 @@ from apps.content.domain.errors import BannersOutsidePlacement, SectionNotFound
 from apps.content.domain.events import (
     ContactMessageReceived,
     NewsletterSubscribed,
+    NewsletterUnsubscribed,
     SiteContentChanged,
 )
 from apps.content.domain.read_models import (
@@ -154,7 +155,16 @@ class NewsletterFacade:
 
     def unsubscribe(self, token: UUID) -> None:
         with transaction.atomic():
-            self._newsletter.unsubscribe(token)
+            subscriber = self._newsletter.unsubscribe(token)
+            self._publisher.publish(NewsletterUnsubscribed(subscriber_id=subscriber.pk))
+
+    def unsubscribe_email(self, email: str) -> None:
+        with transaction.atomic():
+            self._newsletter.unsubscribe_email(email)
+
+    def email_of(self, subscriber_id: int) -> str | None:
+        subscriber = self._newsletter.get(subscriber_id)
+        return subscriber.email if subscriber is not None else None
 
     def subscribers(
         self, *, active: bool | None, search: str | None, offset: int, limit: int
@@ -241,6 +251,13 @@ class SiteContentFacade:
 
     def pages(self, *, published_only: bool) -> list[PageView]:
         return self._page_selector.listing(published_only=published_only)
+
+    # version of each published page ("" when it has none): consents record the version accepted
+    def policy_versions(self, slugs: Sequence[str]) -> dict[str, str]:
+        wanted = tuple(sorted(set(slugs)))
+        return self._cache.get_or_set(
+            f"policy-versions:{','.join(wanted)}", lambda: self._page_selector.versions(wanted)
+        )
 
     def create_page(self, actor: Actor, fields: PageFields) -> PageView:
         return to_page_view(self._edit(actor, "pages", lambda: self._pages.create(fields)))

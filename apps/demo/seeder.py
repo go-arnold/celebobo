@@ -13,11 +13,19 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from django.utils.text import slugify
 
-from apps.accounts.domain.commands import AddressFields, CreateUser, OnboardReseller, RegisterUser
+from apps.accounts.domain.commands import (
+    AddressFields,
+    CreateUser,
+    GiveConsents,
+    OnboardReseller,
+    RegisterUser,
+)
+from apps.accounts.domain.consents import REQUIRED_CONSENTS
 from apps.accounts.domain.enums import AddressLabel
 from apps.accounts.facades import (
     AccountFacade,
     AddressBookFacade,
+    ConsentFacade,
     ResellerAccountFacade,
     UserAdminFacade,
 )
@@ -413,6 +421,10 @@ class DemoSeeder:
             ),
         )
         user = self._with_password(onboarded.user_id)
+        # an onboarded reseller gives the required consents at first login: done here
+        container.resolve(ConsentFacade).give(
+            actor_from_user(user), GiveConsents(kinds=REQUIRED_CONSENTS)
+        )
         self.report.accounts.append(("reseller", email, self._password))
         self.report.add("resellers")
         return user
@@ -428,6 +440,10 @@ class DemoSeeder:
                 password=self._password,
                 phone_number=person.phone,
                 referral_code=inviter.referral_code if inviter else None,
+                accept_terms=True,
+                accept_hosting_abroad=True,
+                # some clients also accept the commercial offers (newsletter)
+                accept_marketing=index % 4 == 0,
             )
         )
         user = User.objects.get(pk=registration.user_id)

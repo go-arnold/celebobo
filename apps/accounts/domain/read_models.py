@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from apps.accounts.domain.consents import ConsentKind, ConsentSource
 from apps.accounts.domain.enums import AddressLabel, Availability
 from core.domain.actor import Role
 
@@ -26,6 +27,10 @@ class Profile:
     invited_by_code: str | None
     permissions: tuple[str, ...]
     reseller: ResellerProfile | None
+    # required consents still to give before the account can be used (completion step)
+    missing_consents: tuple[ConsentKind, ...] = ()
+    # a client or reseller without a phone number (completion step)
+    phone_required: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -165,3 +170,36 @@ class InvitingReseller:
     id: int
     name: str
     invited_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ConsentRecord:
+    """One acceptance, as kept for proof."""
+
+    kind: ConsentKind
+    version: str
+    source: ConsentSource
+    accepted_at: datetime
+    withdrawn_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ConsentStatus:
+    kind: ConsentKind
+    label: str
+    required: bool
+    given: bool
+    # the last acceptance still open, if any
+    version: str | None
+    accepted_at: datetime | None
+    source: ConsentSource | None
+    current_version: str
+    # given on an older version of the document: to accept again
+    outdated: bool
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ConsentOverview:
+    consents: tuple[ConsentStatus, ...]
+    missing: tuple[ConsentKind, ...]
+    history: tuple[ConsentRecord, ...]

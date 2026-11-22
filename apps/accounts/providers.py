@@ -1,6 +1,8 @@
 from allauth.account import app_settings as account_settings
+from django.utils import timezone
 
 from apps.accounts.adapters.allauth import AllauthEmailVerifier, AllauthPasswordSetupLinks
+from apps.accounts.adapters.content import ContentNewsletter, ContentPolicyVersions
 from apps.accounts.adapters.media import MediaAvatars
 from apps.accounts.adapters.media_references import AccountMediaReferences
 from apps.accounts.adapters.security import (
@@ -9,27 +11,37 @@ from apps.accounts.adapters.security import (
     DjangoPasswordPolicy,
     SimpleJwtTokenRevoker,
 )
+from apps.accounts.domain.consents import PolicyVersions
 from apps.accounts.facades import (
     AccountFacade,
     AddressBookFacade,
+    ConsentFacade,
     PreferencesFacade,
     RealtimeAccessFacade,
     ResellerAccountFacade,
     UserAdminFacade,
 )
-from apps.accounts.repositories import AddressRepository, PreferenceRepository, UserRepository
+from apps.accounts.repositories import (
+    AddressRepository,
+    ConsentRepository,
+    PreferenceRepository,
+    UserRepository,
+)
 from apps.accounts.selectors import (
     AddressSelector,
+    ConsentSelector,
     ProfileSelector,
     ResellerDirectorySelector,
     UserDirectorySelector,
 )
 from apps.accounts.services.access import AccessService
 from apps.accounts.services.addresses import AddressBookService
+from apps.accounts.services.consents import ConsentService
 from apps.accounts.services.contracts import (
     AvatarSource,
     EmailVerifier,
     GroupSync,
+    MarketingList,
     PasswordPolicy,
     PasswordSetupLinks,
     TicketStore,
@@ -59,9 +71,22 @@ def register(container: Container) -> None:
     container.register(TicketStore, lambda _: CacheTicketStore())
     container.register(AvatarSource, lambda _: MediaAvatars())
     container.register(PasswordSetupLinks, lambda _: AllauthPasswordSetupLinks())
+    container.register(PolicyVersions, lambda _: ContentPolicyVersions())
+    container.register(MarketingList, lambda _: ContentNewsletter())
+    container.register(
+        ConsentSelector,
+        lambda c: ConsentSelector(c.resolve(PolicyVersions)),
+        lifetime=Lifetime.TRANSIENT,
+    )
+    container.register(
+        ProfileSelector,
+        lambda c: ProfileSelector(permission_catalog, c.resolve(ConsentSelector)),
+        lifetime=Lifetime.TRANSIENT,
+    )
 
     container.register(AccountFacade, _account_facade, lifetime=Lifetime.TRANSIENT)
     container.register(AddressBookFacade, _address_book_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(ConsentFacade, _consent_facade, lifetime=Lifetime.TRANSIENT)
     container.register(PreferencesFacade, _preferences_facade, lifetime=Lifetime.TRANSIENT)
     container.register(RealtimeAccessFacade, _realtime_facade, lifetime=Lifetime.TRANSIENT)
     container.register(ResellerAccountFacade, _reseller_facade, lifetime=Lifetime.TRANSIENT)
@@ -70,6 +95,12 @@ def register(container: Container) -> None:
         AccountMailer,
         lambda c: AccountMailer(UserRepository(), c.resolve(PasswordSetupLinks)),
         lifetime=Lifetime.TRANSIENT,
+    )
+
+
+def _consent_service(container: Container, users: UserRepository) -> ConsentService:
+    return ConsentService(
+        ConsentRepository(), users, container.resolve(PolicyVersions), clock=timezone.now
     )
 
 
@@ -82,7 +113,10 @@ def _account_facade(container: Container) -> AccountFacade:
             users, AddressRepository(), referrals, container.resolve(AvatarSource)
         ),
         roles=RoleService(users, referrals, container.resolve(GroupSync)),
-        selector=ProfileSelector(permission_catalog),
+        consents=_consent_service(container, users),
+        selector=container.resolve(ProfileSelector),
+        users=users,
+        newsletter=container.resolve(MarketingList),
         verifier=container.resolve(EmailVerifier),
         revoker=container.resolve(TokenRevoker),
         publisher=container.resolve(EventPublisher),
@@ -90,6 +124,17 @@ def _account_facade(container: Container) -> AccountFacade:
             account_settings.EMAIL_VERIFICATION
             == account_settings.EmailVerificationMethod.MANDATORY
         ),
+    )
+
+
+def _consent_facade(container: Container) -> ConsentFacade:
+    users = UserRepository()
+    return ConsentFacade(
+        consents=_consent_service(container, users),
+        selector=container.resolve(ConsentSelector),
+        users=users,
+        newsletter=container.resolve(MarketingList),
+        publisher=container.resolve(EventPublisher),
     )
 
 

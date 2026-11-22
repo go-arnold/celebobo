@@ -7,12 +7,14 @@ from apps.accounts.domain.commands import UpdateProfile
 from apps.accounts.domain.errors import (
     InvalidAvatar,
     PhoneAlreadyUsed,
+    PhoneRequired,
     ReferralAlreadySet,
     SelfReferral,
     StaffAccountDeletion,
     UserNotFound,
 )
 from apps.accounts.domain.normalization import clean_text, normalize_phone
+from apps.accounts.domain.phone import phone_required
 from apps.accounts.models import User
 from apps.accounts.services.contracts import AddressStore, AvatarSource, UserStore
 from apps.accounts.services.referrals import ReferralService
@@ -116,6 +118,8 @@ class ProfileService:
 
     def _available_phone(self, user: User, phone: str | None) -> str | None:
         normalized = normalize_phone(phone)
+        if normalized is None and phone_required(user.account_role):
+            raise PhoneRequired
         if normalized and self._users.phone_taken(normalized, exclude_id=user.pk):
             raise PhoneAlreadyUsed
         return normalized

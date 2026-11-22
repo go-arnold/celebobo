@@ -5,6 +5,7 @@ from django.db import IntegrityError, transaction
 
 from apps.accounts.domain.commands import OnboardReseller
 from apps.accounts.domain.normalization import clean_text, normalize_email, normalize_phone
+from apps.accounts.domain.phone import parse_drc_phone
 from apps.accounts.domain.read_models import OnboardedReseller
 from apps.resellers.domain.commands import ApproveApplication, RejectApplication, SubmitApplication
 from apps.resellers.domain.enums import ApplicationStatus
@@ -53,14 +54,18 @@ class ApplicationService:
         self, actor: Actor, application: ResellerApplication, command: ApproveApplication
     ) -> OnboardedReseller:
         self._ensure_pending(application)
+        # an application sent before numbers were checked may hold one that is not a DRC mobile:
+        # the reseller is then created without it and asked for a phone at login (completion
+        # step), while the application keeps the number as typed for staff to read
         onboarded = self._accounts.onboard(
             actor,
             OnboardReseller(
                 email=application.email,
                 first_name=application.first_name,
                 last_name=application.last_name,
-                phone_number=application.phone_number or None,
+                phone_number=parse_drc_phone(application.phone_number),
                 manager_id=command.manager_id,
+                require_phone=False,
             ),
         )
         application.reseller_id = onboarded.user_id

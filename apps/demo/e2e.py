@@ -5,11 +5,19 @@ from allauth.account.models import EmailAddress
 from django.core.cache import cache
 from django.core.management import call_command
 
-from apps.accounts.domain.commands import AddressFields, CreateUser, OnboardReseller, RegisterUser
+from apps.accounts.domain.commands import (
+    AddressFields,
+    CreateUser,
+    GiveConsents,
+    OnboardReseller,
+    RegisterUser,
+)
+from apps.accounts.domain.consents import REQUIRED_CONSENTS
 from apps.accounts.domain.enums import AddressLabel
 from apps.accounts.facades import (
     AccountFacade,
     AddressBookFacade,
+    ConsentFacade,
     ResellerAccountFacade,
     UserAdminFacade,
 )
@@ -193,7 +201,11 @@ class E2eSeeder:
             ),
         )
         User.objects.filter(pk=onboarded.user_id).update(referral_code=REFERRAL_CODE)
-        self._ready(User.objects.get(pk=onboarded.user_id), account)
+        reseller = self._ready(User.objects.get(pk=onboarded.user_id), account)
+        # an onboarded reseller gives the required consents at first login: done here
+        container.resolve(ConsentFacade).give(
+            actor_from_user(reseller), GiveConsents(kinds=REQUIRED_CONSENTS)
+        )
 
     def _client(self, account: E2eAccount) -> None:
         registration = container.resolve(AccountFacade).register(
@@ -204,6 +216,8 @@ class E2eSeeder:
                 password=self._password,
                 phone_number=account.phone,
                 referral_code=REFERRAL_CODE,
+                accept_terms=True,
+                accept_hosting_abroad=True,
             )
         )
         client = self._ready(User.objects.get(pk=registration.user_id), account)
