@@ -28,6 +28,12 @@ own as a client); a client sees their own.
   until when, and the conversation shows `closes_at`. A return after delivery restarts the delay.
   An hourly job then **closes** it ("délai écoulé"). Closing it by hand still works at any time;
   reopening it by hand removes the closing date (it stays open until closed again).
+- Once an order thread is **closed after its order ended**, the assigned reseller no longer reads
+  it: it leaves their list, opening it gives `404`, and the order detail shows them no
+  `conversation_id` (it may hold the client's phone or address: privacy policy §4 and §6, see the
+  [contact window](04-cart-checkout-orders.md#the-resellers-contact-window)). The client and staff
+  keep it; staff reopening it shares it with the reseller again. A thread closed by hand while the
+  order is still open stays readable by the reseller.
 - Back-office participants (`conversations.moderate`) can close and reopen a conversation manually.
 - Staff can **assign a support thread** to a reseller (`conversations.assign`); order threads follow
   the order's assignment instead (`not_a_support_conversation`).

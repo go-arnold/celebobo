@@ -335,10 +335,24 @@ livraison, fin du délai de retour"):
 - Past the window the back-office detail returns `contact_hidden: true` with `address.phone`,
   `line1`, `quarter`, `note` and `client.phone` empty. The recipient's name, the city and the
   country stay (the reseller keeps the name through their sales and ratings anyway).
+- Free text that may repeat the phone or address goes with it: the delivery attempts' `note`, the
+  status history's `note` (reasons typed by staff or the client, refund notes) and `refund_note`
+  come back empty. The reason codes and labels, the statuses and every date stay. The delivery
+  receipt the reseller downloads leaves out its confirmation line too.
 - The same rule covers every other path: searching by phone (order list and the sales conversion
   search) no longer finds those orders for the reseller, the invoice and the delivery receipt
   they download leave the contact out (the signed receipt itself is unchanged and still verifies).
   A reseller the order is reassigned away from no longer sees the order at all. Order list rows,
-  conversations, sales and exports carry no phone or address.
+  sales and exports carry no phone or address.
+- **The order's conversation** may hold the phone or address in what the client wrote. It stays
+  open 7 days after the order ends (the client's grace period, see
+  [messaging](07-messaging-notifications.md#closing)), then closes by itself: from then on the
+  reseller can no longer open or list it, and the order detail gives them `conversation_id: null`.
+  After delivery this matches the contact window. **Known limit**: on a cancelled order the
+  conversation stays readable by the reseller during those 7 days, while the order page already
+  hides the contact (the reseller may still answer the client about the cancellation). Staff who
+  want it cut at once close the conversation by hand; reopening it shares it with the reseller again.
+  The grace period is a setting (`MESSAGING_ORDER_THREAD_GRACE_DAYS`): keep it at 7 days, or the
+  conversation and the contact window drift apart.
 - An order that is never delivered keeps its contact visible while open; it either gets delivered
   or ends cancelled (48 h without assignment, or failed deliveries), which hides it.

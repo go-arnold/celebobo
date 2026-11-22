@@ -261,7 +261,7 @@ class ClientOrderFacade:
         return replace(
             detail,
             allowed_transitions=self._lifecycle.allowed(order, actor),
-            conversation_id=self._threads.thread_for(order.pk),
+            conversation_id=self._threads.thread_for(order.pk, actor),
             points_earned=self._wallet.earned(order.pk),
         )
 
@@ -307,7 +307,7 @@ class DispatchFacade:
             detail,
             summary=summary,
             allowed_transitions=self._lifecycle.allowed(order, actor),
-            conversation_id=self._threads.thread_for(order_id),
+            conversation_id=self._threads.thread_for(order_id, actor),
             points_earned=self._wallet.earned(order_id),
         )
 

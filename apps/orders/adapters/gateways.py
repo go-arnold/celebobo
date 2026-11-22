@@ -13,6 +13,7 @@ from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.read_models import PersonBrief, SuggestedReseller
 from apps.orders.models import Order, OrderItem
 from core.container import container
+from core.domain.actor import Actor
 
 
 class CatalogInventory:
@@ -93,7 +94,7 @@ class NoOrderThreads:
     def open_for_order(self, order: Order) -> int | None:
         return None
 
-    def thread_for(self, order_id: int) -> int | None:
+    def thread_for(self, order_id: int, viewer: Actor | None = None) -> int | None:
         return None
 
 

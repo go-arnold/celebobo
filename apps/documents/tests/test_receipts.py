@@ -201,6 +201,8 @@ class TestResellerCopyAfterTheReturnPeriod:
         assert printed["recipient"] == self.HIDDEN
         assert printed["address"] == self.HIDDEN
         assert "234 5678" not in str(printed)
+        # the staff's free-text reason for a delivery confirmed without the code
+        assert printed["confirmation"] == ""
         # issued from the full order: the signed receipt keeps everything and still verifies
         receipt = DeliveryReceipt.objects.get(order_id=order.pk)
         assert receipt.payload["recipient"] == "Aline Mbuyi · +243 81 234 5678"
@@ -224,3 +226,4 @@ class TestResellerCopyAfterTheReturnPeriod:
         assert within["recipient"] == "Aline Mbuyi · +243 81 234 5678"
         assert staff["recipient"] == "Aline Mbuyi · +243 81 234 5678"
         assert "Av. Lumumba" in staff["address"]
+        assert staff["confirmation"].endswith("Remise vérifiée par téléphone")

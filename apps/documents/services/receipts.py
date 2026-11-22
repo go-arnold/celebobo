@@ -73,6 +73,8 @@ def _without_contact(payload: Mapping[str, Any]) -> dict[str, Any]:
     return {
         **payload,
         "recipient": CONTACT_HIDDEN,
+        # free text (a staff reason for a delivery confirmed without the code) may repeat them
+        "confirmation": "",
         # a pickup happens at the shop's address, which is not the client's
         "address": payload.get("address", "") if pickup else CONTACT_HIDDEN,
     }

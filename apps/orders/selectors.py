@@ -166,7 +166,8 @@ class OrderSelector:
         history = list(order.history.all())
         client = order.client
         reseller = order.assigned_reseller
-        # staff keep the contact details; the reseller loses them after the return period
+        # staff keep the contact details; the reseller loses them after the return period, with
+        # every free-text note that may repeat them (codes, labels and dates stay)
         hidden = not staff and reseller_contact_hidden(
             order.order_status, _delivered_at(history), now=timezone.now()
         )
@@ -196,7 +197,7 @@ class OrderSelector:
             awaiting_shipping_quote=order.awaiting_shipping_quote,
             refund_due=order.refund_due,
             refunded_at=order.refunded_at,
-            refund_note=order.refund_note,
+            refund_note="" if hidden else order.refund_note,
             delivery_code=order.delivery_code,
             delivery_code_attempts=order.delivery_code_attempts,
             delivery_code_locked=order.delivery_code_locked_at is not None,
@@ -206,7 +207,7 @@ class OrderSelector:
                     at=attempt.created_at,
                     reason=attempt.reason,
                     reason_label=AttemptReason(attempt.reason).label,
-                    note=attempt.note,
+                    note="" if hidden else attempt.note,
                 )
                 for attempt in order.delivery_attempts.all()
             ),
@@ -220,7 +221,7 @@ class OrderSelector:
                     at=event.created_at,
                     actor_role=event.actor_role,
                     actor_name=_display_name(event.actor) if event.actor else None,
-                    note=event.note,
+                    note="" if hidden else event.note,
                 )
                 for event in history
             ),

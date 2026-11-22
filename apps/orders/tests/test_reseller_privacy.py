@@ -9,7 +9,7 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.orders.domain.contact import reseller_contact_hidden
 from apps.orders.domain.enums import OrderStatus
-from apps.orders.models import Order, OrderStatusEvent
+from apps.orders.models import DeliveryAttempt, Order, OrderStatusEvent
 
 pytestmark = pytest.mark.django_db
 
@@ -194,6 +194,46 @@ class TestContactWindow:
         assert cancelled.status_code == 200
 
         assert_hidden(as_user(reseller).get(f"{BO}{noted.pk}/").json())
+
+    def test_free_text_notes_go_with_the_contact(self, as_user, manager, reseller, noted):
+        DeliveryAttempt.objects.create(
+            order=noted,
+            reason="client_absent",
+            note="Rappeler au +243 99 000 0000",
+            created_at=timezone.now(),
+        )
+        Order.objects.filter(pk=noted.pk).update(refund_note="Versé sur le +243 99 000 0000")
+        deliver(as_user, manager, noted, days_ago=8)
+
+        hidden = as_user(reseller).get(f"{BO}{noted.pk}/").json()
+        staff = as_user(manager).get(f"{BO}{noted.pk}/").json()
+
+        attempt = hidden["delivery_attempts"][0]
+        assert attempt["note"] == ""
+        # the reason and the date stay: they say nothing about the client
+        assert attempt["reason"] == "client_absent"
+        assert attempt["reason_label"] == "Client absent"
+        assert attempt["at"]
+        assert {entry["note"] for entry in hidden["history"]} == {""}
+        assert [entry["status"] for entry in hidden["history"]] == [
+            entry["status"] for entry in staff["history"]
+        ]
+        assert hidden["refund_note"] == ""
+        assert "+243 99" not in str(hidden)
+        assert staff["delivery_attempts"][0]["note"].startswith("Rappeler")
+        assert any("Remise vérifiée" in entry["note"] for entry in staff["history"])
+        assert staff["refund_note"].startswith("Versé")
+
+    def test_within_the_window_the_notes_stay(self, as_user, manager, reseller, noted):
+        DeliveryAttempt.objects.create(
+            order=noted, reason="client_absent", note="Rappeler", created_at=timezone.now()
+        )
+        deliver(as_user, manager, noted, days_ago=2)
+
+        body = as_user(reseller).get(f"{BO}{noted.pk}/").json()
+
+        assert body["delivery_attempts"][0]["note"] == "Rappeler"
+        assert any("Remise vérifiée" in entry["note"] for entry in body["history"])
 
     def test_the_data_stays_on_the_order(self, as_user, manager, noted):
         deliver(as_user, manager, noted, days_ago=30)
