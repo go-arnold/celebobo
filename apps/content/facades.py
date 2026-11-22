@@ -22,6 +22,7 @@ from apps.content.domain.errors import BannersOutsidePlacement, SectionNotFound
 from apps.content.domain.events import (
     ContactMessageReceived,
     NewsletterSubscribed,
+    NewsletterUnsubscribed,
     SiteContentChanged,
 )
 from apps.content.domain.read_models import (
@@ -39,7 +40,7 @@ from apps.content.domain.read_models import (
 )
 from apps.content.domain.storefront import category_tags, product_tags, section_tags
 from apps.content.models import Banner, FaqEntry, HomeSection, Page
-from apps.content.repositories import BannerRepository, SectionRepository
+from apps.content.repositories import BannerRepository, SectionRepository, SubscriberRepository
 from apps.content.selectors import (
     BannerSelector,
     ContactSelector,
@@ -154,7 +155,16 @@ class NewsletterFacade:
 
     def unsubscribe(self, token: UUID) -> None:
         with transaction.atomic():
-            self._newsletter.unsubscribe(token)
+            subscriber = self._newsletter.unsubscribe(token)
+            self._publisher.publish(NewsletterUnsubscribed(subscriber_id=subscriber.pk))
+
+    def unsubscribe_email(self, email: str) -> None:
+        with transaction.atomic():
+            self._newsletter.unsubscribe_email(email)
+
+    def email_of(self, subscriber_id: int) -> str | None:
+        subscriber = self._newsletter.get(subscriber_id)
+        return subscriber.email if subscriber is not None else None
 
     def subscribers(
         self, *, active: bool | None, search: str | None, offset: int, limit: int
@@ -163,6 +173,18 @@ class NewsletterFacade:
 
     def export(self, *, active: bool | None) -> Iterator[SubscriberView]:
         return self._selector.export(active=active)
+
+
+# retention of client accounts (privacy policy, section 6): the e-mail of a deleted or anonymised
+# account leaves the mailing list; an opposition already expressed (unsubscribed) stays
+@logged_facade
+class NewsletterPrivacyFacade:
+    def __init__(self, *, subscribers: SubscriberRepository) -> None:
+        self._subscribers = subscribers
+
+    def forget_subscription(self, email: str) -> int:
+        with transaction.atomic():
+            return self._subscribers.delete_active(email)
 
 
 @logged_facade
@@ -241,6 +263,13 @@ class SiteContentFacade:
 
     def pages(self, *, published_only: bool) -> list[PageView]:
         return self._page_selector.listing(published_only=published_only)
+
+    # version of each published page ("" when it has none): consents record the version accepted
+    def policy_versions(self, slugs: Sequence[str]) -> dict[str, str]:
+        wanted = tuple(sorted(set(slugs)))
+        return self._cache.get_or_set(
+            f"policy-versions:{','.join(wanted)}", lambda: self._page_selector.versions(wanted)
+        )
 
     def create_page(self, actor: Actor, fields: PageFields) -> PageView:
         return to_page_view(self._edit(actor, "pages", lambda: self._pages.create(fields)))

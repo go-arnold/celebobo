@@ -3,9 +3,9 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from django.db.models import Sum
+from django.db.models import Max, Sum
 
-from apps.loyalty.domain.points import CREDITS, EARNINGS, EntryKind
+from apps.loyalty.domain.points import CLIENT_MOVEMENTS, CREDITS, EARNINGS, EntryKind
 from apps.loyalty.models import SETTINGS_ID, LoyaltySettings, PointsEntry
 
 
@@ -40,6 +40,20 @@ class PointsRepository:
             .select_related("order")
             .order_by("-created_at", "-pk")[:limit]
         )
+
+    def last_client_movements(self, user_ids: Iterable[int]) -> dict[int, datetime]:
+        rows = (
+            PointsEntry.objects.filter(
+                user_id__in=list(user_ids), kind__in=[kind.value for kind in CLIENT_MOVEMENTS]
+            )
+            .values("user_id")
+            .annotate(last=Max("created_at"))
+        )
+        return {row["user_id"]: row["last"] for row in rows}
+
+    def delete_for(self, user_id: int) -> int:
+        deleted, _ = PointsEntry.objects.filter(user_id=user_id).delete()
+        return deleted
 
     def holders(self) -> list[int]:
         return list(

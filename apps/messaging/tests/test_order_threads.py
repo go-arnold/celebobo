@@ -140,6 +140,36 @@ class TestOrderThread:
             "schedule": 3600,
         }
 
+    def test_once_closed_after_delivery_the_reseller_no_longer_reads_it(
+        self, as_user, client_user, manager, reseller, assigned_order
+    ):
+        as_user(manager).post(
+            f"/api/v1/bo/orders/{assigned_order.pk}/transition/",
+            {"to": "delivered", "reason": "Remise vérifiée par téléphone"},
+        )
+        conversation = thread_of(assigned_order)
+        url = f"/api/v1/conversations/{conversation.pk}/"
+        order_url = f"/api/v1/bo/orders/{assigned_order.pk}/"
+        # during the grace period, the same 7 days as the client's contact details
+        assert as_user(reseller).get(url).status_code == 200
+        Conversation.objects.filter(pk=conversation.pk).update(
+            closes_at=timezone.now() - timedelta(minutes=1)
+        )
+
+        close_expired_threads()
+
+        # the thread may hold the client's phone or address (privacy policy, 4 and 6)
+        reseller_api = as_user(reseller)
+        assert reseller_api.get(url).status_code == 404
+        assert reseller_api.get(f"{url}messages/").status_code == 404
+        assert reseller_api.get("/api/v1/conversations/").json()["meta"]["count"] == 0
+        assert reseller_api.get(order_url).json()["conversation_id"] is None
+        assert as_user(client_user).get(url).status_code == 200
+        assert as_user(manager).get(order_url).json()["conversation_id"] == conversation.pk
+        # reopened by staff, it is shared with the reseller again
+        as_user(manager).post(f"{url}reopen/")
+        assert reseller_api.get(url).status_code == 200
+
     def test_reopening_by_hand_drops_the_closing_date(self, as_user, manager, assigned_order):
         as_user(manager).post(
             f"/api/v1/bo/orders/{assigned_order.pk}/transition/",

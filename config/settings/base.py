@@ -199,7 +199,11 @@ REST_FRAMEWORK = {
     "ALLOWED_VERSIONS": ("v1",),
     "VERSION_PARAM": "version",
     "DEFAULT_AUTHENTICATION_CLASSES": ("dj_rest_auth.jwt_auth.JWTCookieAuthentication",),
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+        # clients and resellers must first give the required consents (completion step)
+        "apps.accounts.api.completion.AccountComplete",
+    ),
     "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
     "DEFAULT_PARSER_CLASSES": (
         "rest_framework.parsers.JSONParser",
@@ -246,6 +250,7 @@ SPECTACULAR_SETTINGS = {
     "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
     "ENUM_NAME_OVERRIDES": {
         "SectionKindEnum": ["showcase", "column"],
+        "ConsentKindEnum": ["terms", "hosting_abroad", "marketing"],
     },
 }
 
@@ -419,6 +424,21 @@ CELERY_BEAT_SCHEDULE = {
     "purge-audit-trail": {
         "task": "audit.purge",
         "schedule": 24 * 60 * 60,
+    },
+    # retention periods of the privacy policy (section 6), one entry per rule
+    **{
+        f"retention-{rule}": {
+            "task": "audit.apply_retention",
+            "schedule": 24 * 60 * 60,
+            "args": (rule,),
+        }
+        for rule in (
+            "accounts.inactive_clients",
+            "messaging.stale_conversations",
+            "resellers.rejected_applications",
+            "content.stale_subscribers",
+            "content.contact_messages",
+        )
     },
     "sweep-orphan-media": {
         "task": "media.sweep_orphans",

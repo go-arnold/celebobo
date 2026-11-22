@@ -1,6 +1,10 @@
 from collections.abc import Iterable
+from datetime import datetime
 from typing import Any
 
+from django.db.models import Q, QuerySet
+
+from apps.audit.domain.retention import Expired
 from apps.resellers.domain.enums import ApplicationStatus
 from apps.resellers.models import ResellerApplication
 
@@ -24,3 +28,37 @@ class ApplicationRepository:
 
     def save(self, application: ResellerApplication, *, fields: Iterable[str]) -> None:
         application.save(update_fields=[*fields])
+
+    # account retention: what the client applied with, unless it made them a reseller (the
+    # approved application belongs to the partnership, kept with it)
+    def delete_unapproved_for(self, applicant_id: int) -> int:
+        _, deleted = (
+            ResellerApplication.objects.filter(applicant_id=applicant_id)
+            .exclude(status=ApplicationStatus.APPROVED.value)
+            .delete()
+        )
+        return deleted.get(ResellerApplication._meta.label, 0)
+
+    def rejected_before(self, cutoff: datetime, *, after_id: int, limit: int) -> list[Expired]:
+        rows = (
+            _rejected_before(cutoff)
+            .filter(pk__gt=after_id)
+            .order_by("pk")
+            .values_list("pk", "reviewed_at", "created_at")[:limit]
+        )
+        return [
+            Expired(pk, f"candidature #{pk} refusée le {(reviewed or received):%Y-%m-%d}")
+            for pk, reviewed, received in rows
+        ]
+
+    def delete_rejected(self, ids: list[int], *, before: datetime) -> int:
+        _, deleted = _rejected_before(before).filter(pk__in=ids).delete()
+        return deleted.get(ResellerApplication._meta.label, 0)
+
+
+# the decision date, or the date it was received for rejections recorded without one
+def _rejected_before(cutoff: datetime) -> QuerySet[ResellerApplication]:
+    return ResellerApplication.objects.filter(
+        Q(reviewed_at__lt=cutoff) | Q(reviewed_at__isnull=True, created_at__lt=cutoff),
+        status=ApplicationStatus.REJECTED.value,
+    )

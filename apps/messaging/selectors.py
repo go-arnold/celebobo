@@ -29,7 +29,17 @@ from apps.messaging.models import (
     Participant,
     PriceProposal,
 )
+from apps.orders.domain.enums import FINAL_STATUSES
 from core.domain.actor import Actor
+
+# an order thread closed once the order ended (by default 7 days after delivery or cancellation,
+# the same 7 days as the client's contact details): it may hold the client's phone or address,
+# so the reseller no longer reads it (privacy policy, 4 and 6). Staff reopening it shares it again.
+_RESELLER_ACCESS_ENDED = Q(
+    kind=ConversationKind.ORDER.value,
+    status=ConversationStatus.CLOSED.value,
+    order__status__in=[status.value for status in FINAL_STATUSES],
+)
 
 
 def visible_conversations(actor: Actor) -> QuerySet[Conversation]:
@@ -38,7 +48,8 @@ def visible_conversations(actor: Actor) -> QuerySet[Conversation]:
         return conversations
     if actor.is_backoffice:
         return conversations.filter(
-            Q(assigned_reseller_id=actor.user_id) | Q(client_id=actor.user_id)
+            (Q(assigned_reseller_id=actor.user_id) & ~_RESELLER_ACCESS_ENDED)
+            | Q(client_id=actor.user_id)
         )
     if actor.user_id is not None:
         return conversations.filter(client_id=actor.user_id)

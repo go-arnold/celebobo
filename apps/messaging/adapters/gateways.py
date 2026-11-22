@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from datetime import datetime
 from decimal import Decimal
 
 from django.utils import timezone
@@ -12,9 +13,10 @@ from apps.messaging.repositories import (
     NotificationRepository,
     ParticipantRepository,
 )
+from apps.messaging.selectors import visible_conversations
 from apps.messaging.services.conversations import ConversationService
 from apps.orders.domain.read_models import AdjustableItem, OrderRef, QuotableOrder
-from apps.orders.facades import OrderAdjustmentFacade, ShippingQuoteFacade
+from apps.orders.facades import OrderAdjustmentFacade, OrderPrivacyFacade, ShippingQuoteFacade
 from apps.orders.models import Order
 from apps.orders.selectors import delivery_code, order_ref
 from core.container import container
@@ -44,6 +46,9 @@ class OrdersGateway:
     ) -> None:
         container.resolve(ShippingQuoteFacade).accept(actor, order_id, fee, delivery_estimate)
 
+    def last_orders(self, client_ids: Iterable[int]) -> dict[int, datetime]:
+        return container.resolve(OrderPrivacyFacade).last_orders(client_ids)
+
 
 class AccountsDirectory:
     def staff_ids(self) -> list[int]:
@@ -69,8 +74,11 @@ class MessagingOrderThreads:
         )
         return conversation.pk
 
-    def thread_for(self, order_id: int) -> int | None:
-        return ConversationRepository().id_for_order(order_id)
+    def thread_for(self, order_id: int, viewer: Actor | None = None) -> int | None:
+        if viewer is None:
+            return ConversationRepository().id_for_order(order_id)
+        threads = visible_conversations(viewer).filter(order_id=order_id)
+        return threads.values_list("pk", flat=True).first()
 
 
 def _conversations() -> ConversationService:

@@ -97,7 +97,7 @@ class TestReview:
         user = User.objects.get(pk=body["reseller_id"])
         assert user.role == "reseller"
         assert user.email == "grace.ilunga@example.com"
-        assert user.phone_number == "+243 82 555 0101"
+        assert user.phone_number == "+243825550101"
         assert user.manager_id == manager.pk
         assert user.referral_code is not None
         assert len(user.referral_code) == 4

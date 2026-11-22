@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
-from django.db.models import F, Q
+from django.db.models import F, Max, Q, QuerySet
 from django.db.models.functions import Greatest
 
 from apps.messaging.domain.enums import (
@@ -11,6 +11,7 @@ from apps.messaging.domain.enums import (
     ProposalStatus,
     ProposalSubject,
 )
+from apps.messaging.domain.retention import StaleConversation
 from apps.messaging.models import Conversation, Message, Notification, Participant, PriceProposal
 
 
@@ -39,6 +40,31 @@ class ConversationRepository:
     def save(self, conversation: Conversation, *, fields: Iterable[str]) -> None:
         conversation.save(update_fields=[*fields])
 
+    def stale_before(
+        self, cutoff: datetime, *, after_id: int, limit: int
+    ) -> list[StaleConversation]:
+        rows = (
+            _quiet_before(cutoff)
+            .filter(pk__gt=after_id)
+            .order_by("pk")
+            .values_list("pk", "client_id", "last_message_at", "created_at")[:limit]
+        )
+        return [
+            StaleConversation(
+                pk, f"discussion #{pk}, dernière activité le {(last or opened):%Y-%m-%d}", client
+            )
+            for pk, client, last, opened in rows
+        ]
+
+    # messages, participants, proposals and notifications go with the discussion
+    def delete_stale(self, ids: list[int], *, before: datetime) -> int:
+        _, deleted = _quiet_before(before).filter(pk__in=ids).delete()
+        return deleted.get(Conversation._meta.label, 0)
+
+    def delete_for_client(self, client_id: int) -> int:
+        _, deleted = Conversation.objects.filter(client_id=client_id).delete()
+        return deleted.get(Conversation._meta.label, 0)
+
 
 class MessageRepository:
     def create(self, conversation: Conversation, **fields: Any) -> Message:
@@ -54,6 +80,14 @@ class MessageRepository:
 
     def latest_id(self, conversation: Conversation) -> int:
         return conversation.messages.order_by("-pk").values_list("pk", flat=True).first() or 0
+
+    def last_sent(self, sender_ids: Iterable[int]) -> dict[int, datetime]:
+        rows = (
+            Message.objects.filter(sender_id__in=list(sender_ids))
+            .values("sender_id")
+            .annotate(last=Max("created_at"))
+        )
+        return {row["sender_id"]: row["last"] for row in rows}
 
 
 class ParticipantRepository:
@@ -125,6 +159,10 @@ class NotificationRepository:
             )
         )
 
+    def delete_for(self, recipient_id: int) -> int:
+        deleted, _ = Notification.objects.filter(recipient_id=recipient_id).delete()
+        return deleted
+
     def mark_all_read(self, recipient_id: int, at: datetime) -> int:
         return Notification.objects.filter(recipient_id=recipient_id, is_read=False).update(
             is_read=True, read_at=at
@@ -137,3 +175,10 @@ class NotificationRepository:
             & Q(kind=NotificationKind.NEW_MESSAGE.value)
             & Q(is_read=False)
         ).update(is_read=True, read_at=at)
+
+
+# no message (or, without any, not opened) since the cutoff
+def _quiet_before(cutoff: datetime) -> QuerySet[Conversation]:
+    return Conversation.objects.filter(
+        Q(last_message_at__lt=cutoff) | Q(last_message_at__isnull=True, created_at__lt=cutoff)
+    )

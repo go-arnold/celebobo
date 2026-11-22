@@ -91,6 +91,8 @@ class PersonBrief:
     email: str | None
     phone: str | None = None
     availability: str | None = None
+    # the account was deleted by the client or anonymised (retention): a placeholder is left
+    anonymized: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -197,6 +199,9 @@ class OrderDetail:
     client: PersonBrief
     reseller: PersonBrief | None
     conversation_id: int | None
+    # the reseller viewing it no longer gets the client's phone, address and delivery note:
+    # 7 days after delivery, or as soon as the order is cancelled (apps.orders.domain.contact)
+    contact_hidden: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

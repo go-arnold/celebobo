@@ -6,6 +6,7 @@ from apps.loyalty.domain.errors import PointsUnavailable
 from apps.loyalty.domain.points import (
     CLOSING_MONTHS,
     EARNINGS,
+    REFERRALS,
     ZERO,
     Balance,
     EntryKind,
@@ -68,7 +69,9 @@ class PointsService:
                 kind=EntryKind(entry.kind),
                 amount=entry.amount,
                 at=entry.created_at,
-                order_number=entry.order.number if entry.order else None,
+                order_number=(
+                    entry.order.number if entry.order and entry.kind not in REFERRALS else None
+                ),
                 pending=entry.kind in EARNINGS and entry.available_at > now,
             )
             for entry in self._entries.recent(user_id, limit=limit)

@@ -1,5 +1,7 @@
 from dataclasses import dataclass
+from datetime import datetime
 
+import structlog
 from django.db import transaction
 from django.utils import timezone
 
@@ -9,6 +11,7 @@ from apps.accounts.domain.commands import (
     ChangeRole,
     CreateUser,
     EditUser,
+    GiveConsents,
     OnboardReseller,
     RegisterUser,
     ResellerChanges,
@@ -17,10 +20,13 @@ from apps.accounts.domain.commands import (
     UpdateProfile,
     UserFilters,
 )
+from apps.accounts.domain.consents import ConsentKind, ConsentSource
 from apps.accounts.domain.errors import InactiveAccount, UserNotFound
 from apps.accounts.domain.events import (
     AccountDeleted,
     AvailabilityChanged,
+    ConsentsGiven,
+    ConsentWithdrawn,
     PasswordResetRequested,
     ProfileUpdated,
     ReferralAttached,
@@ -34,22 +40,28 @@ from apps.accounts.domain.events import (
 )
 from apps.accounts.domain.read_models import (
     AddressView,
+    ConsentOverview,
     OnboardedReseller,
     Profile,
     ResellerAccount,
     UserRow,
     WsTicket,
 )
+from apps.accounts.domain.retention import INACTIVITY_YEARS, Outcome
+from apps.accounts.models import User
 from apps.accounts.selectors import (
     AddressSelector,
+    ConsentSelector,
     ProfileSelector,
     ResellerDirectorySelector,
     UserDirectorySelector,
     to_address_view,
 )
 from apps.accounts.services.addresses import AddressBookService
+from apps.accounts.services.consents import ConsentService
 from apps.accounts.services.contracts import (
     EmailVerifier,
+    MarketingList,
     PasswordSetupLinks,
     TokenRevoker,
     UserStore,
@@ -58,13 +70,20 @@ from apps.accounts.services.preferences import Preferences, PreferenceService
 from apps.accounts.services.profiles import ProfileService
 from apps.accounts.services.registration import RegistrationService
 from apps.accounts.services.resellers import ResellerAccountService
+from apps.accounts.services.retention import InactiveAccountService
 from apps.accounts.services.roles import RoleService
 from apps.accounts.services.tickets import TicketService
 from apps.accounts.services.user_admin import UserAdminService
+from apps.audit.domain.retention import BATCH_SIZE, RetentionReport, years_before
+from apps.audit.services.retention import purge_expired
 from core.domain.actor import Actor, Role
 from core.domain.errors import Unauthenticated
 from core.events.contracts import EventPublisher
 from core.observability.decorators import logged_facade
+
+INACTIVE_CLIENTS_RULE = "accounts.inactive_clients"
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,7 +101,10 @@ class AccountFacade:
         registration: RegistrationService,
         profiles: ProfileService,
         roles: RoleService,
+        consents: ConsentService,
         selector: ProfileSelector,
+        users: UserStore,
+        newsletter: MarketingList,
         verifier: EmailVerifier,
         revoker: TokenRevoker,
         publisher: EventPublisher,
@@ -91,18 +113,26 @@ class AccountFacade:
         self._registration = registration
         self._profiles = profiles
         self._roles = roles
+        self._consents = consents
         self._selector = selector
+        self._users = users
+        self._newsletter = newsletter
         self._verifier = verifier
         self._revoker = revoker
         self._publisher = publisher
         self._verification_required = verification_required
 
     def register(self, command: RegisterUser) -> Registration:
+        ConsentService.require(command.consents)
         with transaction.atomic():
             user = self._registration.register(command)
             self._verifier.register_address(user)
             self._publisher.publish(
                 UserRegistered(user_id=user.pk, invited_by_id=user.invited_by_id)
+            )
+            given = self._consents.give(user.pk, command.consents, source=ConsentSource.SIGNUP)
+            consents_given(
+                self._publisher, self._newsletter, user, given, source=ConsentSource.SIGNUP
             )
         return Registration(user.pk, user.email, self._verification_required)
 
@@ -130,6 +160,14 @@ class AccountFacade:
     def delete_account(self, actor: Actor) -> None:
         user_id = _user_id(actor)
         with transaction.atomic():
+            user = self._users.get(user_id)
+            if user is not None and user.is_active:
+                withdrawn = self._consents.withdraw_all(user_id)
+                # no unsubscribe here: the scrub below deletes the subscription of the e-mail,
+                # whereas an unsubscribed row would keep the address on the opposition list
+                consents_withdrawn(
+                    self._publisher, self._newsletter, user, withdrawn, unsubscribe=False
+                )
             self._profiles.anonymize(user_id, now=timezone.now())
             self._revoker.revoke_all(user_id)
             self._publisher.publish(AccountDeleted(user_id=user_id, actor_id=user_id))
@@ -158,6 +196,89 @@ class AccountFacade:
                 )
             )
         return self._selector.profile(user_id)
+
+
+@logged_facade
+class ConsentFacade:
+    def __init__(
+        self,
+        *,
+        consents: ConsentService,
+        selector: ConsentSelector,
+        users: UserStore,
+        newsletter: MarketingList,
+        publisher: EventPublisher,
+    ) -> None:
+        self._consents = consents
+        self._selector = selector
+        self._users = users
+        self._newsletter = newsletter
+        self._publisher = publisher
+
+    def overview(self, actor: Actor) -> ConsentOverview:
+        return self._selector.overview(_user_id(actor), actor.role)
+
+    def give(self, actor: Actor, command: GiveConsents) -> ConsentOverview:
+        user_id = _user_id(actor)
+        with transaction.atomic():
+            user = self._active_user(user_id)
+            given, source = self._consents.give_from_account(user_id, command.kinds)
+            consents_given(self._publisher, self._newsletter, user, given, source=source)
+        return self.overview(actor)
+
+    def withdraw(self, actor: Actor, kind: ConsentKind) -> ConsentOverview:
+        user_id = _user_id(actor)
+        with transaction.atomic():
+            user = self._active_user(user_id)
+            withdrawn = self._consents.withdraw(user_id, (kind,))
+            consents_withdrawn(self._publisher, self._newsletter, user, withdrawn)
+        return self.overview(actor)
+
+    # the unsubscribe link of a newsletter e-mail also withdraws the account's marketing consent
+    def withdraw_marketing_of_subscriber(self, subscriber_id: int) -> None:
+        email = self._newsletter.email_of(subscriber_id)
+        user = self._users.by_email(email) if email else None
+        if user is None or not user.is_active:
+            return
+        with transaction.atomic():
+            for kind in self._consents.withdraw(user.pk, (ConsentKind.MARKETING,)):
+                self._publisher.publish(ConsentWithdrawn(user_id=user.pk, kind=kind))
+
+    def _active_user(self, user_id: int) -> User:
+        user = self._users.get(user_id)
+        if user is None or not user.is_active:
+            raise UserNotFound
+        return user
+
+
+def consents_given(
+    publisher: EventPublisher,
+    newsletter: MarketingList,
+    user: User,
+    kinds: tuple[ConsentKind, ...],
+    *,
+    source: ConsentSource,
+) -> None:
+    if not kinds:
+        return
+    publisher.publish(ConsentsGiven(user_id=user.pk, kinds=kinds, source=source, actor_id=user.pk))
+    # the newsletter follows the marketing consent (e-mail offers)
+    if ConsentKind.MARKETING in kinds:
+        newsletter.subscribe(user.email)
+
+
+def consents_withdrawn(
+    publisher: EventPublisher,
+    newsletter: MarketingList,
+    user: User,
+    kinds: tuple[ConsentKind, ...],
+    *,
+    unsubscribe: bool = True,
+) -> None:
+    for kind in kinds:
+        publisher.publish(ConsentWithdrawn(user_id=user.pk, kind=kind, actor_id=user.pk))
+    if unsubscribe and ConsentKind.MARKETING in kinds:
+        newsletter.unsubscribe(user.email)
 
 
 @logged_facade
@@ -336,3 +457,57 @@ def _user_id(actor: Actor) -> int:
     if actor.user_id is None:
         raise Unauthenticated
     return actor.user_id
+
+
+# retention rule (privacy policy, section 6): client accounts without activity for 3 years are
+# anonymised, and accounts the clients deleted 3 years ago lose what personal data remained,
+# batch by batch, each batch in one transaction and each account in its own savepoint: an account
+# that fails is logged and left for the next run, the others go ahead
+@logged_facade
+class AccountRetentionFacade:
+    label = (
+        "Comptes clients sans activité depuis 3 ans anonymisés, "
+        "et comptes supprimés depuis 3 ans effacés"
+    )
+
+    def __init__(
+        self,
+        *,
+        retention: InactiveAccountService,
+        revoker: TokenRevoker,
+        publisher: EventPublisher,
+    ) -> None:
+        self._retention = retention
+        self._revoker = revoker
+        self._publisher = publisher
+
+    def apply(self, *, now: datetime, dry_run: bool) -> RetentionReport:
+        cutoff = years_before(now, INACTIVITY_YEARS)
+        return purge_expired(
+            rule=INACTIVE_CLIENTS_RULE,
+            label=self.label,
+            fetch=lambda after: self._retention.candidates(
+                cutoff, after_id=after, limit=BATCH_SIZE
+            ),
+            keep=lambda batch: self._retention.recently_active(batch, cutoff),
+            delete=lambda ids: self._anonymize(ids, cutoff=cutoff, now=now),
+            dry_run=dry_run,
+        )
+
+    def _anonymize(self, user_ids: list[int], *, cutoff: datetime, now: datetime) -> int:
+        processed = 0
+        for user_id in user_ids:
+            try:
+                with transaction.atomic():
+                    outcome = self._retention.anonymize(user_id, cutoff=cutoff, now=now)
+                    if outcome is Outcome.ANONYMIZED:
+                        self._revoker.revoke_all(user_id)
+                        self._publisher.publish(
+                            AccountDeleted(user_id=user_id, inactivity=True, actor_id=None)
+                        )
+            except Exception:
+                logger.exception("retention.account_failed", user_id=user_id)
+                continue
+            if outcome is not Outcome.SKIPPED:
+                processed += 1
+        return processed

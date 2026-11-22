@@ -22,6 +22,7 @@ The former cashback ledger ("Cagnotte"), turned into the points ledger of the lo
 | Validity | The **whole balance** stays valid while the client buys at least once every 12 months (`points_validity_months`); each order restarts the count for every point. After 12 months without an order, everything expires, pending points included |
 | Returns | A cancelled or returned order loses what it still holds of its earning and gives back the points it used. Returning some units of a line takes back the share of the earning matching the real money returned (rounded down) and gives back the points spent on those units; returning or cancelling the whole order then settles only what is left |
 | Scope | Online customer orders only, not resellers' in-store sales |
+| Retention | The points history goes with the account: deleted when the account is anonymised, 3 years after the client's last activity, or 3 years after the client deleted the account ([§2](02-accounts.md#inactive-accounts-retention)). Expiry lines and referral points do not count as the client's activity |
 
 How it works:
 - `GET /me/points/` (clients, `points.view`) gives what the client can spend
@@ -43,7 +44,8 @@ How it works:
   pending), points used on it, available balance, total and count of the client's delivered orders
   ("factures encaissées"). The pending delay printed is the site's `return_days`. The statement is
   left out once points can no longer be used; during the closing period an undelivered order shows
-  0 earned.
+  0 earned. It is also left out when the client's account was deleted or anonymised: the points
+  history is gone, and recomputing it would show today's rate as pending.
 - A daily task expires the balances of clients whose latest order (not cancelled) — or latest
   credit, if later (points given back on a cancelled order, or a first credit before any order) —
   is older than the validity period.
@@ -64,7 +66,9 @@ them under `programmes.points` (`enabled`, `percent`, `validity_months`, `referr
 Resellers' share of what their invited clients buy (reseller policy, §3.3). They are points like any
 other: same balance, same "Mes points" page (`GET /me/points/`, `kind` `referral` and
 `referral_reversal`), spent the same way on the reseller's own purchases, never paid in cash and never
-used for delivery.
+used for delivery. Referral lines carry **no order number** (`order_number: null`; the page shows
+"Commande d'un invité"): with it the reseller could work back each invitee's purchase total
+(privacy policy §4). They show the kind, the date and the amount only.
 
 | Rule | Default |
 |---|---|

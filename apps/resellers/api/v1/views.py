@@ -11,6 +11,8 @@ from apps.resellers.api.v1.serializers import (
     ApproveApplicationInput,
     InviteeOutput,
     InviteesSummaryOutput,
+    OwnInviteeOutput,
+    OwnInviteesSummaryOutput,
     ReferralKitOutput,
     RejectApplicationInput,
     ResellerChangesInput,
@@ -178,10 +180,16 @@ class ReferralViewSet(UseCaseViewSet):
     def retrieve(self, request: Request) -> Response:
         return self.respond(ReferralKitOutput, self.referrals.kit(self.actor))
 
-    @extend_schema(responses=page_of(InviteeOutput))
+    @extend_schema(responses=page_of(OwnInviteeOutput))
     def invitees(self, request: Request) -> Response:
         page = page_request(request, default_size=20, max_size=100)
         result, total = self.referrals.invitees(
             self.actor, offset=page.offset, limit=page.page_size
         )
-        return invitees_response(request, page, result, total)
+        return page_response(
+            request,
+            page,
+            total=total,
+            results=OwnInviteeOutput(result.invitees, many=True).data,
+            meta={"summary": OwnInviteesSummaryOutput(result).data},
+        )

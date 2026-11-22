@@ -1,4 +1,6 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import datetime
 
 from django.db import transaction
 
@@ -35,7 +37,12 @@ from apps.messaging.domain.read_models import (
     UnreadCounts,
 )
 from apps.messaging.models import Conversation
-from apps.messaging.repositories import ProposalRepository
+from apps.messaging.repositories import (
+    ConversationRepository,
+    MessageRepository,
+    NotificationRepository,
+    ProposalRepository,
+)
 from apps.messaging.selectors import (
     ConversationSelector,
     NotificationSelector,
@@ -477,3 +484,27 @@ class NotificationRouter:
             fee=context.proposed_price,
             accepted=event.accepted,
         )
+
+
+# retention of client accounts (privacy policy, section 6)
+@logged_facade
+class MessagingPrivacyFacade:
+    def __init__(
+        self,
+        *,
+        conversations: ConversationRepository,
+        messages: MessageRepository,
+        notifications: NotificationRepository,
+    ) -> None:
+        self._conversations = conversations
+        self._messages = messages
+        self._notifications = notifications
+
+    def last_messages(self, user_ids: Iterable[int]) -> dict[int, datetime]:
+        return self._messages.last_sent(user_ids)
+
+    # the client's discussions (with their messages) and notifications
+    def forget_client(self, client_id: int) -> int:
+        with transaction.atomic():
+            self._notifications.delete_for(client_id)
+            return self._conversations.delete_for_client(client_id)

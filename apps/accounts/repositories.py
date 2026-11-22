@@ -1,10 +1,32 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
+from datetime import datetime
 from typing import Any
 
-from django.db.models import QuerySet
+from allauth.socialaccount.models import SocialAccount
+from django.db import IntegrityError, transaction
+from django.db.models import Q, QuerySet
 
-from apps.accounts.models import Address, NotificationPreference, User
+from apps.accounts.domain.consents import ConsentKind, ConsentSource
+from apps.accounts.domain.errors import PhoneAlreadyUsed
+from apps.accounts.models import Address, Consent, NotificationPreference, User
+from apps.audit.domain.retention import Expired
 from core.domain.actor import Role
+
+PHONE_CONSTRAINT = "accounts_user_phone_unique"
+
+
+# the services check `phone_taken` first, but another account may take the number between that
+# check and the save: the unique constraint then refuses it, reported like the check would
+@contextmanager
+def _unique_phone() -> Iterator[None]:
+    try:
+        with transaction.atomic():
+            yield
+    except IntegrityError as error:
+        if PHONE_CONSTRAINT in str(error):
+            raise PhoneAlreadyUsed from error
+        raise
 
 
 class UserRepository:
@@ -13,10 +35,12 @@ class UserRepository:
         return queryset.filter(pk=user_id).first()
 
     def create(self, *, email: str, password: str, **fields: Any) -> User:
-        return User.objects.create_user(email=email, password=password, **fields)
+        with _unique_phone():
+            return User.objects.create_user(email=email, password=password, **fields)
 
     def create_invited(self, *, email: str, **fields: Any) -> User:
-        return User.objects.create_user(email=email, password=None, **fields)
+        with _unique_phone():
+            return User.objects.create_user(email=email, password=None, **fields)
 
     def by_email(self, email: str, *, for_update: bool = False) -> User | None:
         queryset = User.objects.select_for_update() if for_update else User.objects.all()
@@ -28,7 +52,8 @@ class UserRepository:
         ).first()
 
     def save(self, user: User, *, fields: Iterable[str]) -> None:
-        user.save(update_fields=[*fields])
+        with _unique_phone():
+            user.save(update_fields=[*fields])
 
     def email_taken(self, email: str, *, exclude_id: int | None = None) -> bool:
         return self._others(exclude_id).filter(email__iexact=email).exists()
@@ -43,6 +68,9 @@ class UserRepository:
 
     def referral_code_taken(self, code: str) -> bool:
         return User.objects.filter(referral_code=code).exists()
+
+    def signed_up_with_google(self, user_id: int) -> bool:
+        return bool(SocialAccount.objects.filter(user_id=user_id, provider="google").exists())
 
     @staticmethod
     def _others(exclude_id: int | None) -> QuerySet[User]:
@@ -91,3 +119,89 @@ class PreferenceRepository:
         NotificationPreference.objects.update_or_create(
             user_id=user_id, defaults={"preferences": preferences}
         )
+
+
+# account retention: plain client accounts (no staff, no reseller, past or present) not yet
+# anonymised, without sign-up or login since the cutoff; and client accounts deleted before the
+# cutoff whose remaining personal data were not erased yet
+class InactiveClientRepository:
+    def due(self, cutoff: datetime, *, after_id: int, limit: int) -> list[Expired]:
+        rows = (
+            _due(cutoff)
+            .filter(pk__gt=after_id)
+            .order_by("pk")
+            .values_list("pk", "deleted_at", "date_joined", "last_login", "last_seen_at")[:limit]
+        )
+        return [
+            Expired(
+                pk,
+                f"compte client #{pk}, supprimé le {deleted:%Y-%m-%d}"
+                if deleted
+                else f"compte client #{pk}, vu pour la dernière fois le {_latest(*dates):%Y-%m-%d}",
+            )
+            for pk, deleted, *dates in rows
+        ]
+
+    def lock_due(self, user_id: int, cutoff: datetime) -> User | None:
+        return _due(cutoff).select_for_update().filter(pk=user_id).first()
+
+    def save(self, user: User, *, fields: Iterable[str]) -> None:
+        user.save(update_fields=[*fields])
+
+    def forget_preferences(self, user_id: int) -> None:
+        NotificationPreference.objects.filter(user_id=user_id).delete()
+
+
+def _latest(*dates: datetime | None) -> datetime:
+    return max(date for date in dates if date is not None)
+
+
+def _due(cutoff: datetime) -> QuerySet[User]:
+    quiet = (
+        Q(deleted_at__isnull=True, referral_code__isnull=True, date_joined__lt=cutoff)
+        & ~Q(last_login__gte=cutoff)
+        & ~Q(last_seen_at__gte=cutoff)
+    )
+    deleted_long_ago = Q(deleted_at__lt=cutoff)
+    return User.objects.filter(
+        quiet | deleted_long_ago,
+        role=Role.CLIENT.value,
+        is_staff=False,
+        is_superuser=False,
+        personal_data_erased_at__isnull=True,
+    )
+
+
+class ConsentRepository:
+    def accepted(self, user_id: int) -> dict[ConsentKind, str]:
+        return Consent.objects.open_versions(user_id)
+
+    def any_for(self, user_id: int) -> bool:
+        return Consent.objects.filter(user_id=user_id).exists()
+
+    def create(
+        self,
+        user_id: int,
+        *,
+        kind: ConsentKind,
+        version: str,
+        source: ConsentSource,
+        accepted_at: datetime,
+    ) -> Consent:
+        return Consent.objects.create(
+            user_id=user_id,
+            kind=kind.value,
+            version=version,
+            source=source.value,
+            accepted_at=accepted_at,
+        )
+
+    def withdraw(
+        self, user_id: int, *, kinds: Iterable[ConsentKind], at: datetime
+    ) -> tuple[ConsentKind, ...]:
+        rows = Consent.objects.filter(
+            user_id=user_id, kind__in=[kind.value for kind in kinds], withdrawn_at__isnull=True
+        )
+        withdrawn = {ConsentKind(kind) for kind in rows.values_list("kind", flat=True)}
+        rows.update(withdrawn_at=at)
+        return tuple(kind for kind in ConsentKind if kind in withdrawn)

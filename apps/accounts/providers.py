@@ -1,35 +1,63 @@
 from allauth.account import app_settings as account_settings
+from django.utils import timezone
 
 from apps.accounts.adapters.allauth import AllauthEmailVerifier, AllauthPasswordSetupLinks
+from apps.accounts.adapters.content import ContentNewsletter, ContentPolicyVersions
 from apps.accounts.adapters.media import MediaAvatars
 from apps.accounts.adapters.media_references import AccountMediaReferences
+from apps.accounts.adapters.retention import (
+    AllauthIdentities,
+    AssistantConversations,
+    CatalogEngagement,
+    LoyaltyPrivacy,
+    MessagingPrivacy,
+    Newsletter,
+    OrdersPrivacy,
+    PushDevices,
+    ResellerApplications,
+    SessionRenewals,
+    UploadedFiles,
+)
 from apps.accounts.adapters.security import (
     CacheTicketStore,
     DjangoGroupSync,
     DjangoPasswordPolicy,
     SimpleJwtTokenRevoker,
 )
+from apps.accounts.domain.consents import PolicyVersions
 from apps.accounts.facades import (
+    INACTIVE_CLIENTS_RULE,
     AccountFacade,
+    AccountRetentionFacade,
     AddressBookFacade,
+    ConsentFacade,
     PreferencesFacade,
     RealtimeAccessFacade,
     ResellerAccountFacade,
     UserAdminFacade,
 )
-from apps.accounts.repositories import AddressRepository, PreferenceRepository, UserRepository
+from apps.accounts.repositories import (
+    AddressRepository,
+    ConsentRepository,
+    InactiveClientRepository,
+    PreferenceRepository,
+    UserRepository,
+)
 from apps.accounts.selectors import (
     AddressSelector,
+    ConsentSelector,
     ProfileSelector,
     ResellerDirectorySelector,
     UserDirectorySelector,
 )
 from apps.accounts.services.access import AccessService
 from apps.accounts.services.addresses import AddressBookService
+from apps.accounts.services.consents import ConsentService
 from apps.accounts.services.contracts import (
     AvatarSource,
     EmailVerifier,
     GroupSync,
+    MarketingList,
     PasswordPolicy,
     PasswordSetupLinks,
     TicketStore,
@@ -41,9 +69,11 @@ from apps.accounts.services.profiles import ProfileService
 from apps.accounts.services.referrals import ReferralService
 from apps.accounts.services.registration import RegistrationService
 from apps.accounts.services.resellers import ResellerAccountService
+from apps.accounts.services.retention import InactiveAccountService
 from apps.accounts.services.roles import RoleService
 from apps.accounts.services.tickets import TicketService
 from apps.accounts.services.user_admin import UserAdminService
+from apps.audit.services.retention import retention_rules
 from apps.media.services.references import media_references
 from core.authz.catalog import permission_catalog
 from core.container import Container, Lifetime
@@ -59,17 +89,40 @@ def register(container: Container) -> None:
     container.register(TicketStore, lambda _: CacheTicketStore())
     container.register(AvatarSource, lambda _: MediaAvatars())
     container.register(PasswordSetupLinks, lambda _: AllauthPasswordSetupLinks())
+    container.register(PolicyVersions, lambda _: ContentPolicyVersions())
+    container.register(MarketingList, lambda _: ContentNewsletter())
+    container.register(
+        ConsentSelector,
+        lambda c: ConsentSelector(c.resolve(PolicyVersions)),
+        lifetime=Lifetime.TRANSIENT,
+    )
+    container.register(
+        ProfileSelector,
+        lambda c: ProfileSelector(permission_catalog, c.resolve(ConsentSelector)),
+        lifetime=Lifetime.TRANSIENT,
+    )
 
     container.register(AccountFacade, _account_facade, lifetime=Lifetime.TRANSIENT)
     container.register(AddressBookFacade, _address_book_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(ConsentFacade, _consent_facade, lifetime=Lifetime.TRANSIENT)
     container.register(PreferencesFacade, _preferences_facade, lifetime=Lifetime.TRANSIENT)
     container.register(RealtimeAccessFacade, _realtime_facade, lifetime=Lifetime.TRANSIENT)
     container.register(ResellerAccountFacade, _reseller_facade, lifetime=Lifetime.TRANSIENT)
     container.register(UserAdminFacade, _user_admin_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(AccountRetentionFacade, _retention_facade, lifetime=Lifetime.TRANSIENT)
+    retention_rules.add(
+        INACTIVE_CLIENTS_RULE, lambda: container.resolve(AccountRetentionFacade), replace=True
+    )
     container.register(
         AccountMailer,
         lambda c: AccountMailer(UserRepository(), c.resolve(PasswordSetupLinks)),
         lifetime=Lifetime.TRANSIENT,
+    )
+
+
+def _consent_service(container: Container, users: UserRepository) -> ConsentService:
+    return ConsentService(
+        ConsentRepository(), users, container.resolve(PolicyVersions), clock=timezone.now
     )
 
 
@@ -79,10 +132,17 @@ def _account_facade(container: Container) -> AccountFacade:
     return AccountFacade(
         registration=RegistrationService(users, referrals, container.resolve(PasswordPolicy)),
         profiles=ProfileService(
-            users, AddressRepository(), referrals, container.resolve(AvatarSource)
+            users,
+            AddressRepository(),
+            referrals,
+            container.resolve(AvatarSource),
+            Newsletter(),
         ),
         roles=RoleService(users, referrals, container.resolve(GroupSync)),
-        selector=ProfileSelector(permission_catalog),
+        consents=_consent_service(container, users),
+        selector=container.resolve(ProfileSelector),
+        users=users,
+        newsletter=container.resolve(MarketingList),
         verifier=container.resolve(EmailVerifier),
         revoker=container.resolve(TokenRevoker),
         publisher=container.resolve(EventPublisher),
@@ -90,6 +150,17 @@ def _account_facade(container: Container) -> AccountFacade:
             account_settings.EMAIL_VERIFICATION
             == account_settings.EmailVerificationMethod.MANDATORY
         ),
+    )
+
+
+def _consent_facade(container: Container) -> ConsentFacade:
+    users = UserRepository()
+    return ConsentFacade(
+        consents=_consent_service(container, users),
+        selector=container.resolve(ConsentSelector),
+        users=users,
+        newsletter=container.resolve(MarketingList),
+        publisher=container.resolve(EventPublisher),
     )
 
 
@@ -134,5 +205,30 @@ def _user_admin_facade(container: Container) -> UserAdminFacade:
         ),
         selector=UserDirectorySelector(),
         verifier=container.resolve(EmailVerifier),
+        publisher=container.resolve(EventPublisher),
+    )
+
+
+def _retention_facade(container: Container) -> AccountRetentionFacade:
+    orders, messaging, loyalty = OrdersPrivacy(), MessagingPrivacy(), LoyaltyPrivacy()
+    return AccountRetentionFacade(
+        retention=InactiveAccountService(
+            InactiveClientRepository(),
+            AddressRepository(),
+            Newsletter(),
+            activity=(SessionRenewals(), orders, messaging, loyalty),
+            erasers=(
+                AllauthIdentities(),
+                PushDevices(),
+                orders,
+                messaging,
+                loyalty,
+                AssistantConversations(),
+                ResellerApplications(),
+                CatalogEngagement(),
+                UploadedFiles(),
+            ),
+        ),
+        revoker=container.resolve(TokenRevoker),
         publisher=container.resolve(EventPublisher),
     )

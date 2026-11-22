@@ -52,6 +52,11 @@ One record, `GET /settings/public/` exposes the public part to the shop:
 - Otherwise the sender gets an acknowledgement email and staff see the message live in the
   **contact inbox** (`contact.inbox`), where they mark it `handled` (or `spam`) with an internal note.
   The inbox shows counts per status.
+- Retention: a contact message is a message with customer service, which the privacy policy (§6)
+  keeps "3 years after the last order". The form is open to visitors without an account or order,
+  so the period runs from the message: it is deleted **3 years after it was received**, whatever
+  its status, by a daily task (`content.contact_messages`, see
+  [§10](10-backoffice-tools.md#retention)).
 
 ## Newsletter
 
@@ -61,3 +66,16 @@ One record, `GET /settings/public/` exposes the public part to the shop:
 - Every email contains an **unsubscribe link** (`/newsletter/desinscription?token=…`); an unknown token
   answers `unknown_subscription`.
 - Staff (`newsletter.view`) list subscribers (active / unsubscribed, search) and export them as CSV.
+- The newsletter follows an account's `marketing` consent, both ways: giving it subscribes the
+  account's e-mail, withdrawing it unsubscribes it, and the unsubscribe link withdraws the consent
+  ([accounts](02-accounts.md#newsletter-and-promotions)).
+- Retention (privacy policy §6: marketing consent lasts until withdrawn, or 3 years without
+  interaction): an **active** subscriber whose last (re)subscription is more than 3 years old is
+  deleted by a daily task (`content.stale_subscribers`, see [§10](10-backoffice-tools.md#retention)).
+  Subscribing again after unsubscribing restarts the period (`subscribed_at` is reset); subscribing
+  again while still subscribed does not. The newsletter records no other interaction yet (no opens
+  or clicks); the account marketing consents will add theirs. **Unsubscribed** addresses are kept:
+  they are the opposition list (« ne plus m'écrire »).
+- When a client deletes their account, or it is anonymised for inactivity, the subscription of its
+  e-mail is deleted, unless that address had already unsubscribed: an opposition the person
+  expressed stays ([§2](02-accounts.md#delete-my-account)).

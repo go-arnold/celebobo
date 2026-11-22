@@ -8,6 +8,7 @@ from apps.catalog.domain.read_models import PricedLine
 from apps.orders.domain.commands import DeliveryAddress
 from apps.orders.domain.read_models import PersonBrief, SuggestedReseller
 from apps.orders.models import Order
+from core.domain.actor import Actor
 
 
 class Inventory(Protocol):
@@ -46,4 +47,5 @@ class ResellerDirectory(Protocol):
 class OrderThreads(Protocol):
     def open_for_order(self, order: Order) -> int | None: ...
 
-    def thread_for(self, order_id: int) -> int | None: ...
+    # viewer: only a thread they may still open (a reseller loses it once closed after the order)
+    def thread_for(self, order_id: int, viewer: Actor | None = None) -> int | None: ...

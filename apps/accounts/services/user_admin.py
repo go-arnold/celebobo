@@ -5,9 +5,11 @@ from apps.accounts.domain.errors import (
     InvalidRole,
     OwnAccountDeactivation,
     PhoneAlreadyUsed,
+    PhoneRequired,
     UserNotFound,
 )
 from apps.accounts.domain.normalization import clean_text, normalize_email, normalize_phone
+from apps.accounts.domain.phone import phone_required
 from apps.accounts.models import User
 from apps.accounts.services.access import AccessService
 from apps.accounts.services.contracts import UserStore
@@ -30,7 +32,9 @@ class UserAdminService:
             email=email,
             first_name=clean_text(command.first_name),
             last_name=clean_text(command.last_name),
-            phone_number=self._available_phone(command.phone_number),
+            phone_number=self._available_phone(
+                command.phone_number, required=phone_required(command.role)
+            ),
         )
         self._roles.apply(user, command.role)
         return user
@@ -44,8 +48,12 @@ class UserAdminService:
         if "email" in values:
             values["email"] = self._available_email(values["email"], exclude_id=user.pk)
         if "phone_number" in values:
+            # a client without a phone (cleared as invalid or duplicate) can be edited with the
+            # phone left empty: they are asked for one at login, in the completion step
             values["phone_number"] = self._available_phone(
-                values["phone_number"], exclude_id=user.pk
+                values["phone_number"],
+                exclude_id=user.pk,
+                required=phone_required(user.account_role) and bool(user.phone_number),
             )
         changed = tuple(name for name, value in values.items() if getattr(user, name) != value)
         for name in changed:
@@ -71,8 +79,12 @@ class UserAdminService:
             raise EmailAlreadyUsed
         return normalized
 
-    def _available_phone(self, phone: str | None, *, exclude_id: int | None = None) -> str | None:
+    def _available_phone(
+        self, phone: str | None, *, exclude_id: int | None = None, required: bool = False
+    ) -> str | None:
         normalized = normalize_phone(phone)
+        if normalized is None and required:
+            raise PhoneRequired
         if normalized and self._users.phone_taken(normalized, exclude_id=exclude_id):
             raise PhoneAlreadyUsed
         return normalized

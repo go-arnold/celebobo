@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from apps.accounts.domain.consents import ConsentKind, ConsentSource
 from apps.accounts.domain.enums import AddressLabel, Availability
 from core.domain.actor import Role
 
@@ -26,6 +27,10 @@ class Profile:
     invited_by_code: str | None
     permissions: tuple[str, ...]
     reseller: ResellerProfile | None
+    # required consents still to give before the account can be used (completion step)
+    missing_consents: tuple[ConsentKind, ...] = ()
+    # a client or reseller without a phone number (completion step)
+    phone_required: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -106,6 +111,10 @@ class Invitee:
     name: str
     email: str
     joined_at: datetime
+    # the name alone ("" when the account has none): the reseller's own list never shows e-mails
+    full_name: str = ""
+    # start of the referral period (12 months by default, loyalty settings)
+    invited_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -189,3 +198,36 @@ class AccountRecord:
     invited_by: InviterBrief | None
     invited_at: datetime | None
     addresses: tuple[AddressView, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ConsentRecord:
+    """One acceptance, as kept for proof."""
+
+    kind: ConsentKind
+    version: str
+    source: ConsentSource
+    accepted_at: datetime
+    withdrawn_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ConsentStatus:
+    kind: ConsentKind
+    label: str
+    required: bool
+    given: bool
+    # the last acceptance still open, if any
+    version: str | None
+    accepted_at: datetime | None
+    source: ConsentSource | None
+    current_version: str
+    # given on an older version of the document: to accept again
+    outdated: bool
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ConsentOverview:
+    consents: tuple[ConsentStatus, ...]
+    missing: tuple[ConsentKind, ...]
+    history: tuple[ConsentRecord, ...]

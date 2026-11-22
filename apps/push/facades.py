@@ -43,6 +43,11 @@ class PushFacade:
         with transaction.atomic():
             self._devices.remove(_user_id(actor), device_id)
 
+    # the account was anonymised (retention): its devices go
+    def forget(self, user_id: int) -> int:
+        with transaction.atomic():
+            return self._devices.remove_all(user_id)
+
     def send(self, user_ids: Iterable[int], message: PushMessage) -> SendResult:
         if not self._enabled:
             return NOTHING_SENT

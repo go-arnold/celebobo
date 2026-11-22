@@ -28,9 +28,11 @@ class NewsletterService:
         if existing is not None:
             if existing.is_active:
                 return SubscriptionResult(existing, created=False)
+            # a new consent: the 3-year retention period starts again from here
             existing.unsubscribed_at = None
+            existing.subscribed_at = self._clock()
             existing.source = source or existing.source
-            self._subscribers.save(existing, fields=("unsubscribed_at", "source"))
+            self._subscribers.save(existing, fields=("unsubscribed_at", "subscribed_at", "source"))
             return SubscriptionResult(existing, created=True)
         try:
             with transaction.atomic():
@@ -49,7 +51,17 @@ class NewsletterService:
         subscriber = self._subscribers.by_token(token)
         if subscriber is None:
             raise UnknownSubscription
+        self._stop(subscriber)
+        return subscriber
+
+    # the account's marketing consent was withdrawn: no more e-mail offers to that address
+    def unsubscribe_email(self, email: str) -> Subscriber | None:
+        subscriber = self._subscribers.by_email(normalize_email(email), for_update=True)
+        if subscriber is not None:
+            self._stop(subscriber)
+        return subscriber
+
+    def _stop(self, subscriber: Subscriber) -> None:
         if subscriber.is_active:
             subscriber.unsubscribed_at = self._clock()
             self._subscribers.save(subscriber, fields=("unsubscribed_at",))
-        return subscriber

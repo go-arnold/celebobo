@@ -3,7 +3,11 @@ from django.utils import timezone
 from apps.assistant.adapters.gateways import CatalogCards, CatalogDocuments, OrdersDeliveryZones
 from apps.assistant.adapters.offline import HashingEmbedder, OfflineChatModel
 from apps.assistant.conf import AssistantSettings, assistant_settings
-from apps.assistant.facades import AssistantFacade, AssistantInsightsFacade
+from apps.assistant.facades import (
+    AssistantFacade,
+    AssistantInsightsFacade,
+    AssistantPrivacyFacade,
+)
 from apps.assistant.repositories import EmbeddingRepository, MessageRepository, SessionRepository
 from apps.assistant.selectors import LogSelector, SessionSelector, VectorSelector
 from apps.assistant.services.chat import ChatService
@@ -57,6 +61,11 @@ def register(container: Container) -> None:
     container.register(ProductCards, lambda _: CatalogCards())
     container.register(AssistantFacade, _assistant_facade, lifetime=Lifetime.TRANSIENT)
     container.register(AssistantInsightsFacade, _insights_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(
+        AssistantPrivacyFacade,
+        lambda _: AssistantPrivacyFacade(sessions=SessionRepository()),
+        lifetime=Lifetime.TRANSIENT,
+    )
 
 
 def _assistant_facade(container: Container) -> AssistantFacade:

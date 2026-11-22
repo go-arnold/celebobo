@@ -2,6 +2,7 @@ from time import time
 
 from django.utils import timezone
 
+from apps.audit.services.retention import retention_rules
 from apps.content.adapters.gateways import CatalogShowcase, LoyaltyProgrammes, OrdersShipping
 from apps.content.adapters.media_references import ContentMediaReferences
 from apps.content.adapters.storefront import HttpRevalidator
@@ -15,12 +16,14 @@ from apps.content.domain.errors import (
 from apps.content.facades import (
     ContactFacade,
     NewsletterFacade,
+    NewsletterPrivacyFacade,
     SiteContentFacade,
     StorefrontFacade,
 )
 from apps.content.models import ContactMessage, FaqEntry, Page
 from apps.content.repositories import (
     BannerRepository,
+    ContactMessageRepository,
     ModelRepository,
     SectionRepository,
     SettingsRepository,
@@ -46,6 +49,12 @@ from apps.content.services.editors import Editor
 from apps.content.services.home import HomeService, flatten
 from apps.content.services.mailer import ContentMailer
 from apps.content.services.newsletter import NewsletterService
+from apps.content.services.retention import (
+    CONTACT_RULE,
+    ContactMessageRetention,
+    StaleSubscriberRetention,
+)
+from apps.content.services.retention import RULE as SUBSCRIBERS_RULE
 from apps.content.services.rules import BannerRules, SectionRules, UniqueSlug
 from apps.content.services.site import SiteSettingsService
 from apps.content.services.storefront import PendingTags
@@ -61,12 +70,25 @@ HOME_CATEGORY_BLOCKS = 4
 
 def register(container: Container) -> None:
     media_references.add("content", ContentMediaReferences, replace=True)
+    retention_rules.add(
+        SUBSCRIBERS_RULE,
+        lambda: StaleSubscriberRetention(SubscriberRepository()),
+        replace=True,
+    )
+    retention_rules.add(
+        CONTACT_RULE, lambda: ContactMessageRetention(ContactMessageRepository()), replace=True
+    )
     container.register(ContentCache, lambda _: ContentCache())
     container.register(Showcase, lambda _: CatalogShowcase())
     container.register(ShippingSource, lambda _: OrdersShipping())
     container.register(ProgrammesSource, lambda _: LoyaltyProgrammes())
     container.register(ContactFacade, _contact_facade, lifetime=Lifetime.TRANSIENT)
     container.register(NewsletterFacade, _newsletter_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(
+        NewsletterPrivacyFacade,
+        lambda _: NewsletterPrivacyFacade(subscribers=SubscriberRepository()),
+        lifetime=Lifetime.TRANSIENT,
+    )
     container.register(SiteContentFacade, _content_facade, lifetime=Lifetime.TRANSIENT)
     container.register(StorefrontFacade, _storefront_facade, lifetime=Lifetime.TRANSIENT)
 

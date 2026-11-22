@@ -20,6 +20,12 @@ First name, last name, email, phone, city, message.
   (with an invitation to set a password if the account was just created).
 - **Reject** with a reason: closed as rejected, the applicant is emailed.
 - An application can be decided **once** (`application_reviewed`).
+- Privacy policy §6: a **rejected** application is deleted **1 year after the decision** (after it
+  was received if no decision date was recorded) by a daily task (`resellers.rejected_applications`,
+  see [§10](10-backoffice-tools.md#retention)). Pending and approved applications stay; a reseller
+  account and its commissions follow the partnership (10 years for the accounting records). When a
+  client account is anonymised, or 3 years after the client deleted it, its applications go unless
+  approved ([§2](02-accounts.md#inactive-accounts-retention)).
 
 ### Onboarding rules
 
@@ -53,7 +59,8 @@ the first rating) and number of ratings (`rating_count`).
 - **Deactivate / activate**: a deactivated reseller cannot log in and is no longer assignable.
 - `/bo/resellers/stats/`: totals (resellers, active, invited clients, pending applications) and the
   **top reseller** over the last 30 days.
-- `/bo/resellers/{id}/invitees/`: the clients who signed up with their code.
+- `/bo/resellers/{id}/invitees/`: the clients who signed up with their code, with their e-mail,
+  orders count and amount ordered (staff only).
 
 ## The reseller's own space
 
@@ -64,8 +71,19 @@ the first rating) and number of ratings (`rating_count`).
 | Their sales, recording and conversion | `/bo/sales/`, `/bo/orders/{id}/convert-to-sales/` |
 | Their commissions and payouts | `/bo/commissions/summary/`, `/series/`, `/bo/payouts/`, `/bo/payout-statements/` |
 | Referral kit | `/bo/me/referral/` |
-| Their invitees (with orders count and amount ordered) | `/bo/me/invitees/` |
+| Their invitees (name, sign-up date, referral period) | `/bo/me/invitees/` |
 | Availability | `PATCH /bo/me/availability/` |
+
+### Their invitees
+
+`/bo/me/invitees/` lists the clients who signed up with the reseller's code, newest first: **name**
+("Client sans nom" when the account has none), **sign-up date**, the end of the **12-month referral
+period** (`referral_ends_at`, from `invited_at` and the loyalty settings) and whether it is still
+running (`referral_active`: their purchases still earn referral points). The summary gives the code
+and the number of invitees.
+
+No e-mail, no orders count and no amounts: a reseller never sees a client's purchase history
+(privacy policy §4). Their own gains from invitees show in their referral points.
 
 ### Referral kit
 
