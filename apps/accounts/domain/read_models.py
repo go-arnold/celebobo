@@ -29,6 +29,8 @@ class Profile:
     reseller: ResellerProfile | None
     # required consents still to give before the account can be used (completion step)
     missing_consents: tuple[ConsentKind, ...] = ()
+    # a client or reseller without a phone number (completion step)
+    phone_required: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

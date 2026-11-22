@@ -58,9 +58,10 @@ class TestProfile:
         assert client_user.email == "aline@celebobo.test"
 
     def test_phone_must_be_unique(self, as_user, client_user):
-        UserFactory.create(phone_number="+243 99 000 0000")
+        UserFactory.create(phone_number="+243990000000")
 
-        response = as_user(client_user).patch(ME, {"phone_number": "+243 99 000 0000"})
+        # the same number in another format
+        response = as_user(client_user).patch(ME, {"phone_number": "099 000 0000"})
 
         assert response.status_code == 400
         assert response.json()["code"] == "phone_already_used"

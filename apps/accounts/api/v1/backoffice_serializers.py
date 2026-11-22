@@ -2,7 +2,7 @@ from typing import Any
 
 from rest_framework import serializers
 
-from apps.accounts.api.v1.serializers import PHONE_ERROR, PHONE_PATTERN
+from apps.accounts.api.v1.serializers import account_phone
 from apps.accounts.domain.enums import ACCOUNT_ROLES
 from core.domain.actor import Role
 
@@ -22,16 +22,12 @@ class EditUserInput(serializers.Serializer[Any]):
     first_name = serializers.CharField(max_length=150)
     last_name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
-    phone_number = serializers.RegexField(
-        PHONE_PATTERN, error_messages=PHONE_ERROR, allow_null=True
-    )
+    phone_number = account_phone()
 
 
 class CreateUserInput(EditUserInput):
     role = serializers.ChoiceField(choices=ROLE_CHOICES)
-    phone_number = serializers.RegexField(
-        PHONE_PATTERN, error_messages=PHONE_ERROR, required=False, allow_null=True
-    )
+    phone_number = account_phone(required=False)
 
     def validate_role(self, value: str) -> Role:
         return Role(value)
