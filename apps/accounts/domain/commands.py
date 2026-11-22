@@ -97,6 +97,9 @@ class OnboardReseller:
     last_name: str
     phone_number: str | None = None
     manager_id: int | None = None
+    # False for an application sent before numbers were checked, whose number is not valid: the
+    # reseller is created without one and asked for it at login, in the completion step
+    require_phone: bool = True
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

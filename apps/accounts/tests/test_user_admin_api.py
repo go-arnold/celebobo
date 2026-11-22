@@ -104,7 +104,7 @@ class TestCreation:
 
     def test_rejects_taken_email_and_phone(self, as_user, admin_user, client_user):
         api = as_user(admin_user)
-        client_user.phone_number = "+243 81 777 0000"
+        client_user.phone_number = "+243817770000"
         client_user.save(update_fields=["phone_number"])
 
         email = api.post(USERS, {**NEW_USER, "email": "ALINE@celebobo.test"}, format="json")
@@ -148,15 +148,27 @@ class TestEditing:
 
         assert response.status_code == 400
 
-    def test_clears_the_phone(self, as_user, admin_user, client_user):
-        client_user.phone_number = "+243 81 000 0009"
-        client_user.save(update_fields=["phone_number"])
-
+    def test_clears_a_staff_phone(self, as_user, admin_user, manager):
         response = as_user(admin_user).patch(
-            f"{USERS}{client_user.pk}/", {"phone_number": None}, format="json"
+            f"{USERS}{manager.pk}/", {"phone_number": None}, format="json"
         )
 
         assert response.json()["phone_number"] is None
+
+    def test_client_phone_cannot_be_cleared(self, as_user, admin_user, client_user):
+        response = as_user(admin_user).patch(
+            f"{USERS}{client_user.pk}/", {"phone_number": ""}, format="json"
+        )
+
+        assert response.status_code == 400
+        assert response.json()["code"] == "phone_required"
+
+    def test_normalises_the_phone(self, as_user, admin_user, client_user):
+        response = as_user(admin_user).patch(
+            f"{USERS}{client_user.pk}/", {"phone_number": "0991 234 567"}, format="json"
+        )
+
+        assert response.json()["phone_number"] == "+243991234567"
 
 
 class TestAccess:

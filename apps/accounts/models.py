@@ -26,13 +26,14 @@ CONSENT_SOURCE_CHOICES = [(item.value, item.value) for item in ConsentSource]
 class User(AbstractUser):
     username = None  # type: ignore[assignment]
     email = models.EmailField("adresse e-mail", unique=True)
-    phone_number = models.CharField(
+    # E.164 (+243 and 9 digits), one account per phone (see the constraint below); required for
+    # clients and resellers by the services, NULL (no phone) for staff and anonymised accounts
+    phone_number = models.CharField(  # noqa: DJ001
         "téléphone",
         max_length=20,
-        unique=True,
         null=True,
         blank=True,
-        validators=[RegexValidator(r"^\+?[\d\s().-]{7,20}$")],
+        validators=[RegexValidator(r"^\+243[89]\d{8}$")],
     )
     avatar = models.URLField("photo", max_length=500, blank=True)
     role = models.CharField(
@@ -84,6 +85,11 @@ class User(AbstractUser):
         ordering = ("-date_joined",)
         constraints = (
             models.UniqueConstraint(Lower("email"), name="accounts_user_email_ci_unique"),
+            models.UniqueConstraint(
+                fields=("phone_number",),
+                condition=models.Q(phone_number__isnull=False) & ~models.Q(phone_number=""),
+                name="accounts_user_phone_unique",
+            ),
         )
 
     def __str__(self) -> str:

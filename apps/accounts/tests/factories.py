@@ -48,6 +48,7 @@ class UserFactory(DjangoModelFactory[User]):
     email = Sequence(lambda index: f"user{index}@celebobo.test")
     first_name = Faker("first_name", locale="fr_FR")
     last_name = Faker("last_name", locale="fr_FR")
+    phone_number = Sequence(lambda index: f"+24381{index:07d}")
     role = Role.CLIENT.value
     password = PostGeneration(_set_password)
     verified = PostGeneration(_verify_email)

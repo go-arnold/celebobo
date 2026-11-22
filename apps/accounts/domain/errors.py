@@ -23,7 +23,26 @@ class EmailAlreadyUsed(ValidationFailed):
 
 class PhoneAlreadyUsed(ValidationFailed):
     default_code = "phone_already_used"
-    default_detail = "Ce numéro de téléphone est déjà utilisé."
+    default_detail = "Ce numéro de téléphone est déjà utilisé par un autre compte."
+
+    def __init__(self) -> None:
+        super().__init__(errors={"phone_number": [self.default_detail]})
+
+
+class InvalidPhone(ValidationFailed):
+    default_code = "invalid_phone"
+    default_detail = (
+        "Numéro de téléphone invalide : saisissez un numéro mobile congolais, "
+        "par exemple 0812345678 ou +243 81 234 5678."
+    )
+
+    def __init__(self) -> None:
+        super().__init__(errors={"phone_number": [self.default_detail]})
+
+
+class PhoneRequired(ValidationFailed):
+    default_code = "phone_required"
+    default_detail = "Le numéro de téléphone est obligatoire."
 
     def __init__(self) -> None:
         super().__init__(errors={"phone_number": [self.default_detail]})
@@ -170,7 +189,12 @@ class UnknownConsent(NotFound):
 
 class AccountIncomplete(Forbidden):
     default_code = "account_incomplete"
-    default_detail = "Acceptez les conditions obligatoires pour continuer à utiliser votre compte."
+    default_detail = (
+        "Complétez votre compte (conditions obligatoires, numéro de téléphone) pour continuer "
+        "à l'utiliser."
+    )
 
-    def __init__(self, *, missing_consents: Iterable[str]) -> None:
-        super().__init__(meta={"missing_consents": list(missing_consents)})
+    def __init__(self, *, missing_consents: Iterable[str], phone_required: bool = False) -> None:
+        super().__init__(
+            meta={"missing_consents": list(missing_consents), "phone_required": phone_required}
+        )

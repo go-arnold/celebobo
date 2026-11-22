@@ -20,6 +20,7 @@ from apps.accounts.domain.enums import (
     ResellerOrdering,
 )
 from apps.accounts.domain.errors import AddressNotFound, ResellerNotFound, UserNotFound
+from apps.accounts.domain.phone import parse_drc_phone, phone_missing, phone_search_fragment
 from apps.accounts.domain.preferences import DEFAULT_PREFERENCES
 from apps.accounts.domain.read_models import (
     AddressView,
@@ -130,6 +131,7 @@ class ProfileSelector:
             permissions=tuple(sorted(self._catalog.permissions_for(role))),
             reseller=_reseller_profile(user) if role is Role.RESELLER else None,
             missing_consents=self._consents.missing(user.pk, role),
+            phone_required=phone_missing(role, user.phone_number),
         )
 
 
@@ -387,7 +389,7 @@ class ResellerDirectorySelector:
                 Q(first_name__icontains=term)
                 | Q(last_name__icontains=term)
                 | Q(email__icontains=term)
-                | Q(phone_number__icontains=term)
+                | _phone_matches(term)
                 | Q(referral_code=term)
             )
         return resellers
@@ -432,6 +434,15 @@ def _invitee(user: User) -> Invitee:
     )
 
 
+# phones are stored as +243…: "0812345678" finds "+243812345678", and a partial number typed in
+# the national form ("081234") is looked up without its trunk 0 or country code
+def _phone_matches(term: str) -> Q:
+    phone = parse_drc_phone(term)
+    if phone:
+        return Q(phone_number=phone)
+    return Q(phone_number__icontains=phone_search_fragment(term) or term)
+
+
 class UserDirectorySelector:
     def page(
         self, filters: UserFilters, *, offset: int, limit: int
@@ -464,7 +475,7 @@ class UserDirectorySelector:
                 Q(first_name__icontains=term)
                 | Q(last_name__icontains=term)
                 | Q(email__icontains=term)
-                | Q(phone_number__icontains=term)
+                | _phone_matches(term)
                 | Q(referral_code=term)
             )
         return users

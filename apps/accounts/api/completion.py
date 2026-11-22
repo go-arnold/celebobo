@@ -12,7 +12,8 @@ if TYPE_CHECKING:
 
 
 class AccountComplete(BasePermission):
-    """A client or reseller who still has required consents to give cannot use the account.
+    """A client or reseller who still has required consents to give, or no phone number, cannot
+    use the account.
 
     Default permission of every authenticated endpoint. A view sets `allow_incomplete_account`
     to stay reachable during the completion step (profile, consents); public views (catalogue,
@@ -23,6 +24,7 @@ class AccountComplete(BasePermission):
     def has_permission(self, request: "Request", view: "APIView") -> bool:
         # imported here: DRF loads this class while `rest_framework.views` is still initialising
         from apps.accounts.domain.errors import AccountIncomplete
+        from apps.accounts.domain.phone import phone_missing
         from apps.accounts.selectors import ConsentSelector
 
         if getattr(view, "allow_incomplete_account", False):
@@ -33,6 +35,9 @@ class AccountComplete(BasePermission):
         if actor.user_id is None:
             return True
         missing = container.resolve(ConsentSelector).missing(actor.user_id, actor.role)
-        if missing:
-            raise AccountIncomplete(missing_consents=[kind.value for kind in missing])
+        no_phone = phone_missing(actor.role, getattr(request.user, "phone_number", None))
+        if missing or no_phone:
+            raise AccountIncomplete(
+                missing_consents=[kind.value for kind in missing], phone_required=no_phone
+            )
         return True

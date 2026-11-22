@@ -2,11 +2,12 @@
 
 ## Sign up (client)
 
-`POST /auth/register/` — first name, last name, email, password; optional phone and referral code;
+`POST /auth/register/` — first name, last name, email, password, phone; optional referral code;
 the consent boxes `accept_terms`, `accept_hosting_abroad` and `accept_marketing` (see *Consents* below).
 
 - The email is normalised (trimmed, lower-cased) and must be unique (`email_already_used`).
-- The phone, if given, must be unique (`phone_already_used`).
+- The **phone is required** (`phone_required`), must be a DRC mobile number (`invalid_phone`) and
+  unique: **one account per phone** (`phone_already_used`). See *Phone number* below.
 - The password must pass Django's validators: at least 8 characters, not too similar to the
   name/email, not a common password, not only digits (`weak_password`).
 - A **referral code** must belong to an active reseller (`unknown_referral_code`). The new client is
@@ -35,13 +36,50 @@ the consent boxes `accept_terms`, `accept_hosting_abroad` and `accept_marketing`
 
 ## Profile
 
-`GET/PATCH /me/` — first name, last name, phone, avatar, referral code.
+`GET/PATCH /me/` — first name, last name, phone, avatar, referral code. The phone follows the rules of
+*Phone number* above.
 
 - **Avatar**: uploaded through the media flow (§10), then referenced by `avatar_upload_id`. Only the
   user's own avatar upload is accepted (`invalid_avatar`).
 - **Referral code** can be added **once**, if the account has none yet (`referral_already_set`),
   and never one's own code (`self_referral`). The 12 months of referral points start then.
 - The email cannot be changed by the user (an admin can, see below).
+
+## Phone number
+
+Privacy policy §2: the phone is a required field. It is how the reseller-deliverer, the payment and
+WhatsApp reach the client.
+
+- **Required for clients and resellers** (sign-up, profile, staff creating or editing such an account,
+  reseller onboarding); staff accounts (managers, admins) may have none. A client or reseller cannot
+  remove it (`phone_required`). Staff editing a client or reseller who has **no phone yet** (cleared by
+  the migration below) may leave it empty: the account is asked for one at login, in the completion
+  step; a phone typed there is still checked.
+- **Normalised to E.164**: `+243` followed by the 9 digits of the national number. Accepted inputs:
+  `+243 81 234 5678`, `00243812345678`, `243812345678`, `0812345678`, `812345678`, with any spaces,
+  dots, dashes or parentheses, and with the trunk `0` kept after the country code (`+243 0812345678`,
+  `+243 (0)81 234 5678`). Only ASCII digits count (Arabic-Indic or fullwidth digits are refused, so a
+  number has one stored form). Only mobile numbers are accepted (national number starting with 8 or 9);
+  anything else is `invalid_phone`. The rule lives in one small domain module
+  (`apps/accounts/domain/phone.py`), mirrored by the site's form validation.
+- **Unique**: one account per phone, whatever the format typed (`phone_already_used`), backed by a
+  database constraint on non-empty numbers. Anonymised accounts have no phone. Two requests taking the
+  same number at the same moment: the constraint refuses the second one, answered with the same
+  `phone_already_used` error.
+- A reseller application stores the normalised phone; approving it gives that phone to the new
+  reseller account (or to an existing account that had none). An application sent **before numbers
+  were checked** may hold a number that is not a DRC mobile: it is approved anyway, the reseller
+  account is created without a phone and asked for one at login (completion step), and the
+  application keeps the number as typed for staff to read. Applications are not rewritten by the
+  migration.
+- Staff searching users, resellers or applications can type the number in any accepted format, or
+  part of it in the national form: `081234` finds `+243812345678`.
+
+**Existing data** (migration `0005_phone_number_e164`): every stored number is normalised. A number
+that is not a DRC mobile is cleared. When several accounts share a number, the **most recently active**
+account keeps it (latest of last seen, last login and sign-up date; on a tie, the newest account) and
+the others are cleared. Clients and resellers left without a phone, and accounts opened with Google
+(Google gives no phone), are asked for one in the completion step.
 
 ## Consents
 
@@ -75,15 +113,17 @@ updated list.
 ### Completion step
 
 `GET /me/` (and the login answer) carries `missing_consents`: the required consents not given, or given
-on an older version of the policy (when its version changes, everyone accepts again). While it is not
-empty, every authenticated endpoint answers **403 `account_incomplete`** (`meta.missing_consents`),
-except:
+on an older version of the policy (when its version changes, everyone accepts again), and
+`phone_required`: a client or reseller without a phone number. While either is set, every
+authenticated endpoint answers **403 `account_incomplete`** (`meta.missing_consents`,
+`meta.phone_required`), except:
 
 - `/me/` (read, edit, and `DELETE` to close the account) and `/me/consents/`;
 - login, logout, token refresh, password change, e-mail verification;
 - public endpoints (catalogue, policy pages, settings), which do not need an account.
 
-The site then shows a completion page asking for the missing consents. This concerns existing accounts
+The site then shows a completion page asking for the missing consents and the phone (saved with
+`PATCH /me/`). This concerns existing accounts
 (created before consents were recorded), accounts opened with Google, resellers onboarded by staff and
 everyone after a new policy version.
 
@@ -133,8 +173,8 @@ Admins manage users at `/bo/users/` (managers can only view them).
 
 | Action | Rules |
 |---|---|
-| Create a user | Name, email (unique), phone (unique), role. The new user receives an **invitation email** to set a password. |
-| Edit a user | Name, email, phone (uniqueness checked). |
+| Create a user | Name, email (unique), phone (normalised, unique; required for clients and resellers), role. The new user receives an **invitation email** to set a password. |
+| Edit a user | Name, email, phone (normalised, uniqueness checked; a client's or reseller's phone cannot be removed, but may stay empty when the account has none yet). |
 | Change role | Not on oneself (`own_role_change`). Becoming a reseller gives the account a referral code if it has none. Manager/admin accounts are flagged `is_staff`. |
 | Deactivate / activate | Not oneself (`own_account_deactivation`). Deactivation revokes all sessions. |
 | Send password reset | Emails the user a reset link. |
