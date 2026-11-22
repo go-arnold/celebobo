@@ -368,6 +368,9 @@ class OrderDetailOutput(serializers.Serializer[Any]):
     client = PersonOutput()
     reseller = PersonOutput(allow_null=True)
     conversation_id = serializers.IntegerField(allow_null=True)
+    # true for the assigned reseller 7 days after delivery, or once the order is cancelled: the
+    # client's phone, street, quarter and delivery note then come back empty
+    contact_hidden = serializers.BooleanField()
 
     def to_representation(self, instance: Any) -> dict[str, Any]:
         return {**self.summary_output(instance.summary).data, **super().to_representation(instance)}
@@ -379,6 +382,7 @@ class ClientOrderDetailOutput(OrderDetailOutput):
     def to_representation(self, instance: Any) -> dict[str, Any]:
         data = super().to_representation(instance)
         data.pop("client", None)
+        data.pop("contact_hidden", None)
         # the client's own code, to give the reseller at handover, until the order is delivered
         data["delivery_code"] = (
             instance.delivery_code if instance.summary.status in HANDOVER_STATUSES else None

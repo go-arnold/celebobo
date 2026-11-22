@@ -77,6 +77,25 @@ class InviteesPage:
     invitees: list[InviteeView]
 
 
+# the reseller's own list of invited clients ("mes filleuls"): who and since when, and whether
+# their purchases still earn referral points. No e-mail, no purchase amounts or counts
+# (privacy policy §4: the reseller never sees a client's purchase history).
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OwnInviteeView:
+    id: int
+    name: str
+    joined_at: datetime
+    referral_ends_at: datetime | None
+    referral_active: bool
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class OwnInviteesPage:
+    code: str | None
+    invited_count: int
+    invitees: list[OwnInviteeView]
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ReferralKit:
     code: str

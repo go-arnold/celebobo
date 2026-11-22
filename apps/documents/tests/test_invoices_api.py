@@ -50,3 +50,38 @@ def test_cancelled_orders_have_no_invoice(as_user, shopper, order, renderer):
 
     assert response.status_code == 409
     assert response.json()["code"] == "invoice_unavailable"
+
+
+def test_the_reseller_copy_has_no_points_statement_nor_contact_after_the_return_period(
+    as_user, manager, reseller, order, renderer, *, monkeypatch
+):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.documents.adapters.gateways import LoyaltyPointsStatements
+    from apps.orders.models import OrderStatusEvent
+
+    monkeypatch.setattr(LoyaltyPointsStatements, "statement", lambda *_: "statement")
+    as_user(manager).post(f"/api/v1/bo/orders/{order.pk}/assign/", {"reseller_id": reseller.pk})
+    as_user(manager).post(
+        f"/api/v1/bo/orders/{order.pk}/transition/",
+        {"to": "delivered", "reason": "Remise vérifiée par téléphone"},
+    )
+    OrderStatusEvent.objects.filter(order=order, to_status="delivered").update(
+        created_at=timezone.now() - timedelta(days=8)
+    )
+
+    as_user(reseller).get(f"/api/v1/bo/orders/{order.pk}/invoice/")
+    reseller_copy = renderer.calls[-1][1]
+    as_user(manager).get(f"/api/v1/bo/orders/{order.pk}/invoice/")
+    staff_copy = renderer.calls[-1][1]
+
+    # the statement gives the client's purchase totals: not for the reseller (policy §4)
+    assert reseller_copy["points"] is None
+    assert reseller_copy["order"].contact_hidden is True
+    assert reseller_copy["order"].address.phone == ""
+    assert reseller_copy["order"].client.email is None
+    assert staff_copy["points"] == "statement"
+    assert staff_copy["order"].contact_hidden is False
+    assert staff_copy["order"].address.phone == "+243 81 234 5678"

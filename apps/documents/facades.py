@@ -116,8 +116,11 @@ class InvoiceFacade:
     def for_client(self, actor: Actor, number: str) -> RenderedFile:
         return self._builder.build(self._orders.for_client(_user_id(actor), number))
 
+    # a reseller's copy leaves out the client's points statement: it states their purchase
+    # history (privacy policy §4); past the return period it also leaves out their contact
     def for_backoffice(self, actor: Actor, order_id: int) -> RenderedFile:
-        return self._builder.build(self._orders.for_backoffice(actor, order_id))
+        order = self._orders.for_backoffice(actor, order_id)
+        return self._builder.build(order, points=actor.is_staff)
 
 
 @logged_facade
@@ -150,9 +153,13 @@ class ReceiptFacade:
         order = self._orders.for_client(_user_id(actor), number)
         return self._receipts.render(self._receipts.issue(order))
 
+    # the receipt is issued from the full order (a reseller's view may lack the contact details),
+    # and rendered without them for a reseller past the return period
     def for_backoffice(self, actor: Actor, order_id: int) -> RenderedFile:
         order = self._orders.for_backoffice(actor, order_id)
-        return self._receipts.render(self._receipts.issue(order))
+        full = order if actor.is_staff else self._orders.for_backoffice(Actor.system(), order_id)
+        receipt = self._receipts.issue(full)
+        return self._receipts.render(receipt, contact_hidden=order.contact_hidden)
 
     def verify(self, number: str, signature: str) -> Verification:
         return self._receipts.verify(number, signature)

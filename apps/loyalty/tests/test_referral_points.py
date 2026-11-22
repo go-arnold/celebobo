@@ -65,6 +65,23 @@ class TestEarning:
         # the client still earns their own 1 %
         assert PointsEntry.objects.get(user=invited, kind="earn").amount == Decimal("1.49")
 
+    def test_the_history_does_not_tie_the_points_to_an_order(
+        self, programme, reseller, invited, headset
+    ):
+        order = delivered(invited, headset)
+        status_changed(order["id"], OrderStatus.RETURNED)
+
+        history = balance(reseller)["history"]
+
+        # the order number would let the reseller work back each invitee's purchase total
+        # (privacy policy, 4): a referral line shows only its kind, date and amount
+        assert {(row["kind"], row["order_number"]) for row in history} == {
+            ("referral", None),
+            ("referral_reversal", None),
+        }
+        # the client keeps the number on their own points
+        assert balance(invited)["history"][0]["order_number"] == order["number"]
+
     def test_once_the_return_period_is_over_the_points_are_spendable(
         self, programme, reseller, invited, headset
     ):

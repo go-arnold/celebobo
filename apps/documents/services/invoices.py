@@ -19,7 +19,7 @@ class InvoiceBuilder:
         self._branding = branding
         self._points = points
 
-    def build(self, order: OrderDetail) -> RenderedFile:
+    def build(self, order: OrderDetail, *, points: bool = True) -> RenderedFile:
         if order.summary.status is OrderStatus.CANCELLED:
             raise InvoiceUnavailable
         content = self._renderer.render(
@@ -28,7 +28,9 @@ class InvoiceBuilder:
                 "order": order,
                 "issued_at": timezone.localtime(),
                 # the client's points statement, printed on each invoice (loyalty policy)
-                "points": self._points.statement(order.client.id, order.summary.id),
+                "points": self._points.statement(order.client.id, order.summary.id)
+                if points
+                else None,
                 **self._branding,
             },
         )
