@@ -85,6 +85,31 @@ class SubscriberRepository(ModelRepository[Subscriber]):
         _, deleted = _stale_before(before).filter(pk__in=ids).delete()
         return deleted.get(Subscriber._meta.label, 0)
 
+    # account retention: an address that is about to disappear leaves the mailing list, unless it
+    # is on the opposition list (unsubscribed), which is kept
+    def delete_active(self, email: str) -> int:
+        _, deleted = Subscriber.objects.filter(
+            email__iexact=email, unsubscribed_at__isnull=True
+        ).delete()
+        return deleted.get(Subscriber._meta.label, 0)
+
+
+class ContactMessageRepository:
+    def received_before(self, cutoff: datetime, *, after_id: int, limit: int) -> list[Expired]:
+        rows = (
+            ContactMessage.objects.filter(created_at__lt=cutoff, pk__gt=after_id)
+            .order_by("pk")
+            .values_list("pk", "created_at")[:limit]
+        )
+        return [
+            Expired(pk, f"message de contact #{pk} reçu le {received:%Y-%m-%d}")
+            for pk, received in rows
+        ]
+
+    def delete_received_before(self, ids: list[int], *, before: datetime) -> int:
+        _, deleted = ContactMessage.objects.filter(pk__in=ids, created_at__lt=before).delete()
+        return deleted.get(ContactMessage._meta.label, 0)
+
 
 # still subscribed, with no (re)subscription since the cutoff
 def _stale_before(cutoff: datetime) -> QuerySet[Subscriber]:

@@ -77,8 +77,11 @@ from apps.catalog.repositories import (
     BrandRepository,
     CategoryAdminRepository,
     DealRepository,
+    FavoriteRepository,
     ProductAdminRepository,
+    ProductRepository,
     ReviewAdminRepository,
+    ReviewRepository,
     StockRepository,
 )
 from apps.catalog.selectors import (
@@ -650,6 +653,35 @@ class ReviewModerationFacade:
                 ProductChanged(product_id=review.product_id, actor_id=actor.user_id)
             )
         return self._selector.one(review_id)
+
+
+# retention of client accounts (privacy policy, section 6): an anonymised client's favourites and
+# reviews go. The policy keeps no review beyond the account, and a review without its author
+# could not be told apart from a made-up one: deleted, not kept anonymously; the products' ratings
+# are computed again.
+@logged_facade
+class CatalogPrivacyFacade:
+    def __init__(
+        self,
+        *,
+        favorites: FavoriteRepository,
+        reviews: ReviewRepository,
+        products: ProductRepository,
+        publisher: EventPublisher,
+    ) -> None:
+        self._favorites = favorites
+        self._reviews = reviews
+        self._products = products
+        self._publisher = publisher
+
+    def forget_client(self, user_id: int) -> int:
+        with transaction.atomic():
+            self._favorites.delete_for_user(user_id)
+            product_ids = self._reviews.delete_for_user(user_id)
+            for product_id in product_ids:
+                self._products.refresh_rating(product_id)
+                self._publisher.publish(ProductChanged(product_id=product_id, actor_id=None))
+        return len(product_ids)
 
 
 def _admin_source(actor: Actor, product_id: int) -> StockSource:

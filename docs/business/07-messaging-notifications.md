@@ -43,8 +43,10 @@ closed — with its messages, price proposals and notifications once **both**:
 
 So a client who keeps ordering keeps their older threads, and a thread still in use is never cut.
 Attachments no longer referenced are then removed by the orphan-upload sweep. When an inactive
-account is anonymised ([§2](02-accounts.md#inactive-accounts-retention)), all its conversations
-and notifications go at once.
+account is anonymised, or 3 years after a client deleted their account
+([§2](02-accounts.md#inactive-accounts-retention)), all its conversations and notifications go at
+once, its own attachments are destroyed, and its conversations with the assistant are deleted with
+their messages.
 
 ### Price proposals (order threads only)
 

@@ -225,6 +225,7 @@ class OrderSelector:
                 name=_client_name(order, staff=staff),
                 email=client.email if staff and not _anonymized(client) else None,
                 phone=getattr(client, "phone_number", None),
+                anonymized=_anonymized(client),
             ),
             reseller=(
                 PersonBrief(

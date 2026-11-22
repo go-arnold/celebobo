@@ -5,11 +5,16 @@ from apps.accounts.adapters.media import MediaAvatars
 from apps.accounts.adapters.media_references import AccountMediaReferences
 from apps.accounts.adapters.retention import (
     AllauthIdentities,
+    AssistantConversations,
+    CatalogEngagement,
     LoyaltyPrivacy,
     MessagingPrivacy,
+    Newsletter,
     OrdersPrivacy,
     PushDevices,
+    ResellerApplications,
     SessionRenewals,
+    UploadedFiles,
 )
 from apps.accounts.adapters.security import (
     CacheTicketStore,
@@ -100,7 +105,11 @@ def _account_facade(container: Container) -> AccountFacade:
     return AccountFacade(
         registration=RegistrationService(users, referrals, container.resolve(PasswordPolicy)),
         profiles=ProfileService(
-            users, AddressRepository(), referrals, container.resolve(AvatarSource)
+            users,
+            AddressRepository(),
+            referrals,
+            container.resolve(AvatarSource),
+            Newsletter(),
         ),
         roles=RoleService(users, referrals, container.resolve(GroupSync)),
         selector=ProfileSelector(permission_catalog),
@@ -165,8 +174,19 @@ def _retention_facade(container: Container) -> AccountRetentionFacade:
         retention=InactiveAccountService(
             InactiveClientRepository(),
             AddressRepository(),
+            Newsletter(),
             activity=(SessionRenewals(), orders, messaging, loyalty),
-            erasers=(AllauthIdentities(), PushDevices(), orders, messaging, loyalty),
+            erasers=(
+                AllauthIdentities(),
+                PushDevices(),
+                orders,
+                messaging,
+                loyalty,
+                AssistantConversations(),
+                ResellerApplications(),
+                CatalogEngagement(),
+                UploadedFiles(),
+            ),
         ),
         revoker=container.resolve(TokenRevoker),
         publisher=container.resolve(EventPublisher),

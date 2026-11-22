@@ -431,6 +431,7 @@ CELERY_BEAT_SCHEDULE = {
             "messaging.stale_conversations",
             "resellers.rejected_applications",
             "content.stale_subscribers",
+            "content.contact_messages",
         )
     },
     "sweep-orphan-media": {

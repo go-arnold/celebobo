@@ -100,3 +100,9 @@ class ActivitySource(Protocol):
 # account retention: removes what another part of the shop holds about an anonymised client
 class PersonalDataEraser(Protocol):
     def erase(self, user_id: int) -> None: ...
+
+
+# the newsletter subscription of an e-mail address that is about to disappear (account deleted or
+# anonymised); an opposition already expressed (unsubscribed address) stays
+class NewsletterSubscriptions(Protocol):
+    def forget(self, email: str) -> None: ...

@@ -11,7 +11,12 @@ from apps.resellers.adapters.gateways import (
 )
 from apps.resellers.adapters.qr import SegnoQrRenderer
 from apps.resellers.conf import reseller_settings
-from apps.resellers.facades import ApplicationFacade, ReferralFacade, ResellerProgramFacade
+from apps.resellers.facades import (
+    ApplicationFacade,
+    ApplicationPrivacyFacade,
+    ReferralFacade,
+    ResellerProgramFacade,
+)
 from apps.resellers.repositories import ApplicationRepository
 from apps.resellers.selectors import ApplicationSelector
 from apps.resellers.services.applications import ApplicationService
@@ -45,6 +50,11 @@ def register(container: Container) -> None:
     container.register(ApplicationFacade, _application_facade, lifetime=Lifetime.TRANSIENT)
     container.register(ResellerProgramFacade, _program_facade, lifetime=Lifetime.TRANSIENT)
     container.register(ReferralFacade, _referral_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(
+        ApplicationPrivacyFacade,
+        lambda _: ApplicationPrivacyFacade(applications=ApplicationRepository()),
+        lifetime=Lifetime.TRANSIENT,
+    )
 
 
 def _invitees(container: Container) -> InviteeService:

@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from apps.audit.domain.retention import RetentionReport, years_before
 from apps.audit.services.retention import retention_rules
-from apps.content.models import Subscriber
+from apps.content.models import ContactMessage, Subscriber
 from apps.content.repositories import SubscriberRepository
 from apps.content.services.newsletter import NewsletterService
 
@@ -73,3 +73,48 @@ def test_dry_run_and_idempotency():
 
     assert apply().affected == 1
     assert apply().affected == 0
+
+
+CONTACT_RULE = "content.contact_messages"
+
+
+def contact_message(*, received: datetime) -> ContactMessage:
+    created = ContactMessage.objects.create(
+        name="Grace Ilunga",
+        email="grace@example.com",
+        phone="+243 81 000 0002",
+        subject="order",
+        message="Où en est ma commande ?",
+    )
+    ContactMessage.objects.filter(pk=created.pk).update(created_at=received)
+    return created
+
+
+@pytest.mark.parametrize(
+    ("offset", "deleted"),
+    [(timedelta(minutes=-1), True), (timedelta(minutes=1), False)],
+    ids=["received-just-over-3-years", "received-just-under-3-years"],
+)
+def test_contact_messages_go_3_years_after_receipt(offset, deleted):
+    row = contact_message(received=CUTOFF + offset)
+
+    report = retention_rules.create(CONTACT_RULE).apply(now=NOW, dry_run=False)
+
+    assert report.affected == int(deleted)
+    assert ContactMessage.objects.filter(pk=row.pk).exists() is not deleted
+
+
+def test_contact_messages_dry_run_and_idempotency():
+    received = CUTOFF - timedelta(days=1)
+    row = contact_message(received=received)
+    rule = retention_rules.create(CONTACT_RULE)
+
+    dry = rule.apply(now=NOW, dry_run=True)
+    assert (dry.affected, dry.samples) == (
+        1,
+        (f"message de contact #{row.pk} reçu le {received:%Y-%m-%d}",),
+    )
+    assert ContactMessage.objects.filter(pk=row.pk).exists()
+
+    assert rule.apply(now=NOW, dry_run=False).affected == 1
+    assert rule.apply(now=NOW, dry_run=False).affected == 0

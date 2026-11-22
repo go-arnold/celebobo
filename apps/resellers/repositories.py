@@ -29,6 +29,16 @@ class ApplicationRepository:
     def save(self, application: ResellerApplication, *, fields: Iterable[str]) -> None:
         application.save(update_fields=[*fields])
 
+    # account retention: what the client applied with, unless it made them a reseller (the
+    # approved application belongs to the partnership, kept with it)
+    def delete_unapproved_for(self, applicant_id: int) -> int:
+        _, deleted = (
+            ResellerApplication.objects.filter(applicant_id=applicant_id)
+            .exclude(status=ApplicationStatus.APPROVED.value)
+            .delete()
+        )
+        return deleted.get(ResellerApplication._meta.label, 0)
+
     def rejected_before(self, cutoff: datetime, *, after_id: int, limit: int) -> list[Expired]:
         rows = (
             _rejected_before(cutoff)

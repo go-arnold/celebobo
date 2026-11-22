@@ -39,7 +39,7 @@ from apps.content.domain.read_models import (
 )
 from apps.content.domain.storefront import category_tags, product_tags, section_tags
 from apps.content.models import Banner, FaqEntry, HomeSection, Page
-from apps.content.repositories import BannerRepository, SectionRepository
+from apps.content.repositories import BannerRepository, SectionRepository, SubscriberRepository
 from apps.content.selectors import (
     BannerSelector,
     ContactSelector,
@@ -163,6 +163,18 @@ class NewsletterFacade:
 
     def export(self, *, active: bool | None) -> Iterator[SubscriberView]:
         return self._selector.export(active=active)
+
+
+# retention of client accounts (privacy policy, section 6): the e-mail of a deleted or anonymised
+# account leaves the mailing list; an opposition already expressed (unsubscribed) stays
+@logged_facade
+class NewsletterPrivacyFacade:
+    def __init__(self, *, subscribers: SubscriberRepository) -> None:
+        self._subscribers = subscribers
+
+    def forget_subscription(self, email: str) -> int:
+        with transaction.atomic():
+            return self._subscribers.delete_active(email)
 
 
 @logged_facade

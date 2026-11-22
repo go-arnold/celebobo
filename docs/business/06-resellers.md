@@ -23,7 +23,9 @@ First name, last name, email, phone, city, message.
 - Privacy policy §6: a **rejected** application is deleted **1 year after the decision** (after it
   was received if no decision date was recorded) by a daily task (`resellers.rejected_applications`,
   see [§10](10-backoffice-tools.md#retention)). Pending and approved applications stay; a reseller
-  account and its commissions follow the partnership (10 years for the accounting records).
+  account and its commissions follow the partnership (10 years for the accounting records). When a
+  client account is anonymised, or 3 years after the client deleted it, its applications go unless
+  approved ([§2](02-accounts.md#inactive-accounts-retention)).
 
 ### Onboarding rules
 

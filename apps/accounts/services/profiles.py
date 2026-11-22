@@ -15,19 +15,25 @@ from apps.accounts.domain.errors import (
 from apps.accounts.domain.normalization import clean_text, normalize_phone
 from apps.accounts.domain.retention import anonymized_email
 from apps.accounts.models import User
-from apps.accounts.services.contracts import AddressStore, AvatarSource, UserStore
+from apps.accounts.services.contracts import (
+    AddressStore,
+    AvatarSource,
+    NewsletterSubscriptions,
+    UserStore,
+)
 from apps.accounts.services.referrals import ReferralService
 from core.domain.actor import Role
 from core.domain.values import provided
 
 
 # what identifies the client on the account itself goes, and the account can no longer be used;
-# the e-mail placeholder stays unique per account (returns the fields changed)
+# the e-mail placeholder stays unique per account (returns the fields changed). A former
+# reseller's referral code stays on the account: codes are unique among accounts, so it is never
+# issued to another reseller (a printed or shared code must not lead to someone else).
 def scrub_identity(user: User, now: datetime) -> tuple[str, ...]:
     user.email = anonymized_email(user.pk)
     user.first_name = user.last_name = user.avatar = ""
     user.phone_number = None
-    user.referral_code = None
     user.is_active = False
     user.deleted_at = now
     user.set_unusable_password()
@@ -37,7 +43,6 @@ def scrub_identity(user: User, now: datetime) -> tuple[str, ...]:
         "last_name",
         "avatar",
         "phone_number",
-        "referral_code",
         "is_active",
         "deleted_at",
         "password",
@@ -58,11 +63,13 @@ class ProfileService:
         addresses: AddressStore,
         referrals: ReferralService,
         avatars: AvatarSource,
+        newsletter: NewsletterSubscriptions,
     ) -> None:
         self._users = users
         self._addresses = addresses
         self._referrals = referrals
         self._avatars = avatars
+        self._newsletter = newsletter
 
     def update(self, user_id: int, command: UpdateProfile) -> ProfileChange:
         user = self._locked(user_id)
@@ -100,6 +107,8 @@ class ProfileService:
         user = self._locked(user_id)
         if user.account_role is not Role.CLIENT:
             raise StaffAccountDeletion
+        # the address is about to disappear: read it first
+        self._newsletter.forget(user.email)
         self._users.save(user, fields=scrub_identity(user, now))
         self._addresses.delete_all_for(user.pk)
         return user

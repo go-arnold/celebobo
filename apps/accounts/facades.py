@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+import structlog
 from django.db import transaction
 from django.utils import timezone
 
@@ -41,7 +42,7 @@ from apps.accounts.domain.read_models import (
     UserRow,
     WsTicket,
 )
-from apps.accounts.domain.retention import INACTIVITY_YEARS
+from apps.accounts.domain.retention import INACTIVITY_YEARS, Outcome
 from apps.accounts.selectors import (
     AddressSelector,
     ProfileSelector,
@@ -72,6 +73,8 @@ from core.events.contracts import EventPublisher
 from core.observability.decorators import logged_facade
 
 INACTIVE_CLIENTS_RULE = "accounts.inactive_clients"
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -346,10 +349,15 @@ def _user_id(actor: Actor) -> int:
 
 
 # retention rule (privacy policy, section 6): client accounts without activity for 3 years are
-# anonymised, batch by batch, each batch in one transaction
+# anonymised, and accounts the clients deleted 3 years ago lose what personal data remained,
+# batch by batch, each batch in one transaction and each account in its own savepoint: an account
+# that fails is logged and left for the next run, the others go ahead
 @logged_facade
 class AccountRetentionFacade:
-    label = "Comptes clients sans activité depuis 3 ans, anonymisés"
+    label = (
+        "Comptes clients sans activité depuis 3 ans anonymisés, "
+        "et comptes supprimés depuis 3 ans effacés"
+    )
 
     def __init__(
         self,
@@ -376,12 +384,19 @@ class AccountRetentionFacade:
         )
 
     def _anonymize(self, user_ids: list[int], *, cutoff: datetime, now: datetime) -> int:
-        anonymized = 0
+        processed = 0
         for user_id in user_ids:
-            if self._retention.anonymize(user_id, cutoff=cutoff, now=now):
-                self._revoker.revoke_all(user_id)
-                self._publisher.publish(
-                    AccountDeleted(user_id=user_id, inactivity=True, actor_id=None)
-                )
-                anonymized += 1
-        return anonymized
+            try:
+                with transaction.atomic():
+                    outcome = self._retention.anonymize(user_id, cutoff=cutoff, now=now)
+                    if outcome is Outcome.ANONYMIZED:
+                        self._revoker.revoke_all(user_id)
+                        self._publisher.publish(
+                            AccountDeleted(user_id=user_id, inactivity=True, actor_id=None)
+                        )
+            except Exception:
+                logger.exception("retention.account_failed", user_id=user_id)
+                continue
+            if outcome is not Outcome.SKIPPED:
+                processed += 1
+        return processed

@@ -68,6 +68,11 @@ class User(AbstractUser):
     )
     last_seen_at = models.DateTimeField("vu pour la dernière fois", null=True, blank=True)
     deleted_at = models.DateTimeField("supprimé le", null=True, blank=True)
+    # retention: what other parts of the shop still held about the client was erased (on
+    # anonymisation for inactivity, or 3 years after the client deleted the account)
+    personal_data_erased_at = models.DateTimeField(
+        "données personnelles effacées le", null=True, blank=True
+    )
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: ClassVar[list[str]] = ["first_name", "last_name"]

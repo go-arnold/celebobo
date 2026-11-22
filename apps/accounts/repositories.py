@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 
 from apps.accounts.models import Address, NotificationPreference, User
 from apps.audit.domain.retention import Expired
@@ -96,24 +96,28 @@ class PreferenceRepository:
 
 
 # account retention: plain client accounts (no staff, no reseller, past or present) not yet
-# anonymised, without sign-up or login since the cutoff
+# anonymised, without sign-up or login since the cutoff; and client accounts deleted before the
+# cutoff whose remaining personal data were not erased yet
 class InactiveClientRepository:
-    def quiet_since(self, cutoff: datetime, *, after_id: int, limit: int) -> list[Expired]:
+    def due(self, cutoff: datetime, *, after_id: int, limit: int) -> list[Expired]:
         rows = (
-            _quiet_clients(cutoff)
+            _due(cutoff)
             .filter(pk__gt=after_id)
             .order_by("pk")
-            .values_list("pk", "date_joined", "last_login", "last_seen_at")[:limit]
+            .values_list("pk", "deleted_at", "date_joined", "last_login", "last_seen_at")[:limit]
         )
         return [
             Expired(
-                pk, f"compte client #{pk}, vu pour la dernière fois le {_latest(*dates):%Y-%m-%d}"
+                pk,
+                f"compte client #{pk}, supprimé le {deleted:%Y-%m-%d}"
+                if deleted
+                else f"compte client #{pk}, vu pour la dernière fois le {_latest(*dates):%Y-%m-%d}",
             )
-            for pk, *dates in rows
+            for pk, deleted, *dates in rows
         ]
 
-    def lock_quiet(self, user_id: int, cutoff: datetime) -> User | None:
-        return _quiet_clients(cutoff).select_for_update().filter(pk=user_id).first()
+    def lock_due(self, user_id: int, cutoff: datetime) -> User | None:
+        return _due(cutoff).select_for_update().filter(pk=user_id).first()
 
     def save(self, user: User, *, fields: Iterable[str]) -> None:
         user.save(update_fields=[*fields])
@@ -126,16 +130,17 @@ def _latest(*dates: datetime | None) -> datetime:
     return max(date for date in dates if date is not None)
 
 
-def _quiet_clients(cutoff: datetime) -> QuerySet[User]:
-    return (
-        User.objects.filter(
-            role=Role.CLIENT.value,
-            is_staff=False,
-            is_superuser=False,
-            referral_code__isnull=True,
-            deleted_at__isnull=True,
-        )
-        .filter(date_joined__lt=cutoff)
-        .exclude(last_login__gte=cutoff)
-        .exclude(last_seen_at__gte=cutoff)
+def _due(cutoff: datetime) -> QuerySet[User]:
+    quiet = (
+        Q(deleted_at__isnull=True, referral_code__isnull=True, date_joined__lt=cutoff)
+        & ~Q(last_login__gte=cutoff)
+        & ~Q(last_seen_at__gte=cutoff)
+    )
+    deleted_long_ago = Q(deleted_at__lt=cutoff)
+    return User.objects.filter(
+        quiet | deleted_long_ago,
+        role=Role.CLIENT.value,
+        is_staff=False,
+        is_superuser=False,
+        personal_data_erased_at__isnull=True,
     )

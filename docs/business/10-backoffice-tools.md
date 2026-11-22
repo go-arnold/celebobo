@@ -128,16 +128,18 @@ Two journals, kept **365 days**:
 
 The retention periods of the privacy policy (§6) are applied by daily tasks (`audit.apply_retention`,
 one beat entry per rule so a failing rule never blocks the others). Each rule works by batches of
-200 rows (one transaction per batch), is idempotent, logs its count and writes a
+200 rows (one transaction per batch; the account rule adds a savepoint per account so that one
+failure never blocks the others), is idempotent, logs its count and writes a
 `RetentionApplied` event (rule, count) to the audit log on every real run, even with nothing to do.
 The periods are domain constants: they come from the policy text, not from settings.
 
 | Rule | What | Details |
 |---|---|---|
-| `accounts.inactive_clients` | Client accounts anonymised 3 years after the last activity | [§2](02-accounts.md#inactive-accounts-retention) |
+| `accounts.inactive_clients` | Client accounts anonymised 3 years after the last activity; accounts deleted by the client lose the personal data left elsewhere 3 years after the deletion | [§2](02-accounts.md#inactive-accounts-retention) |
 | `messaging.stale_conversations` | Conversations deleted 3 years after the client's last order and the last message | [§7](07-messaging-notifications.md#retention) |
 | `resellers.rejected_applications` | Rejected reseller applications deleted 1 year after the decision | [§6](06-resellers.md#2-review-staff-reseller_applicationsreview) |
 | `content.stale_subscribers` | Newsletter subscribers deleted after 3 years without (re)subscribing | [§8](08-content.md#newsletter) |
+| `content.contact_messages` | Contact-form messages deleted 3 years after they were received | [§8](08-content.md#contact-form) |
 
 To run them by hand: `python manage.py apply_retention [--rule NAME …] [--dry-run]`. With
 `--dry-run` nothing changes and nothing is written to the audit log: the command prints, per rule,

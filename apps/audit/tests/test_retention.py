@@ -20,6 +20,7 @@ RULES = {
     "messaging.stale_conversations",
     "resellers.rejected_applications",
     "content.stale_subscribers",
+    "content.contact_messages",
 }
 
 
