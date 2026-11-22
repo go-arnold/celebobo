@@ -56,6 +56,38 @@ The account is **anonymised**, not erased, so orders and sales keep their histor
 email → `deleted-{id}@deleted.invalid`, names, phone and avatar cleared, password made unusable,
 account deactivated, `deleted_at` set, all addresses deleted.
 
+## Inactive accounts (retention)
+
+Privacy policy §6: a client account is kept while it is active, then **3 years after the last
+activity**, and anonymised. A daily task (`accounts.inactive_clients`, see
+[§10](10-backoffice-tools.md#retention)) applies it.
+
+**Last activity** = the latest of: sign-up, last login, last session renewal (refresh token), last
+order placed (whatever its status), last message sent, last points movement following an order or a
+return (earned, spent, refunded, taken back; an expiry or a reseller's referral points are not the
+client's doing).
+
+**Concerned**: plain client accounts only, not yet anonymised (deactivated ones included). Staff,
+resellers and **former resellers** (they keep their referral code) are never touched: the
+partnership and its commissions are kept 10 years for the accounts.
+
+**What happens** (one transaction per batch of 200 accounts, checked again under lock):
+- the account as for "Delete my account" above (placeholder email, unique per account; names,
+  phone, avatar cleared; deactivated; unusable password; addresses deleted), plus its notification
+  preferences, its allauth e-mail addresses and Google link, its push devices, and its tokens
+  blacklisted. It can no longer log in;
+- its **orders stay** (10 years, OHADA) with their lines, amounts, payment and the **delivery
+  recipient and address** printed on the invoice; the order phone, the client's note, the delivery
+  code and the client's rating comments are cleared, the cart deleted. Staff see the client as
+  « Client anonymisé », without email; the invoice shows that name in the client block and keeps
+  the delivery block;
+- its **points history** is deleted (the points paid on orders stay on the orders);
+- its **conversations** (with their messages) and notifications are deleted;
+- the link to the reseller who invited it (`invited_by`) is kept, for the reseller's commission
+  history; sales, commissions and statements are untouched.
+
+An `AccountDeleted` event (`inactivity: true`, no author) is written to the audit log per account.
+
 ## Notification preferences
 
 See [§7](07-messaging-notifications.md#preferences).

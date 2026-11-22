@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from datetime import datetime
 from decimal import Decimal
 
 from django.utils import timezone
@@ -14,7 +15,7 @@ from apps.messaging.repositories import (
 )
 from apps.messaging.services.conversations import ConversationService
 from apps.orders.domain.read_models import AdjustableItem, OrderRef, QuotableOrder
-from apps.orders.facades import OrderAdjustmentFacade, ShippingQuoteFacade
+from apps.orders.facades import OrderAdjustmentFacade, OrderPrivacyFacade, ShippingQuoteFacade
 from apps.orders.models import Order
 from apps.orders.selectors import delivery_code, order_ref
 from core.container import container
@@ -43,6 +44,9 @@ class OrdersGateway:
         self, actor: Actor, order_id: int, fee: Decimal, delivery_estimate: str
     ) -> None:
         container.resolve(ShippingQuoteFacade).accept(actor, order_id, fee, delivery_estimate)
+
+    def last_orders(self, client_ids: Iterable[int]) -> dict[int, datetime]:
+        return container.resolve(OrderPrivacyFacade).last_orders(client_ids)
 
 
 class AccountsDirectory:

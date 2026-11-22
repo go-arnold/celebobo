@@ -13,11 +13,35 @@ from apps.accounts.domain.errors import (
     UserNotFound,
 )
 from apps.accounts.domain.normalization import clean_text, normalize_phone
+from apps.accounts.domain.retention import anonymized_email
 from apps.accounts.models import User
 from apps.accounts.services.contracts import AddressStore, AvatarSource, UserStore
 from apps.accounts.services.referrals import ReferralService
 from core.domain.actor import Role
 from core.domain.values import provided
+
+
+# what identifies the client on the account itself goes, and the account can no longer be used;
+# the e-mail placeholder stays unique per account (returns the fields changed)
+def scrub_identity(user: User, now: datetime) -> tuple[str, ...]:
+    user.email = anonymized_email(user.pk)
+    user.first_name = user.last_name = user.avatar = ""
+    user.phone_number = None
+    user.referral_code = None
+    user.is_active = False
+    user.deleted_at = now
+    user.set_unusable_password()
+    return (
+        "email",
+        "first_name",
+        "last_name",
+        "avatar",
+        "phone_number",
+        "referral_code",
+        "is_active",
+        "deleted_at",
+        "password",
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,25 +100,7 @@ class ProfileService:
         user = self._locked(user_id)
         if user.account_role is not Role.CLIENT:
             raise StaffAccountDeletion
-        user.email = f"deleted-{user.pk}@deleted.invalid"
-        user.first_name = user.last_name = user.avatar = ""
-        user.phone_number = None
-        user.is_active = False
-        user.deleted_at = now
-        user.set_unusable_password()
-        self._users.save(
-            user,
-            fields=(
-                "email",
-                "first_name",
-                "last_name",
-                "avatar",
-                "phone_number",
-                "is_active",
-                "deleted_at",
-                "password",
-            ),
-        )
+        self._users.save(user, fields=scrub_identity(user, now))
         self._addresses.delete_all_for(user.pk)
         return user
 

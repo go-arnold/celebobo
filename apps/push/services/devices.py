@@ -33,6 +33,9 @@ class DeviceService:
         )
         return subscription
 
+    def remove_all(self, user_id: int) -> int:
+        return self._subscriptions.delete(item.pk for item in self._subscriptions.for_user(user_id))
+
     def remove(self, user_id: int, subscription_id: int) -> None:
         subscription = self._subscriptions.owned(user_id, subscription_id)
         if subscription is None:

@@ -1,5 +1,6 @@
 from django.utils import timezone
 
+from apps.audit.services.retention import retention_rules
 from apps.media.services.references import media_references
 from apps.messaging.adapters import notifiers
 from apps.messaging.adapters.gateways import AccountsDirectory, MessagingOrderThreads, OrdersGateway
@@ -7,6 +8,7 @@ from apps.messaging.adapters.media_references import MessagingMediaReferences
 from apps.messaging.conf import messaging_settings
 from apps.messaging.facades import (
     ConversationFacade,
+    MessagingPrivacyFacade,
     NotificationFacade,
     NotificationRouter,
     ProposalFacade,
@@ -28,6 +30,7 @@ from apps.messaging.services.notifications import (
     notifier_registry,
 )
 from apps.messaging.services.proposals import ProposalService
+from apps.messaging.services.retention import RULE, StaleConversationRetention
 from apps.orders.services.contracts import OrderThreads
 from core.container import Container, Lifetime
 from core.events.contracts import EventPublisher
@@ -46,6 +49,12 @@ def register(container: Container) -> None:
     container.register(ProposalFacade, _proposal_facade, lifetime=Lifetime.TRANSIENT)
     container.register(NotificationFacade, _notification_facade, lifetime=Lifetime.TRANSIENT)
     container.register(NotificationRouter, _router, lifetime=Lifetime.TRANSIENT)
+    container.register(MessagingPrivacyFacade, _privacy_facade, lifetime=Lifetime.TRANSIENT)
+    retention_rules.add(
+        RULE,
+        lambda: StaleConversationRetention(ConversationRepository(), OrdersGateway()),
+        replace=True,
+    )
 
 
 def _conversations(_: Container) -> ConversationService:
@@ -106,4 +115,12 @@ def _router(container: Container) -> NotificationRouter:
         ),
         selector=ConversationSelector(),
         directory=container.resolve(Directory),
+    )
+
+
+def _privacy_facade(_: Container) -> MessagingPrivacyFacade:
+    return MessagingPrivacyFacade(
+        conversations=ConversationRepository(),
+        messages=MessageRepository(),
+        notifications=NotificationRepository(),
     )

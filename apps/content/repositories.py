@@ -1,9 +1,11 @@
 from collections.abc import Iterable, Sequence
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from django.db.models import Max, Model
+from django.db.models import Max, Model, QuerySet
 
+from apps.audit.domain.retention import Expired
 from apps.content.models import Banner, ContactMessage, HomeSection, SiteSettings, Subscriber
 
 SETTINGS_ID = 1
@@ -69,6 +71,24 @@ class SubscriberRepository(ModelRepository[Subscriber]):
 
     def by_token(self, token: UUID) -> Subscriber | None:
         return Subscriber.objects.filter(token=token).first()
+
+    def stale_before(self, cutoff: datetime, *, after_id: int, limit: int) -> list[Expired]:
+        rows = (
+            _stale_before(cutoff)
+            .filter(pk__gt=after_id)
+            .order_by("pk")
+            .values_list("pk", "subscribed_at")[:limit]
+        )
+        return [Expired(pk, f"abonné #{pk} inscrit le {since:%Y-%m-%d}") for pk, since in rows]
+
+    def delete_stale(self, ids: list[int], *, before: datetime) -> int:
+        _, deleted = _stale_before(before).filter(pk__in=ids).delete()
+        return deleted.get(Subscriber._meta.label, 0)
+
+
+# still subscribed, with no (re)subscription since the cutoff
+def _stale_before(cutoff: datetime) -> QuerySet[Subscriber]:
+    return Subscriber.objects.filter(unsubscribed_at__isnull=True, subscribed_at__lt=cutoff)
 
 
 class SettingsRepository:

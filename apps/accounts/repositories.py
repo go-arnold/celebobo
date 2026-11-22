@@ -1,9 +1,11 @@
 from collections.abc import Iterable
+from datetime import datetime
 from typing import Any
 
 from django.db.models import QuerySet
 
 from apps.accounts.models import Address, NotificationPreference, User
+from apps.audit.domain.retention import Expired
 from core.domain.actor import Role
 
 
@@ -91,3 +93,49 @@ class PreferenceRepository:
         NotificationPreference.objects.update_or_create(
             user_id=user_id, defaults={"preferences": preferences}
         )
+
+
+# account retention: plain client accounts (no staff, no reseller, past or present) not yet
+# anonymised, without sign-up or login since the cutoff
+class InactiveClientRepository:
+    def quiet_since(self, cutoff: datetime, *, after_id: int, limit: int) -> list[Expired]:
+        rows = (
+            _quiet_clients(cutoff)
+            .filter(pk__gt=after_id)
+            .order_by("pk")
+            .values_list("pk", "date_joined", "last_login", "last_seen_at")[:limit]
+        )
+        return [
+            Expired(
+                pk, f"compte client #{pk}, vu pour la dernière fois le {_latest(*dates):%Y-%m-%d}"
+            )
+            for pk, *dates in rows
+        ]
+
+    def lock_quiet(self, user_id: int, cutoff: datetime) -> User | None:
+        return _quiet_clients(cutoff).select_for_update().filter(pk=user_id).first()
+
+    def save(self, user: User, *, fields: Iterable[str]) -> None:
+        user.save(update_fields=[*fields])
+
+    def forget_preferences(self, user_id: int) -> None:
+        NotificationPreference.objects.filter(user_id=user_id).delete()
+
+
+def _latest(*dates: datetime | None) -> datetime:
+    return max(date for date in dates if date is not None)
+
+
+def _quiet_clients(cutoff: datetime) -> QuerySet[User]:
+    return (
+        User.objects.filter(
+            role=Role.CLIENT.value,
+            is_staff=False,
+            is_superuser=False,
+            referral_code__isnull=True,
+            deleted_at__isnull=True,
+        )
+        .filter(date_joined__lt=cutoff)
+        .exclude(last_login__gte=cutoff)
+        .exclude(last_seen_at__gte=cutoff)
+    )

@@ -19,6 +19,7 @@ from apps.orders.facades import (
     DispatchFacade,
     OrderAdjustmentFacade,
     OrderExpiryFacade,
+    OrderPrivacyFacade,
     PromotionFacade,
     ShippingQuoteFacade,
 )
@@ -67,6 +68,11 @@ def register(container: Container) -> None:
     container.register(ClientOrderFacade, _client_facade, lifetime=Lifetime.TRANSIENT)
     container.register(DispatchFacade, _dispatch_facade, lifetime=Lifetime.TRANSIENT)
     container.register(OrderExpiryFacade, _expiry_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(
+        OrderPrivacyFacade,
+        lambda _: OrderPrivacyFacade(orders=OrderRepository()),
+        lifetime=Lifetime.TRANSIENT,
+    )
     container.register(OrderAdjustmentFacade, _adjustment_facade, lifetime=Lifetime.TRANSIENT)
     container.register(PromotionFacade, _promotion_facade, lifetime=Lifetime.TRANSIENT)
     container.register(ShippingQuoteFacade, _shipping_quote_facade, lifetime=Lifetime.TRANSIENT)

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 from django.db import transaction
 from django.utils import timezone
@@ -40,6 +41,7 @@ from apps.accounts.domain.read_models import (
     UserRow,
     WsTicket,
 )
+from apps.accounts.domain.retention import INACTIVITY_YEARS
 from apps.accounts.selectors import (
     AddressSelector,
     ProfileSelector,
@@ -58,13 +60,18 @@ from apps.accounts.services.preferences import Preferences, PreferenceService
 from apps.accounts.services.profiles import ProfileService
 from apps.accounts.services.registration import RegistrationService
 from apps.accounts.services.resellers import ResellerAccountService
+from apps.accounts.services.retention import InactiveAccountService
 from apps.accounts.services.roles import RoleService
 from apps.accounts.services.tickets import TicketService
 from apps.accounts.services.user_admin import UserAdminService
+from apps.audit.domain.retention import BATCH_SIZE, RetentionReport, years_before
+from apps.audit.services.retention import purge_expired
 from core.domain.actor import Actor, Role
 from core.domain.errors import Unauthenticated
 from core.events.contracts import EventPublisher
 from core.observability.decorators import logged_facade
+
+INACTIVE_CLIENTS_RULE = "accounts.inactive_clients"
 
 
 @dataclass(frozen=True, slots=True)
@@ -336,3 +343,45 @@ def _user_id(actor: Actor) -> int:
     if actor.user_id is None:
         raise Unauthenticated
     return actor.user_id
+
+
+# retention rule (privacy policy, section 6): client accounts without activity for 3 years are
+# anonymised, batch by batch, each batch in one transaction
+@logged_facade
+class AccountRetentionFacade:
+    label = "Comptes clients sans activité depuis 3 ans, anonymisés"
+
+    def __init__(
+        self,
+        *,
+        retention: InactiveAccountService,
+        revoker: TokenRevoker,
+        publisher: EventPublisher,
+    ) -> None:
+        self._retention = retention
+        self._revoker = revoker
+        self._publisher = publisher
+
+    def apply(self, *, now: datetime, dry_run: bool) -> RetentionReport:
+        cutoff = years_before(now, INACTIVITY_YEARS)
+        return purge_expired(
+            rule=INACTIVE_CLIENTS_RULE,
+            label=self.label,
+            fetch=lambda after: self._retention.candidates(
+                cutoff, after_id=after, limit=BATCH_SIZE
+            ),
+            keep=lambda batch: self._retention.recently_active(batch, cutoff),
+            delete=lambda ids: self._anonymize(ids, cutoff=cutoff, now=now),
+            dry_run=dry_run,
+        )
+
+    def _anonymize(self, user_ids: list[int], *, cutoff: datetime, now: datetime) -> int:
+        anonymized = 0
+        for user_id in user_ids:
+            if self._retention.anonymize(user_id, cutoff=cutoff, now=now):
+                self._revoker.revoke_all(user_id)
+                self._publisher.publish(
+                    AccountDeleted(user_id=user_id, inactivity=True, actor_id=None)
+                )
+                anonymized += 1
+        return anonymized

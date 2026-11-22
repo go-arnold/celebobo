@@ -2,6 +2,7 @@ from time import time
 
 from django.utils import timezone
 
+from apps.audit.services.retention import retention_rules
 from apps.content.adapters.gateways import CatalogShowcase, LoyaltyProgrammes, OrdersShipping
 from apps.content.adapters.media_references import ContentMediaReferences
 from apps.content.adapters.storefront import HttpRevalidator
@@ -46,6 +47,8 @@ from apps.content.services.editors import Editor
 from apps.content.services.home import HomeService, flatten
 from apps.content.services.mailer import ContentMailer
 from apps.content.services.newsletter import NewsletterService
+from apps.content.services.retention import RULE as SUBSCRIBERS_RULE
+from apps.content.services.retention import StaleSubscriberRetention
 from apps.content.services.rules import BannerRules, SectionRules, UniqueSlug
 from apps.content.services.site import SiteSettingsService
 from apps.content.services.storefront import PendingTags
@@ -61,6 +64,11 @@ HOME_CATEGORY_BLOCKS = 4
 
 def register(container: Container) -> None:
     media_references.add("content", ContentMediaReferences, replace=True)
+    retention_rules.add(
+        SUBSCRIBERS_RULE,
+        lambda: StaleSubscriberRetention(SubscriberRepository()),
+        replace=True,
+    )
     container.register(ContentCache, lambda _: ContentCache())
     container.register(Showcase, lambda _: CatalogShowcase())
     container.register(ShippingSource, lambda _: OrdersShipping())

@@ -28,9 +28,11 @@ class NewsletterService:
         if existing is not None:
             if existing.is_active:
                 return SubscriptionResult(existing, created=False)
+            # a new consent: the 3-year retention period starts again from here
             existing.unsubscribed_at = None
+            existing.subscribed_at = self._clock()
             existing.source = source or existing.source
-            self._subscribers.save(existing, fields=("unsubscribed_at", "source"))
+            self._subscribers.save(existing, fields=("unsubscribed_at", "subscribed_at", "source"))
             return SubscriptionResult(existing, created=True)
         try:
             with transaction.atomic():

@@ -22,6 +22,7 @@ The former cashback ledger ("Cagnotte"), turned into the points ledger of the lo
 | Validity | The **whole balance** stays valid while the client buys at least once every 12 months (`points_validity_months`); each order restarts the count for every point. After 12 months without an order, everything expires, pending points included |
 | Returns | A cancelled or returned order loses what it still holds of its earning and gives back the points it used. Returning some units of a line takes back the share of the earning matching the real money returned (rounded down) and gives back the points spent on those units; returning or cancelling the whole order then settles only what is left |
 | Scope | Online customer orders only, not resellers' in-store sales |
+| Retention | The points history goes with the account: deleted when the account is anonymised, 3 years after the client's last activity ([§2](02-accounts.md#inactive-accounts-retention)). Expiry lines and referral points do not count as the client's activity |
 
 How it works:
 - `GET /me/points/` (clients, `points.view`) gives what the client can spend

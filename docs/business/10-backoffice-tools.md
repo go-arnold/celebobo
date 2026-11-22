@@ -122,3 +122,28 @@ Two journals, kept **365 days**:
 | Delete orphan uploads | daily |
 | Announce deals that start or end | every minute |
 | Expire the points of clients with no order in the validity period (12 months) | daily |
+| Retention rules of the privacy policy (one task per rule, below) | daily |
+
+## Retention
+
+The retention periods of the privacy policy (§6) are applied by daily tasks (`audit.apply_retention`,
+one beat entry per rule so a failing rule never blocks the others). Each rule works by batches of
+200 rows (one transaction per batch), is idempotent, logs its count and writes a
+`RetentionApplied` event (rule, count) to the audit log on every real run, even with nothing to do.
+The periods are domain constants: they come from the policy text, not from settings.
+
+| Rule | What | Details |
+|---|---|---|
+| `accounts.inactive_clients` | Client accounts anonymised 3 years after the last activity | [§2](02-accounts.md#inactive-accounts-retention) |
+| `messaging.stale_conversations` | Conversations deleted 3 years after the client's last order and the last message | [§7](07-messaging-notifications.md#retention) |
+| `resellers.rejected_applications` | Rejected reseller applications deleted 1 year after the decision | [§6](06-resellers.md#2-review-staff-reseller_applicationsreview) |
+| `content.stale_subscribers` | Newsletter subscribers deleted after 3 years without (re)subscribing | [§8](08-content.md#newsletter) |
+
+To run them by hand: `python manage.py apply_retention [--rule NAME …] [--dry-run]`. With
+`--dry-run` nothing changes and nothing is written to the audit log: the command prints, per rule,
+how many rows would be affected and the first 50 (ids and dates only, no personal data).
+
+Not covered by a rule yet: warranty and return files (1 year after the trial and warranty period)
+do not exist yet (Phase 7); orders, invoices and payments are kept 10 years and none is that old;
+the reseller's access to a client's contact details after delivery and the 12-month technical logs
+(audit log, above) are handled elsewhere.

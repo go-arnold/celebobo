@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from datetime import date, datetime, time
 from decimal import Decimal
 
-from django.db.models import Avg, Count, Q, QuerySet, Sum
+from django.db.models import Avg, Count, Max, Q, QuerySet, Sum
 from django.utils import timezone
 
 from apps.orders.domain.commands import OrderFilters
@@ -48,6 +48,8 @@ from apps.orders.models import (
     ShippingZone,
 )
 from core.domain.actor import Actor
+
+ANONYMIZED_CLIENT = "Client anonymisé"
 
 
 def scoped_orders(actor: Actor) -> QuerySet[Order]:
@@ -221,7 +223,7 @@ class OrderSelector:
             client=PersonBrief(
                 id=client.pk,
                 name=_client_name(order, staff=staff),
-                email=client.email if staff else None,
+                email=client.email if staff and not _anonymized(client) else None,
                 phone=getattr(client, "phone_number", None),
             ),
             reseller=(
@@ -369,10 +371,17 @@ def _line(item: OrderItem) -> OrderLineView:
 
 # without a name on the account, staff see the e-mail and resellers the delivery recipient
 def _client_name(order: Order, *, staff: bool) -> str:
+    if _anonymized(order.client):
+        return ANONYMIZED_CLIENT
     name = _display_name(order.client)
     if staff or name != order.client.email:
         return name
     return order.recipient
+
+
+# deleted by the client or anonymised after 3 years without activity: only a placeholder is left
+def _anonymized(user: object) -> bool:
+    return getattr(user, "deleted_at", None) is not None
 
 
 def _display_name(user: object) -> str:
@@ -430,6 +439,16 @@ def delivery_code(order_id: int) -> str:
     if code is None:
         raise OrderNotFound
     return code
+
+
+# when each client last placed an order, whatever became of it (account retention)
+def last_order_dates(client_ids: Iterable[int]) -> dict[int, datetime]:
+    rows = (
+        Order.objects.filter(client_id__in=list(client_ids))
+        .values("client_id")
+        .annotate(last=Max("created_at"))
+    )
+    return {row["client_id"]: row["last"] for row in rows}
 
 
 CONVERTIBLE_STATUSES = (OrderStatus.DELIVERED,)

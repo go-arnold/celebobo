@@ -7,8 +7,9 @@ from apps.audit.repositories import ChangeRepository, EventRepository
 from apps.audit.selectors import ChangeSelector, EventSelector
 from apps.audit.services.contracts import ActorNames
 from apps.audit.services.recorder import EventRecorder
-from apps.audit.services.retention import RetentionService
+from apps.audit.services.retention import RetentionRunner, RetentionService, retention_rules
 from core.container import Container, Lifetime
+from core.events.contracts import EventPublisher
 
 
 def register(container: Container) -> None:
@@ -31,4 +32,6 @@ def _audit_facade(container: Container) -> AuditFacade:
             retention_days=settings.retention_days,
             clock=timezone.now,
         ),
+        runner=RetentionRunner(retention_rules, clock=timezone.now),
+        publisher=container.resolve(EventPublisher),
     )

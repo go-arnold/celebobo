@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.utils import timezone
 
+from apps.audit.services.retention import retention_rules
 from apps.resellers.adapters.gateways import (
     AccountsDirectory,
     AccountsResellers,
@@ -24,6 +25,7 @@ from apps.resellers.services.contracts import (
 from apps.resellers.services.invitees import InviteeService
 from apps.resellers.services.mailer import ApplicationMailer
 from apps.resellers.services.referrals import ReferralKitBuilder
+from apps.resellers.services.retention import RULE, RejectedApplicationRetention
 from core.container import Container, Lifetime
 from core.events.contracts import EventPublisher
 
@@ -31,6 +33,9 @@ LOGIN_PATH = "/connexion"
 
 
 def register(container: Container) -> None:
+    retention_rules.add(
+        RULE, lambda: RejectedApplicationRetention(ApplicationRepository()), replace=True
+    )
     container.register(ResellerAccounts, lambda _: AccountsResellers())
     container.register(ResellerDirectory, lambda _: AccountsDirectory())
     container.register(SalesLedger, lambda _: SalesPerformanceLedger())

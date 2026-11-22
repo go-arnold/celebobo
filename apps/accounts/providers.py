@@ -3,6 +3,14 @@ from allauth.account import app_settings as account_settings
 from apps.accounts.adapters.allauth import AllauthEmailVerifier, AllauthPasswordSetupLinks
 from apps.accounts.adapters.media import MediaAvatars
 from apps.accounts.adapters.media_references import AccountMediaReferences
+from apps.accounts.adapters.retention import (
+    AllauthIdentities,
+    LoyaltyPrivacy,
+    MessagingPrivacy,
+    OrdersPrivacy,
+    PushDevices,
+    SessionRenewals,
+)
 from apps.accounts.adapters.security import (
     CacheTicketStore,
     DjangoGroupSync,
@@ -10,14 +18,21 @@ from apps.accounts.adapters.security import (
     SimpleJwtTokenRevoker,
 )
 from apps.accounts.facades import (
+    INACTIVE_CLIENTS_RULE,
     AccountFacade,
+    AccountRetentionFacade,
     AddressBookFacade,
     PreferencesFacade,
     RealtimeAccessFacade,
     ResellerAccountFacade,
     UserAdminFacade,
 )
-from apps.accounts.repositories import AddressRepository, PreferenceRepository, UserRepository
+from apps.accounts.repositories import (
+    AddressRepository,
+    InactiveClientRepository,
+    PreferenceRepository,
+    UserRepository,
+)
 from apps.accounts.selectors import (
     AddressSelector,
     ProfileSelector,
@@ -41,9 +56,11 @@ from apps.accounts.services.profiles import ProfileService
 from apps.accounts.services.referrals import ReferralService
 from apps.accounts.services.registration import RegistrationService
 from apps.accounts.services.resellers import ResellerAccountService
+from apps.accounts.services.retention import InactiveAccountService
 from apps.accounts.services.roles import RoleService
 from apps.accounts.services.tickets import TicketService
 from apps.accounts.services.user_admin import UserAdminService
+from apps.audit.services.retention import retention_rules
 from apps.media.services.references import media_references
 from core.authz.catalog import permission_catalog
 from core.container import Container, Lifetime
@@ -66,6 +83,10 @@ def register(container: Container) -> None:
     container.register(RealtimeAccessFacade, _realtime_facade, lifetime=Lifetime.TRANSIENT)
     container.register(ResellerAccountFacade, _reseller_facade, lifetime=Lifetime.TRANSIENT)
     container.register(UserAdminFacade, _user_admin_facade, lifetime=Lifetime.TRANSIENT)
+    container.register(AccountRetentionFacade, _retention_facade, lifetime=Lifetime.TRANSIENT)
+    retention_rules.add(
+        INACTIVE_CLIENTS_RULE, lambda: container.resolve(AccountRetentionFacade), replace=True
+    )
     container.register(
         AccountMailer,
         lambda c: AccountMailer(UserRepository(), c.resolve(PasswordSetupLinks)),
@@ -134,5 +155,19 @@ def _user_admin_facade(container: Container) -> UserAdminFacade:
         ),
         selector=UserDirectorySelector(),
         verifier=container.resolve(EmailVerifier),
+        publisher=container.resolve(EventPublisher),
+    )
+
+
+def _retention_facade(container: Container) -> AccountRetentionFacade:
+    orders, messaging, loyalty = OrdersPrivacy(), MessagingPrivacy(), LoyaltyPrivacy()
+    return AccountRetentionFacade(
+        retention=InactiveAccountService(
+            InactiveClientRepository(),
+            AddressRepository(),
+            activity=(SessionRenewals(), orders, messaging, loyalty),
+            erasers=(AllauthIdentities(), PushDevices(), orders, messaging, loyalty),
+        ),
+        revoker=container.resolve(TokenRevoker),
         publisher=container.resolve(EventPublisher),
     )

@@ -32,6 +32,20 @@ own as a client); a client sees their own.
 - Staff can **assign a support thread** to a reseller (`conversations.assign`); order threads follow
   the order's assignment instead (`not_a_support_conversation`).
 
+### Retention
+
+Privacy policy §6: messages with customer service or the reseller are kept **3 years after the
+client's last order**. A daily task (`messaging.stale_conversations`, see
+[§10](10-backoffice-tools.md#retention)) deletes a conversation — order or support thread, open or
+closed — with its messages, price proposals and notifications once **both**:
+- its last message (or its opening, when it has none) is more than 3 years old, and
+- the client has placed no order (whatever its status) for 3 years.
+
+So a client who keeps ordering keeps their older threads, and a thread still in use is never cut.
+Attachments no longer referenced are then removed by the orphan-upload sweep. When an inactive
+account is anonymised ([§2](02-accounts.md#inactive-accounts-retention)), all its conversations
+and notifications go at once.
+
 ### Price proposals (order threads only)
 
 1. The reseller in charge (or staff) proposes a new unit price for one line of the order
