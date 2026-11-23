@@ -270,6 +270,8 @@ class TestReminder:
         assign(manager, order, reseller)
         pay(reseller, order, django_capture_on_commit_callbacks)
         cash = container.resolve(CashFacade)
+        # events are recorded here, not handled: the collection is made by hand
+        cash.order_paid(order.pk)
 
         before = cash.remind_overdue()
         CashCollection.objects.update(due_at=timezone.now() - timedelta(minutes=1))
