@@ -162,6 +162,15 @@ TEMPLATES: Mapping[NotificationKind, NotificationTemplate] = MappingProxyType(
             topic=STATUS_CHANGED_TOPIC,
             essential=True,
         ),
+        NotificationKind.CASH_OVERDUE: NotificationTemplate(
+            title="Argent à reverser — commande {number}",
+            body="Les {amount} $ encaissés pour la commande {number} devaient être reversés sous "
+            "24 heures. Reversez-les par Mobile Money : en attendant, vous ne recevez plus de "
+            "nouvelles commandes.",
+            link="/admin/encaissements",
+            topic=STATUS_CHANGED_TOPIC,
+            essential=True,
+        ),
         NotificationKind.PAYOUT_PAID: NotificationTemplate(
             title="Paiement reçu : {amount} $",
             body="Celebobo vous a versé {amount} $ pour votre relevé du {date}.",

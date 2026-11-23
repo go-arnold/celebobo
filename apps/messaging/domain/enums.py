@@ -54,3 +54,4 @@ class NotificationKind(StrEnum):
     PAYOUT_PAID = "payout_paid"
     CLAIM_SUBMITTED = "claim_submitted"
     CLAIM_UPDATE = "claim_update"
+    CASH_OVERDUE = "cash_overdue"

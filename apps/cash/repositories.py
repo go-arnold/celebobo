@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from datetime import datetime
 from typing import Any
 
 from django.db.models import F
@@ -33,6 +34,14 @@ class CashRepository:
             CashCollection.objects.filter(
                 reseller_id__in=list(reseller_ids), voided_at__isnull=True
             )
+            .filter(covered__lt=F("amount"))
+            .order_by("due_at", "pk")
+        )
+
+    def unreminded_overdue(self, now: datetime) -> list[CashCollection]:
+        return list(
+            CashCollection.objects.select_for_update()
+            .filter(voided_at__isnull=True, reminded_at__isnull=True, due_at__lte=now)
             .filter(covered__lt=F("amount"))
             .order_by("due_at", "pk")
         )

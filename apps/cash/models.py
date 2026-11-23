@@ -21,6 +21,8 @@ class CashCollection(models.Model):
     due_at = models.DateTimeField(db_index=True)
     # the order was cancelled before any remittance: nothing is owed
     voided_at = models.DateTimeField(null=True, blank=True)
+    # the reseller was told once that the 24 hours are over
+    reminded_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("due_at", "pk")

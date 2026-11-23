@@ -420,6 +420,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "loyalty.expire_points",
         "schedule": 24 * 60 * 60,
     },
+    # hourly: resellers are reminded of collected money not remitted within 24 hours
+    "remind-overdue-cash": {
+        "task": "cash.remind_overdue",
+        "schedule": 60 * 60,
+    },
     # daily: store credit unused after 6 months expires
     "expire-store-credit": {
         "task": "credit.expire",

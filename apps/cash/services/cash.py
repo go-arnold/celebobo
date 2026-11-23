@@ -80,6 +80,15 @@ class CashService:
             recorded_by_id=actor.user_id,
         )
 
+    # past their 24 hours, still owed, never reminded: each is reminded once
+    def remind(self) -> list[CashCollection]:
+        now = self._clock()
+        due = self._cash.unreminded_overdue(now)
+        for collection in due:
+            collection.reminded_at = now
+            self._cash.save(collection, fields=("reminded_at",))
+        return due
+
     def position(self, reseller_id: int) -> CashPosition:
         return self.positions([reseller_id])[reseller_id]
 

@@ -3,7 +3,7 @@ from django.db import transaction
 from apps.cash.adapters.gateways import AccountsResellers
 from apps.cash.domain.commands import RecordRemittance
 from apps.cash.domain.errors import NotAReseller
-from apps.cash.domain.events import CashRemitted
+from apps.cash.domain.events import CashOverdue, CashRemitted
 from apps.cash.domain.read_models import CashSummary, CollectionView, RemittanceView
 from apps.cash.domain.rules import CashPosition
 from apps.cash.selectors import CashSelector
@@ -80,6 +80,20 @@ class CashFacade:
             for reseller_id, position in self._cash.positions(ids).items()
         ]
         return sorted(rows, key=lambda row: (row.blocked_reason is None, -row.held))
+
+    # hourly: a reseller whose collected money is past its 24 hours is told, once per order
+    def remind_overdue(self) -> int:
+        with transaction.atomic():
+            due = self._cash.remind()
+            for collection in due:
+                self._publisher.publish(
+                    CashOverdue(
+                        reseller_id=collection.reseller_id,
+                        order_number=collection.order_number,
+                        amount=collection.amount - collection.covered,
+                    )
+                )
+        return len(due)
 
     def remit(self, actor: Actor, command: RecordRemittance) -> CashSummary:
         with transaction.atomic():

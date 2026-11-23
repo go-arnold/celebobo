@@ -29,6 +29,9 @@ A reseller gets **no new orders** (`reseller_cash_blocked`, 422, `meta.reason`) 
 
 The assignment screen shows why (`cash_blocked` on each assignable reseller) and greys them out.
 
+An hourly task (`cash.remind_overdue`) tells the reseller, **once per order**, when the 24 hours are
+over (« Argent à reverser — commande … », e-mail always sent).
+
 ## Remittances (staff, `cash.manage`)
 
 `POST /bo/cash/remittances/` (`Idempotency-Key`) `{reseller_id, amount, reference, received_at}`:

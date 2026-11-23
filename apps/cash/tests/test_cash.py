@@ -256,3 +256,26 @@ class TestAccess:
         assert [row["reseller_id"] for row in overview] == [reseller.pk]
         assert forbidden.status_code == 403
         assert staff_remit.status_code == 403
+
+
+class TestReminder:
+    def test_late_money_is_reminded_once(
+        self, manager, reseller, make_order, django_capture_on_commit_callbacks, published_events
+    ):
+        from apps.cash.domain.events import CashOverdue
+        from apps.cash.facades import CashFacade
+        from core.container import container
+
+        order = make_order()
+        assign(manager, order, reseller)
+        pay(reseller, order, django_capture_on_commit_callbacks)
+        cash = container.resolve(CashFacade)
+
+        before = cash.remind_overdue()
+        CashCollection.objects.update(due_at=timezone.now() - timedelta(minutes=1))
+        first, again = cash.remind_overdue(), cash.remind_overdue()
+
+        assert (before, first, again) == (0, 1, 0)
+        event = published_events.single(CashOverdue)
+        assert (event.reseller_id, event.order_number) == (reseller.pk, order.number)
+        assert event.amount == order.total

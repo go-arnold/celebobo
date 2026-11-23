@@ -4,6 +4,7 @@ from datetime import datetime
 
 from django.db import transaction
 
+from apps.cash.domain.events import CashOverdue
 from apps.messaging.domain.commands import (
     ConversationFilters,
     OpenSupport,
@@ -394,6 +395,11 @@ class NotificationRouter:
             event.statement_id,
             amount=str(event.amount),
             date=f"{event.payout_date:%d/%m/%Y}",
+        )
+
+    def cash_overdue(self, event: CashOverdue) -> None:
+        self._fanout.cash_overdue(
+            event.reseller_id, number=event.order_number, amount=str(event.amount)
         )
 
     def claim_submitted(self, event: ClaimSubmitted) -> None:
