@@ -6,6 +6,7 @@ from apps.orders.adapters.gateways import (
     AccountsResellerDirectory,
     CatalogInventory,
     DeliveredOrderPurchases,
+    NoCampaigns,
     NoCashGate,
     NoCreditWallet,
     NoOrderThreads,
@@ -39,6 +40,7 @@ from apps.orders.services.cart import CartService
 from apps.orders.services.checkout import CheckoutService
 from apps.orders.services.contracts import (
     AddressBook,
+    CampaignOffers,
     CashGate,
     CreditWallet,
     Inventory,
@@ -69,6 +71,7 @@ def register(container: Container) -> None:
     container.register(CreditWallet, lambda _: NoCreditWallet())
     container.register(CashGate, lambda _: NoCashGate())
     container.register(SuspensionGate, lambda _: NoSuspensions())
+    container.register(CampaignOffers, lambda _: NoCampaigns())
     container.register(OrderStateMachine, lambda _: OrderStateMachine(TransitionPolicyFactory()))
     container.register(PurchaseVerifier, lambda _: DeliveredOrderPurchases(), replace=True)
     container.register(DealSales, lambda _: OrderDealSales(), replace=True)
@@ -102,6 +105,7 @@ def _pricing(container: Container) -> PricingService:
         addresses=container.resolve(AddressBook),
         max_lines=settings.max_lines,
         credit=container.resolve(CreditWallet),
+        campaigns=container.resolve(CampaignOffers),
     )
 
 

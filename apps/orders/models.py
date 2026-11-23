@@ -117,6 +117,13 @@ class Order(models.Model):
     store_credit = models.DecimalField(
         max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
     )
+    # the Cagnotte operation running when the order was placed (app cagnotte), and its immediate
+    # discount, which is part of ``discount``
+    campaign_id = models.PositiveBigIntegerField(null=True, blank=True)
+    campaign_name = models.CharField(max_length=120, blank=True)
+    campaign_discount = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
+    )
     total = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     cancel_reason = models.CharField(max_length=24, choices=CANCEL_CHOICES, blank=True)
     cancel_details = models.CharField(max_length=500, blank=True)
@@ -197,6 +204,10 @@ class OrderItem(models.Model):
     )
     # the line's share of the store credit (non-real money too)
     credit = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
+    )
+    # the Cagnotte discount on this line, part of ``discount``
+    campaign_discount = models.DecimalField(
         max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
     )
     amount_paid = models.DecimalField(

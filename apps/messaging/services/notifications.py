@@ -214,6 +214,14 @@ class NotificationFanout:
             [reseller_id], render(NotificationKind.SANCTION, label=label, message=message)
         )
 
+    def cashback_paid(self, client_id: int, *, number: str, amount: str, reference: str) -> None:
+        self._notifications.notify(
+            [client_id],
+            render(
+                NotificationKind.CASHBACK_PAID, number=number, amount=amount, reference=reference
+            ),
+        )
+
     def cash_overdue(self, reseller_id: int, *, number: str, amount: str) -> None:
         self._notifications.notify(
             [reseller_id], render(NotificationKind.CASH_OVERDUE, number=number, amount=amount)

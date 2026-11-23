@@ -302,8 +302,8 @@ all, §5):
 - A price adjustment shares the coupon, points and store credit out again over all lines; store
   credit the order no longer needs goes back to the client (§14).
 - Orders placed before this existed were filled in once by the migration, with the same rule.
-- Coupon, fidelity points and store credit are the **non-real money** of an order (Cagnotte
-  campaigns will join them later); sale and deal prices are real money. The order details show
+- Coupon, fidelity points, store credit and a Cagnotte discount (§17) are the **non-real money**
+  of an order; sale and deal prices are real money. The order details show
   these fields on each line, and the order its `store_credit`.
 
 ### Returning part of an order

@@ -79,6 +79,22 @@ class PointsFacade:
         with transaction.atomic():
             return self._points.expire()
 
+    def credit_campaign(
+        self,
+        user_id: int,
+        order_id: int,
+        amount: Decimal,
+        *,
+        available_at: datetime,
+        expires_at: datetime,
+    ) -> None:
+        self._points.credit_campaign(
+            user_id, order_id, amount, available_at=available_at, expires_at=expires_at
+        )
+
+    def reverse_campaign(self, order_id: int, amount: Decimal | None = None) -> Decimal:
+        return self._points.reverse_campaign(order_id, amount)
+
 
 # retention of client accounts (privacy policy, section 6): the points history goes with the
 # account, 3 years after the last activity; the points paid on orders stay on the orders

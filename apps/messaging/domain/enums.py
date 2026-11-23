@@ -57,3 +57,4 @@ class NotificationKind(StrEnum):
     CASH_OVERDUE = "cash_overdue"
     LEVEL_CHANGED = "level_changed"
     SANCTION = "sanction"
+    CASHBACK_PAID = "cashback_paid"

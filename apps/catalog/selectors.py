@@ -895,3 +895,21 @@ def _label(product: Product) -> ProductLabel:
         stock=product.stock,
         created_at=product.created_at,
     )
+
+
+# each product's category and the category above it (Cagnotte operations target categories)
+def product_categories(product_ids: Iterable[int]) -> dict[int, frozenset[int]]:
+    rows = Product.all_objects.filter(pk__in=list(product_ids)).values_list(
+        "pk", "category_id", "category__parent_id"
+    )
+    return {
+        pk: frozenset(c for c in (category, parent) if c is not None)
+        for pk, category, parent in rows
+    }
+
+
+def catalog_ids_exist(category_ids: Iterable[int], product_ids: Iterable[int]) -> bool:
+    categories, products = set(category_ids), set(product_ids)
+    return Category.objects.filter(pk__in=categories).count() == len(
+        categories
+    ) and Product.objects.filter(pk__in=products).count() == len(products)

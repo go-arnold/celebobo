@@ -4,6 +4,7 @@ from datetime import datetime
 
 from django.db import transaction
 
+from apps.cagnotte.domain.events import CashbackPaid
 from apps.cash.domain.events import CashOverdue
 from apps.messaging.domain.commands import (
     ConversationFilters,
@@ -405,6 +406,14 @@ class NotificationRouter:
     def sanction_updated(self, event: SanctionUpdated) -> None:
         self._fanout.sanction(
             event.reseller_id, label=SanctionKind(event.kind).label, message=event.message
+        )
+
+    def cashback_paid(self, event: CashbackPaid) -> None:
+        self._fanout.cashback_paid(
+            event.client_id,
+            number=event.order_number,
+            amount=str(event.amount),
+            reference=event.reference or "—",
         )
 
     def cash_overdue(self, event: CashOverdue) -> None:

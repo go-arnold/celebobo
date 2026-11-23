@@ -4,6 +4,7 @@ from decimal import ROUND_DOWN, Decimal
 
 from apps.loyalty.domain.errors import PointsUnavailable
 from apps.loyalty.domain.points import (
+    BALANCE_CREDITS,
     CLOSING_MONTHS,
     EARNINGS,
     REFERRALS,
@@ -95,6 +96,7 @@ class PointsService:
             earned, pending = ZERO, False
         count, total = self._orders.delivered(user_id)
         return InvoiceStatement(
+            cagnotte=self.cagnotte(order_id),
             earned=earned,
             earned_pending=pending,
             used=purchase.points_used if purchase else ZERO,
@@ -181,6 +183,45 @@ class PointsService:
         )
         return amount
 
+    # a Cagnotte operation's points (cashback paid in points, boosted points): pending like the
+    # order's own earning, then valid until ``expires_at`` whatever the client buys
+    def credit_campaign(
+        self,
+        user_id: int,
+        order_id: int,
+        amount: Decimal,
+        *,
+        available_at: datetime,
+        expires_at: datetime,
+    ) -> None:
+        if amount <= 0 or self._entries.for_order(order_id, EntryKind.CAGNOTTE):
+            return
+        self._entries.add(
+            user_id=user_id,
+            order_id=order_id,
+            kind=EntryKind.CAGNOTTE,
+            amount=amount,
+            remaining=amount,
+            available_at=available_at,
+            expires_at=expires_at,
+        )
+
+    # a return takes back the Cagnotte points still held (``None``: all of them)
+    def reverse_campaign(self, order_id: int, amount: Decimal | None = None) -> Decimal:
+        entry = self._entries.for_order(order_id, EntryKind.CAGNOTTE, lock=True)
+        if entry is None or entry.remaining <= 0:
+            return ZERO
+        taken = entry.remaining if amount is None else min(amount, entry.remaining)
+        self._reverse(order_id, entry, taken, EntryKind.CAGNOTTE_REVERSAL)
+        return taken
+
+    def cagnotte(self, order_id: int) -> Decimal:
+        entry = self._entries.for_order(order_id, EntryKind.CAGNOTTE)
+        if entry is None:
+            return ZERO
+        kept = entry.amount + self._entries.total_for_order(order_id, EntryKind.CAGNOTTE_REVERSAL)
+        return max(kept, ZERO)
+
     # a cancelled or returned order loses what it still holds of its earning and gives back what
     # it used and was not refunded yet; earlier line returns already took their share
     def undo(self, order_id: int) -> None:
@@ -250,11 +291,23 @@ class PointsService:
         now = self._clock()
         settings = self._settings.current()
         expired = 0
+        # Cagnotte points end on their own date
+        for entry in self._entries.lapsed(now):
+            self._entries.add(
+                user_id=entry.user_id,
+                kind=EntryKind.EXPIRY,
+                amount=-entry.remaining,
+                available_at=now,
+            )
+            self._entries.use(entry, ZERO)
+            expired += 1
         for user_id in self._entries.holders():
             valid_until = self._valid_until(user_id, settings)
             if valid_until is None or valid_until > now:
                 continue
-            for entry in self._entries.credits(user_id, now, lock=True, pending=True):
+            for entry in self._entries.credits(
+                user_id, now, lock=True, pending=True, kinds=BALANCE_CREDITS
+            ):
                 self._entries.add(
                     user_id=entry.user_id,
                     kind=EntryKind.EXPIRY,

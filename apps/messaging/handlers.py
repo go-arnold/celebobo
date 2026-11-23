@@ -1,5 +1,6 @@
 from django.db import transaction
 
+from apps.cagnotte.domain.events import CashbackPaid
 from apps.cash.domain.events import CashOverdue
 from apps.messaging.domain.events import (
     ConversationAssigned,
@@ -104,6 +105,11 @@ def notify_level_changed(event: LevelChanged) -> None:
 @event_bus.on(SanctionUpdated, background=True)
 def notify_sanction(event: SanctionUpdated) -> None:
     container.resolve(NotificationRouter).sanction_updated(event)
+
+
+@event_bus.on(CashbackPaid, background=True)
+def notify_cashback_paid(event: CashbackPaid) -> None:
+    container.resolve(NotificationRouter).cashback_paid(event)
 
 
 @event_bus.on(CashOverdue, background=True)

@@ -225,6 +225,7 @@ source_modules = [
     "apps.credit.domain",
     "apps.cash.domain",
     "apps.standing.domain",
+    "apps.cagnotte.domain",
 ]
 forbidden_modules = ["django", "rest_framework", "celery", "allauth", "dj_rest_auth"]
 
@@ -250,6 +251,7 @@ containers = [
     "apps.credit",
     "apps.cash",
     "apps.standing",
+    "apps.cagnotte",
 ]
 layers = [
     "api",

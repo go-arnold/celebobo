@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_DOWN, Decimal
 
 from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.errors import (
@@ -51,11 +51,19 @@ class AdjustmentService:
             raise InvalidProposedPrice
         previous = item.unit_price
         items = self._orders.items(order)
+        coupon = order.discount - order.campaign_discount
         for line in items:
             if line.pk == item.pk:
+                # the line's Cagnotte discount keeps its share of the new price
+                line.campaign_discount = (
+                    line.campaign_discount * price / line.unit_price
+                ).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
                 line.unit_price = price
         order.subtotal = sum((line.total for line in items), Decimal(0))
-        order.discount = min(order.discount, order.subtotal)
+        order.campaign_discount = sum((line.campaign_discount for line in items), Decimal(0))
+        order.discount = order.campaign_discount + min(
+            coupon, order.subtotal - order.campaign_discount
+        )
         order.points = min(order.points, order.subtotal - order.discount)
         # a lower price may leave store credit unused: the credit app gives the excess back to
         # the client when the order is repriced
@@ -71,6 +79,7 @@ class AdjustmentService:
             discount=order.discount,
             points=order.points,
             credit=order.store_credit,
+            campaign=[line.campaign_discount for line in items],
         )
         for line, share in zip(items, shares, strict=True):
             line.discount, line.points, line.credit, line.amount_paid = (
@@ -80,7 +89,10 @@ class AdjustmentService:
                 share.paid,
             )
         self._orders.reprice(item_id=item.pk, price=price, items=items)
-        self._orders.save(order, fields=("subtotal", "discount", "points", "store_credit", "total"))
+        self._orders.save(
+            order,
+            fields=("subtotal", "discount", "campaign_discount", "points", "store_credit", "total"),
+        )
         item.unit_price = price
         return Repricing(order, item, previous)
 

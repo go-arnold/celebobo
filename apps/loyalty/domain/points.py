@@ -19,14 +19,20 @@ class EntryKind(StrEnum):
     # 0.3 % of an invited client's invoice, for the reseller who invited them
     REFERRAL = "referral"
     REFERRAL_REVERSAL = "referral_reversal"
+    # points of a Cagnotte operation (cashback paid in points, boosted points): their own
+    # validity, outside the 12-month rule (loyalty policy)
+    CAGNOTTE = "cagnotte"
+    CAGNOTTE_REVERSAL = "cagnotte_reversal"
 
 
-CREDITS = (EntryKind.EARN, EntryKind.REFUND, EntryKind.REFERRAL)
+CREDITS = (EntryKind.EARN, EntryKind.REFUND, EntryKind.REFERRAL, EntryKind.CAGNOTTE)
+# what the 12-month rule expires: everything but Cagnotte points
+BALANCE_CREDITS = (EntryKind.EARN, EntryKind.REFUND, EntryKind.REFERRAL)
 # movements following something the client did (an order, a return): expiry and the referral
 # points of resellers are not the client's activity (account retention)
 CLIENT_MOVEMENTS = (EntryKind.EARN, EntryKind.SPEND, EntryKind.REFUND, EntryKind.REVERSAL)
 # credited on delivery, pending until the return period is over
-EARNINGS = (EntryKind.EARN, EntryKind.REFERRAL)
+EARNINGS = (EntryKind.EARN, EntryKind.REFERRAL, EntryKind.CAGNOTTE)
 # an invitee's order: its number stays off the reseller's history, which would otherwise give
 # back each invitee's purchase total (privacy policy, 4)
 REFERRALS = (EntryKind.REFERRAL, EntryKind.REFERRAL_REVERSAL)
@@ -91,6 +97,8 @@ class InvoiceStatement:
     orders_total: Decimal
     # earned points become usable this many days after delivery
     return_days: int
+    # points of a Cagnotte operation earned on this invoice
+    cagnotte: Decimal = ZERO
 
 
 def share(amount: Decimal, percent: Decimal) -> Decimal:

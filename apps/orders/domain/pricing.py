@@ -52,6 +52,33 @@ class CouponTerms:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class CampaignLine:
+    product_id: int
+    total: Decimal
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CampaignOffer:
+    """The Cagnotte operation running when the order is placed (loyalty policy, Cagnotte).
+
+    ``discounts``: per line, the immediate discount (``discount`` operations only); ``advantage``:
+    the cashback or boosted points the eligible lines would bring, as an estimate (the final amount
+    is computed on delivery from what the client really paid).
+    """
+
+    campaign_id: int
+    name: str
+    kind: str
+    percent: Decimal
+    discounts: tuple[Decimal, ...]
+    advantage: Decimal = ZERO
+
+    @property
+    def discount(self) -> Decimal:
+        return sum(self.discounts, ZERO)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class QuoteLine:
     unit_price: Decimal
     quantity: int
@@ -76,9 +103,13 @@ def quote(
     lines: Sequence[QuoteLine],
     rules: ShippingRules,
     coupon: CouponTerms | None = None,
+    *,
+    campaign_discount: Decimal = ZERO,
 ) -> Quote:
+    """``discount`` is the Cagnotte discount plus the coupon, which applies to what is left."""
     subtotal = sum((line.total for line in lines), ZERO)
-    discount = discount_for(coupon, subtotal) if coupon else ZERO
+    campaign = min(campaign_discount, subtotal)
+    discount = campaign + (discount_for(coupon, subtotal - campaign) if coupon else ZERO)
     # pickup is free and a quoted zone has no fee until the client accepts the reseller's quote
     flat = rules.pricing is ZonePricing.FLAT
     free = not flat or (coupon is not None and coupon.free_shipping)
@@ -123,6 +154,8 @@ class LineAmounts:
     paid: Decimal
     # the line's share of the store credit (avoir) used on the order
     credit: Decimal = ZERO
+    # the part of ``discount`` that is the Cagnotte discount
+    campaign: Decimal = ZERO
 
 
 def spread(amount: Decimal, weights: Sequence[Decimal]) -> list[Decimal]:
@@ -151,6 +184,7 @@ def line_amounts(
     discount: Decimal,
     points: Decimal,
     credit: Decimal = ZERO,
+    campaign: Sequence[Decimal] | None = None,
 ) -> list[LineAmounts]:
     """What each order line really cost the client, once the order's coupon, points and store
     credit are spread.
@@ -158,16 +192,22 @@ def line_amounts(
     The coupon is spread over the line totals; the points over what is left after the coupon,
     since it pays the products after the discount; the store credit over what is left after the
     points (the part of it beyond the products pays the delivery, which is not part of any line).
+
+    A Cagnotte discount (``campaign``) belongs to its lines; ``discount`` includes it, and the
+    coupon (the rest) is spread over what is left of each line.
     """
-    discounts = spread(discount, totals)
+    campaign_parts = list(campaign) if campaign is not None else [ZERO for _ in totals]
+    after_campaign = [line - part for line, part in zip(totals, campaign_parts, strict=True)]
+    coupons = spread(discount - sum(campaign_parts, ZERO), after_campaign)
+    discounts = [part + coupon for part, coupon in zip(campaign_parts, coupons, strict=True)]
     after_coupon = [line - share for line, share in zip(totals, discounts, strict=True)]
     point_parts = spread(points, after_coupon)
     after_points = [rest - part for rest, part in zip(after_coupon, point_parts, strict=True)]
     credit_parts = spread(min(credit, sum(after_points, ZERO)), after_points)
     return [
-        LineAmounts(discount=coupon, points=part, paid=rest - avoir, credit=avoir)
-        for coupon, part, avoir, rest in zip(
-            discounts, point_parts, credit_parts, after_points, strict=True
+        LineAmounts(discount=coupon, points=part, paid=rest - avoir, credit=avoir, campaign=own)
+        for coupon, part, avoir, rest, own in zip(
+            discounts, point_parts, credit_parts, after_points, campaign_parts, strict=True
         )
     ]
 

@@ -267,6 +267,12 @@ class QuoteOutput(serializers.Serializer[Any]):
     pickup_address = serializers.CharField()
     shipping_quote_required = serializers.BooleanField()
     pickup_available = serializers.BooleanField()
+    campaign_id = serializers.IntegerField(allow_null=True)
+    campaign_name = serializers.CharField()
+    campaign_kind = serializers.CharField()
+    campaign_percent = serializers.DecimalField(max_digits=5, decimal_places=2, allow_null=True)
+    campaign_discount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    campaign_advantage = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 
 class CartLineOutput(serializers.Serializer[Any]):
@@ -378,6 +384,8 @@ class OrderDetailOutput(serializers.Serializer[Any]):
     awaiting_shipping_quote = serializers.BooleanField()
     points = serializers.DecimalField(max_digits=10, decimal_places=2)
     store_credit = serializers.DecimalField(max_digits=10, decimal_places=2)
+    campaign_name = serializers.CharField()
+    campaign_discount = serializers.DecimalField(max_digits=10, decimal_places=2)
     points_earned = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
     cancel_reason = serializers.CharField()
     refund_due = serializers.DecimalField(max_digits=10, decimal_places=2)

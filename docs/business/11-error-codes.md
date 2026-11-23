@@ -206,6 +206,14 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 400 | `invalid_suspension` | Une suspension dure de 7 à 30 jours. |
 | 422 | `sanction_closed` | Cette sanction est déjà décidée. |
 | 422 | `explanation_closed` | Le délai de 48 heures pour vous expliquer est passé. |
+| 404 | `campaign_not_found` | Opération Cagnotte introuvable. |
+| 404 | `reward_not_found` | Avantage Cagnotte introuvable. |
+| 400 | `invalid_campaign` | Les conditions de l'opération sont invalides (the message says which). |
+| 422 | `campaign_overlap` | Une autre opération Cagnotte a lieu pendant ces dates : une seule à la fois. |
+| 422 | `campaign_started` | L'opération a commencé : ses conditions ne changent plus, vous pouvez seulement y mettre fin. |
+| 422 | `campaign_ended` | Cette opération Cagnotte est terminée. |
+| 422 | `points_disabled` | Les points de fidélité sont désactivés : une opération payée en points n'est pas possible. |
+| 422 | `reward_not_due` | Ce cashback n'est pas à verser : délai d'essai en cours, déjà versé ou annulé. |
 | 422 | `hearing_pending` | Le revendeur peut encore s'expliquer : attendez sa réponse ou la fin des 48 heures. |
 
 ## Push notifications

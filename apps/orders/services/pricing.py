@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from apps.catalog.domain.queries import StockLine
 from apps.catalog.domain.read_models import PricedLine
-from apps.orders.adapters.gateways import NoCreditWallet
+from apps.orders.adapters.gateways import NoCampaigns, NoCreditWallet
 from apps.orders.domain.commands import OrderLineInput
 from apps.orders.domain.enums import DeliveryMethod
 from apps.orders.domain.errors import (
@@ -14,10 +14,23 @@ from apps.orders.domain.errors import (
     StoreCreditUnavailable,
     TooManyLines,
 )
-from apps.orders.domain.pricing import ZERO, CouponTerms, QuoteLine, quote
+from apps.orders.domain.pricing import (
+    ZERO,
+    CampaignLine,
+    CampaignOffer,
+    CouponTerms,
+    QuoteLine,
+    quote,
+)
 from apps.orders.domain.read_models import QuoteLineView, QuoteView
 from apps.orders.models import Coupon
-from apps.orders.services.contracts import AddressBook, CreditWallet, Inventory, Wallet
+from apps.orders.services.contracts import (
+    AddressBook,
+    CampaignOffers,
+    CreditWallet,
+    Inventory,
+    Wallet,
+)
 from apps.orders.services.coupons import CouponService
 from apps.orders.services.shipping import ShippingResolver
 
@@ -45,6 +58,7 @@ class PricedQuote:
     view: QuoteView
     lines: list[PricedLine]
     coupon: Coupon | None
+    campaign: CampaignOffer | None = None
 
 
 class PricingService:
@@ -58,12 +72,14 @@ class PricingService:
         addresses: AddressBook,
         max_lines: int,
         credit: CreditWallet | None = None,
+        campaigns: CampaignOffers | None = None,
     ) -> None:
         self._inventory = inventory
         self._shipping = shipping
         self._coupons = coupons
         self._wallet = wallet
         self._credit = credit or NoCreditWallet()
+        self._campaigns = campaigns or NoCampaigns()
         self._addresses = addresses
         self._max_lines = max_lines
 
@@ -75,11 +91,21 @@ class PricingService:
         if len(lines) > self._max_lines:
             raise TooManyLines(self._max_lines)
         priced = self._inventory.price([stock_line(line) for line in lines], lock=context.lock)
-        view, coupon = self.view(priced, context)
-        return PricedQuote(view, priced, coupon)
+        campaign = self._campaign(priced)
+        view, coupon = self.view(priced, context, campaign=campaign)
+        return PricedQuote(view, priced, coupon, campaign)
+
+    def _campaign(self, priced: Sequence[PricedLine]) -> CampaignOffer | None:
+        return self._campaigns.offer(
+            [CampaignLine(product_id=line.product_id, total=line.total) for line in priced]
+        )
 
     def view(
-        self, priced: Sequence[PricedLine], context: PricingContext = DEFAULT_CONTEXT
+        self,
+        priced: Sequence[PricedLine],
+        context: PricingContext = DEFAULT_CONTEXT,
+        *,
+        campaign: CampaignOffer | None = None,
     ) -> tuple[QuoteView, Coupon | None]:
         quote_lines = [
             QuoteLine(
@@ -91,9 +117,14 @@ class PricingService:
             for line in priced
         ]
         subtotal = sum((line.total for line in quote_lines), ZERO)
-        coupon, terms, error = self._coupon(context, subtotal)
+        # the cart priced alone looks up the running Cagnotte operation itself
+        if campaign is None:
+            campaign = self._campaign(priced)
+        campaign_discount = campaign.discount if campaign else ZERO
+        # the coupon applies to what is left after the Cagnotte discount
+        coupon, terms, error = self._coupon(context, subtotal - campaign_discount)
         rules = self._shipping.rules_for(self._city(context), pickup=context.pickup)
-        result = quote(quote_lines, rules, terms)
+        result = quote(quote_lines, rules, terms, campaign_discount=campaign_discount)
         available = (
             self._wallet.usable(
                 context.user_id, result.subtotal - result.discount, lock=context.lock
@@ -136,6 +167,12 @@ class PricingService:
                 pickup_address=rules.pickup_address,
                 shipping_quote_required=rules.priced_later,
                 pickup_available=self._shipping.pickup_available(),
+                campaign_id=campaign.campaign_id if campaign else None,
+                campaign_name=campaign.name if campaign else "",
+                campaign_kind=campaign.kind if campaign else "",
+                campaign_percent=campaign.percent if campaign else None,
+                campaign_discount=campaign_discount,
+                campaign_advantage=campaign.advantage if campaign else ZERO,
             ),
             coupon,
         )

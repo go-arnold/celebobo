@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "apps.credit",
     "apps.cash",
     "apps.standing",
+    "apps.cagnotte",
     "apps.demo",
     "allauth",
     "allauth.account",
@@ -257,6 +258,8 @@ SPECTACULAR_SETTINGS = {
         "ConsentKindEnum": ["terms", "hosting_abroad", "marketing"],
         "ClaimKindEnum": ["defect", "change_of_mind", "counterfeit"],
         "SanctionKindEnum": ["warning", "suspension", "exclusion"],
+        "CampaignKindEnum": ["discount", "cashback", "boosted_points"],
+        "RewardStatusEnum": ["credited", "to_pay", "paid", "cancelled"],
     },
 }
 
