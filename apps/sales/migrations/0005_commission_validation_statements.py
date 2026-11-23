@@ -11,6 +11,10 @@ from django.utils import timezone
 def validate_existing_entries(apps, schema_editor):  # type: ignore[no-untyped-def]
     entry = apps.get_model("sales", "CommissionEntry")
     entry.objects.filter(available_at__isnull=True).update(available_at=models.F("created_at"))
+    # PostgreSQL refuses to alter a table with deferred constraint checks still queued by these
+    # updates ("pending trigger events"): run them now, the migration stays in one transaction
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute("SET CONSTRAINTS ALL IMMEDIATE")
 
 
 # resellers already paid by free-amount payouts: their history is settled by one paid statement,

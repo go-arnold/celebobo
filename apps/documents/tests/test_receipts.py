@@ -227,3 +227,19 @@ class TestResellerCopyAfterTheReturnPeriod:
         assert staff["recipient"] == "Aline Mbuyi · +243 81 234 5678"
         assert "Av. Lumumba" in staff["address"]
         assert staff["confirmation"].endswith("Remise vérifiée par téléphone")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_receipt_template_renders_a_current_payload(as_user, reseller, order, renderer):
+    """The fake renderer skips the template: render the real one with the same context (a receipt
+    of today has `points` and no legacy `cashback` key)."""
+    from django.template.loader import render_to_string
+
+    deliver(as_user, reseller, order)
+    template, context = renderer.calls[-1]
+    assert "cashback" not in context["receipt"]
+
+    html = render_to_string(template, context)
+
+    assert f"R-{order.number}" in html
+    assert "Remise confirmée avec le code de livraison du client" in html
