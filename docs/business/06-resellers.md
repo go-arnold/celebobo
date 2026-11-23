@@ -13,7 +13,8 @@ First name, last name, email, phone, city, message.
 
 ### 2. Review (staff, `reseller_applications.review`)
 
-`/bo/reseller-applications/` (filter by status, search).
+`/bo/reseller-applications/` (filter by status, search). Back-office: « Candidatures » (accept, or
+refuse with a reason sent to the applicant).
 
 - **Approve** (optional manager): the application's email is **onboarded** as a
   reseller (below) and the application is closed as approved. The applicant receives a welcome email

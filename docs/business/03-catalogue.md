@@ -101,7 +101,8 @@ author and a note (history at `/bo/products/{id}/stock-movements/`).
 - Stock can never become negative (`negative_stock`); an order or sale that needs more than what is
   available is refused (`insufficient_stock`, with the available quantity).
 - **Low stock**: when a product or variant falls to its threshold, a `stock.low` alert is pushed to
-  staff in real time. `/bo/stock/alerts/` lists everything currently low.
+  staff in real time. `/bo/stock/alerts/` lists everything currently low (back-office « Alertes de
+  stock », each line opening the product).
 
 ## Shop display
 
@@ -147,7 +148,7 @@ author and a note (history at `/bo/products/{id}/stock-movements/`).
 - **One review per client per product**: posting again updates the existing review.
 - Reviews are marked **"verified purchase"**.
 - Staff (`reviews.moderate`) can **hide** or re-publish a review; hidden reviews are not shown and
-  don't count in the rating.
+  don't count in the rating. Back-office: « Avis clients » (published / hidden, rating filter, search).
 
 ## Favorites
 
