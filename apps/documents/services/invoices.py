@@ -51,6 +51,8 @@ class InvoiceBuilder:
                 "order": order,
                 "issued_at": timezone.localtime(),
                 "warranty": warranty_dates(order),
+                # the order's discount holds the Cagnotte discount and the coupon: one line each
+                "coupon_discount": order.discount - order.campaign_discount,
                 # the client's points statement, printed on each invoice (loyalty policy); not
                 # on a reseller's copy (it gives the client's purchase totals), nor for a deleted
                 # or anonymised account, whose points history is gone (it would be recomputed at

@@ -7,6 +7,7 @@ from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
 from apps.catalog.domain.read_models import PricedLine
 from apps.orders.domain.commands import DeliveryAddress
+from apps.orders.domain.pricing import CampaignLine, CampaignOffer
 from apps.orders.domain.read_models import PersonBrief, SuggestedReseller
 from apps.orders.models import Order
 from core.domain.actor import Actor
@@ -75,3 +76,9 @@ class OrderThreads(Protocol):
 
     # viewer: only a thread they may still open (a reseller loses it once closed after the order)
     def thread_for(self, order_id: int, viewer: Actor | None = None) -> int | None: ...
+
+
+class CampaignOffers(Protocol):
+    """The Cagnotte operation running now, for these lines (app cagnotte); none by default."""
+
+    def offer(self, lines: Sequence[CampaignLine]) -> CampaignOffer | None: ...

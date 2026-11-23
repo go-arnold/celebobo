@@ -25,7 +25,8 @@
   </tbody>
   <tfoot>
     <tr><td colspan="4" class="num">Sous-total</td><td class="num">{{ order.subtotal }} $</td></tr>
-    {% if order.discount %}<tr><td colspan="4" class="num">Remise{% if order.coupon_code %} ({{ order.coupon_code }}){% endif %}</td><td class="num">-{{ order.discount }} $</td></tr>{% endif %}
+    {% if order.campaign_discount %}<tr><td colspan="4" class="num">Remise Cagnotte ({{ order.campaign_name }})</td><td class="num">-{{ order.campaign_discount }} $</td></tr>{% endif %}
+    {% if coupon_discount %}<tr><td colspan="4" class="num">Remise{% if order.coupon_code %} ({{ order.coupon_code }}){% endif %}</td><td class="num">-{{ coupon_discount }} $</td></tr>{% endif %}
     {% if order.points %}<tr><td colspan="4" class="num">Points de fidélité utilisés</td><td class="num">-{{ order.points }} $</td></tr>{% endif %}
     {% if order.store_credit %}<tr><td colspan="4" class="num">Avoir utilisé</td><td class="num">-{{ order.store_credit }} $</td></tr>{% endif %}
     <tr><td colspan="4" class="num">Livraison{% if order.shipping_zone %} ({{ order.shipping_zone }}){% endif %}</td><td class="num">{{ order.shipping_fee }} $</td></tr>
@@ -38,6 +39,7 @@
 <table>
   <tr><td>Points gagnés sur cette facture{% if points.earned_pending %} (en attente){% endif %}</td><td class="num">{{ points.earned }}</td></tr>
   <tr><td>Points utilisés sur cette facture</td><td class="num">{{ points.used }}</td></tr>
+  <tr><td>Points Cagnotte gagnés sur cette facture</td><td class="num">{{ points.cagnotte }}</td></tr>
   <tr><td>Solde de points disponibles</td><td class="num">{{ points.available }}</td></tr>
   <tr><td>Total de vos factures encaissées à ce jour</td><td class="num">{{ points.orders_total }} $</td></tr>
   <tr><td>Nombre de factures encaissées</td><td class="num">{{ points.orders_count }}</td></tr>

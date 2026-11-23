@@ -20,6 +20,8 @@ from apps.orders.domain.pricing import ZonePricing
 from apps.orders.domain.read_models import (
     AddressSnapshot,
     AttemptView,
+    CampaignOrder,
+    CampaignOrderLine,
     CashableOrder,
     ClaimableLine,
     ClientOrderTotals,
@@ -205,6 +207,8 @@ class OrderSelector:
             coupon_code=order.coupon_code,
             points=order.points,
             store_credit=order.store_credit,
+            campaign_name=order.campaign_name,
+            campaign_discount=order.campaign_discount,
             shipping_zone=order.shipping_zone,
             shipping_fee=order.shipping_fee,
             delivery_method=DeliveryMethod(order.delivery_method),
@@ -717,4 +721,25 @@ def cashable_order(order_id: int) -> CashableOrder | None:
         reseller_id=order.assigned_reseller_id,
         total=order.total,
         pickup=order.delivery_method == DeliveryMethod.PICKUP.value,
+    )
+
+
+def campaign_order(order_id: int) -> CampaignOrder | None:
+    order = Order.objects.filter(pk=order_id).prefetch_related("items__returns").first()
+    if order is None:
+        return None
+    return CampaignOrder(
+        order_id=order.pk,
+        number=order.number,
+        client_id=order.client_id,
+        campaign_id=order.campaign_id,
+        phone=order.phone,
+        lines=tuple(
+            CampaignOrderLine(
+                product_id=item.product_id,
+                paid=item.amount_paid
+                - sum((entry.amount_paid for entry in item.returns.all()), Decimal(0)),
+            )
+            for item in order.items.all()
+        ),
     )

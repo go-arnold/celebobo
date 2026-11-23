@@ -24,11 +24,17 @@ class LoyaltySettingsRepository:
 class PointsRepository:
     # what the client can spend, oldest first; with `pending`, also what waits for the return period
     def credits(
-        self, user_id: int, now: datetime, *, lock: bool = False, pending: bool = False
+        self,
+        user_id: int,
+        now: datetime,
+        *,
+        lock: bool = False,
+        pending: bool = False,
+        kinds: tuple[EntryKind, ...] = CREDITS,
     ) -> list[PointsEntry]:
         rows = PointsEntry.objects.filter(
-            user_id=user_id, kind__in=[kind.value for kind in CREDITS], remaining__gt=0
-        )
+            user_id=user_id, kind__in=[kind.value for kind in kinds], remaining__gt=0
+        ).exclude(expires_at__lte=now)
         if not pending:
             rows = rows.filter(available_at__lte=now)
         rows = rows.order_by("available_at", "pk")
@@ -68,6 +74,14 @@ class PointsRepository:
             .order_by("-created_at")
             .values_list("created_at", flat=True)
             .first()
+        )
+
+    # Cagnotte points past their own validity, still holding something
+    def lapsed(self, now: datetime) -> list[PointsEntry]:
+        return list(
+            PointsEntry.objects.filter(
+                kind=EntryKind.CAGNOTTE.value, remaining__gt=0, expires_at__lte=now
+            ).select_for_update()
         )
 
     def pending(self, user_id: int, now: datetime) -> Decimal:

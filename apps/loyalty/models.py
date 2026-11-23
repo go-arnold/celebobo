@@ -53,6 +53,8 @@ class PointsEntry(models.Model):
         max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
     )
     available_at = models.DateTimeField(db_index=True)
+    # Cagnotte points only: they expire then, whatever the client's purchases
+    expires_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -65,7 +67,9 @@ class PointsEntry(models.Model):
             # in parts (line returns), bounded by what was earned and spent
             models.UniqueConstraint(
                 fields=("order", "kind"),
-                condition=models.Q(order__isnull=False, kind__in=("earn", "spend", "referral")),
+                condition=models.Q(
+                    order__isnull=False, kind__in=("earn", "spend", "referral", "cagnotte")
+                ),
                 name="loyalty_points_once_per_order",
             ),
         )

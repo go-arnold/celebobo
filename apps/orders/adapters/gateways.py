@@ -11,6 +11,7 @@ from apps.catalog.domain.read_models import PricedLine
 from apps.catalog.facades import InventoryFacade
 from apps.orders.domain.commands import DeliveryAddress
 from apps.orders.domain.enums import OrderStatus
+from apps.orders.domain.pricing import CampaignLine, CampaignOffer
 from apps.orders.domain.read_models import PersonBrief, SuggestedReseller
 from apps.orders.models import Order, OrderItem
 from core.container import container
@@ -141,3 +142,8 @@ class DeliveredOrderPurchases:
             order__status=OrderStatus.DELIVERED.value,
             product_id=product_id,
         ).exists()
+
+
+class NoCampaigns:
+    def offer(self, lines: Sequence[CampaignLine]) -> CampaignOffer | None:
+        return None

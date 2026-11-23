@@ -188,6 +188,7 @@ class OrderRepository:
                 "discount": line.discount,
                 "points": line.points,
                 "credit": line.credit,
+                "campaign_discount": line.campaign_discount,
                 "amount_paid": line.amount_paid,
             }
             if line.pk == item_id:

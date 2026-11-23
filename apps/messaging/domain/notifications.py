@@ -185,6 +185,13 @@ TEMPLATES: Mapping[NotificationKind, NotificationTemplate] = MappingProxyType(
             topic=STATUS_CHANGED_TOPIC,
             essential=True,
         ),
+        NotificationKind.CASHBACK_PAID: NotificationTemplate(
+            title="Cashback versé : {amount} $",
+            body="Le cashback Cagnotte de votre commande {number} vous a été envoyé par Mobile "
+            "Money (référence {reference}).",
+            link="/compte/points",
+            topic=STATUS_CHANGED_TOPIC,
+        ),
         NotificationKind.PAYOUT_PAID: NotificationTemplate(
             title="Paiement reçu : {amount} $",
             body="Celebobo vous a versé {amount} $ pour votre relevé du {date}.",

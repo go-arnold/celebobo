@@ -39,6 +39,14 @@ class QuoteView:
     # the zone is quoted on request: the fee is unknown until a reseller quotes it
     shipping_quote_required: bool = False
     pickup_available: bool = False
+    # the running Cagnotte operation: its discount is part of ``discount``; ``campaign_advantage``
+    # estimates its cashback or boosted points
+    campaign_id: int | None = None
+    campaign_name: str = ""
+    campaign_kind: str = ""
+    campaign_percent: Decimal | None = None
+    campaign_discount: Decimal = Decimal("0.00")
+    campaign_advantage: Decimal = Decimal("0.00")
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -201,6 +209,8 @@ class OrderDetail:
     delivery_attempts: tuple[AttemptView, ...] = ()
     points: Decimal = Decimal("0.00")
     store_credit: Decimal = Decimal("0.00")
+    campaign_name: str = ""
+    campaign_discount: Decimal = Decimal("0.00")
     points_earned: Decimal | None = None
     history: tuple[StatusEntry, ...]
     allowed_transitions: tuple[OrderStatus, ...]
@@ -397,3 +407,23 @@ class CashableOrder:
     reseller_id: int | None
     total: Decimal
     pickup: bool
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CampaignOrderLine:
+    # none once the product is gone
+    product_id: int | None
+    # what the client really paid for the line, after returns
+    paid: Decimal
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CampaignOrder:
+    """What a Cagnotte operation needs to reward an order (app cagnotte)."""
+
+    order_id: int
+    number: str
+    client_id: int
+    campaign_id: int | None
+    phone: str
+    lines: tuple[CampaignOrderLine, ...]

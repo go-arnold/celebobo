@@ -90,4 +90,6 @@ sent by SMS.
 ## Status
 
 Settings and points are live, referral points with them; points stay hidden until an admin turns
-them on. The paid membership (Celebobo Plus) is removed. Cagnotte campaigns come later.
+them on. The paid membership (Celebobo Plus) is removed. Cagnotte operations add their own points
+(`kind` `cagnotte` and `cagnotte_reversal`, with their own validity, outside the 12-month rule):
+see [§17](17-cagnotte.md).

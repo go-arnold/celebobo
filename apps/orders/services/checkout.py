@@ -74,6 +74,9 @@ class CheckoutService:
             discount=quote.discount,
             points=quote.points,
             store_credit=quote.store_credit,
+            campaign_id=quote.campaign_id,
+            campaign_name=quote.campaign_name,
+            campaign_discount=quote.campaign_discount,
             coupon_code=quote.coupon_code or "",
             shipping_zone=quote.shipping_zone,
             shipping_fee=quote.shipping_fee,
@@ -85,13 +88,17 @@ class CheckoutService:
             self._credit.spend(client_id, order.pk, quote.store_credit)
         if priced_quote.coupon is not None:
             self._coupons.redeem(
-                priced_quote.coupon, order, user_id=client_id, amount=quote.discount
+                priced_quote.coupon,
+                order,
+                user_id=client_id,
+                amount=quote.discount - quote.campaign_discount,
             )
         amounts = line_amounts(
             [line.unit_price * line.quantity for line in priced],
             discount=quote.discount,
             points=quote.points,
             credit=quote.store_credit,
+            campaign=priced_quote.campaign.discounts if priced_quote.campaign else None,
         )
         self._orders.add_items(
             order,
@@ -110,6 +117,7 @@ class CheckoutService:
                     "discount": share.discount,
                     "points": share.points,
                     "credit": share.credit,
+                    "campaign_discount": share.campaign,
                     "amount_paid": share.paid,
                     "serial_required": line.serial_required,
                     "sealed_return_only": line.sealed_return_only,
