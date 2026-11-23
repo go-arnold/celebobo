@@ -156,6 +156,8 @@ class ProductDetailOutput(serializers.Serializer[Any]):
 class DealOutput(serializers.Serializer[Any]):
     id = serializers.IntegerField(source="terms.id")
     product = ProductDetailOutput()
+    # the variant on offer (null: the whole product)
+    variant_id = serializers.IntegerField(source="terms.variant_id", allow_null=True)
     deal_price = serializers.DecimalField(
         max_digits=10, decimal_places=2, source="terms.deal_price"
     )
