@@ -278,24 +278,29 @@ the proposal flow.
 ### Line amounts
 
 Referral points and partial returns work per line, so every line knows what it really cost the
-client (reseller commissions ignore an order that has any `discount` or `points` at all, §5):
+client (reseller commissions ignore an order that has any `discount`, `points` or `store_credit` at
+all, §5):
 
 | Field | Meaning |
 |---|---|
 | `discount` | The line's share of the order's coupon discount |
 | `points` | The line's share of the fidelity points used on the order |
-| `amount_paid` | Real money paid for the line: `unit_price × quantity − discount − points` |
+| `credit` | The line's share of the store credit used on the order (§14) |
+| `amount_paid` | Real money paid for the line: `unit_price × quantity − discount − points − credit` |
 
 - The coupon is shared in proportion to the line totals; the points in proportion to what each
-  line still costs after the coupon (points pay the products after the discount).
+  line still costs after the coupon (points pay the products after the discount); the store credit
+  in proportion to what is left after the points, the part of it beyond the products paying the
+  delivery.
 - Shares are rounded to the cent and always add up exactly to the order's amounts; any leftover
   cent goes to the line with the largest rounding remainder.
 - Shipping belongs to the order, never to a line.
-- A price adjustment shares the coupon and points out again over all lines.
+- A price adjustment shares the coupon, points and store credit out again over all lines; store
+  credit the order no longer needs goes back to the client (§14).
 - Orders placed before this existed were filled in once by the migration, with the same rule.
-- Coupon and fidelity points are the **non-real money** of an order (store credit and Cagnotte
-  campaigns will join them later); sale and deal
-  prices are real money. The order details show the three fields on each line.
+- Coupon, fidelity points and store credit are the **non-real money** of an order (Cagnotte
+  campaigns will join them later); sale and deal prices are real money. The order details show
+  these fields on each line, and the order its `store_credit`.
 
 ### Returning part of an order
 

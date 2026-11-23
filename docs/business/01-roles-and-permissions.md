@@ -37,6 +37,7 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `favorites.manage` | Own favorites | | ✓ | ✓ | ✓ | ✓ |
 | `invoices.view.own` | Download the invoice and delivery receipt of own orders | | ✓ | ✓ | ✓ | ✓ |
 | `claims.submit.own` | Claim on own delivered orders (§13) | | ✓ | ✓ | ✓ | ✓ |
+| `store_credit.view.own` | See own store credit (§14) | | ✓ | ✓ | ✓ | ✓ |
 | `personal_data.export.own` | Download one's own data ("Mes données", ZIP) | | ✓ | ✓ | ✓ | ✓ |
 | `media.upload` | Upload an avatar or a message attachment | | ✓ | ✓ | ✓ | ✓ |
 | `conversations.use` | Read and write in own conversations | | ✓ | ✓ | ✓ | ✓ |

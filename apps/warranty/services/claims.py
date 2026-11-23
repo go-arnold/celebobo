@@ -155,6 +155,15 @@ class ClaimService:
             self._refunds.refund_unit(
                 actor, claim.order_id, claim.item_id, reason=f"Réclamation {claim.number}"
             )
+        elif command.outcome is Outcome.STORE_CREDIT:
+            # the unit comes back like a refund, but the money paid becomes store credit
+            self._refunds.refund_unit(
+                actor,
+                claim.order_id,
+                claim.item_id,
+                reason=f"Réclamation {claim.number} (avoir)",
+                as_credit=True,
+            )
         elif command.outcome is Outcome.EXCHANGE:
             claim.new_serial = self._new_serial(command.new_serial)
             claim.exchange_warranty_until = rules.exchange_warranty_until(

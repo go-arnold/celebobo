@@ -157,6 +157,7 @@ class QuoteViewSet(UseCaseViewSet):
             city=data.get("city") or None,
             coupon_code=coupon_code,
             points=data.get("points", Decimal(0)),
+            store_credit=data.get("store_credit", Decimal(0)),
             pickup=data.get("pickup", False),
         )
         if quote.coupon_error:

@@ -162,6 +162,7 @@ class CheckoutFacade:
         city: str | None = None,
         coupon_code: str | None = None,
         points: Decimal = Decimal(0),
+        store_credit: Decimal = Decimal(0),
         pickup: bool = False,
     ) -> QuoteView:
         context = PricingContext(
@@ -169,6 +170,7 @@ class CheckoutFacade:
             coupon_code=coupon_code,
             user_id=actor.user_id,
             points=points,
+            store_credit=store_credit,
             pickup=pickup,
         )
         return self._pricing.price(lines, context).view
@@ -438,6 +440,9 @@ class DispatchFacade:
                     amount_paid=result.share.paid,
                     discount=result.share.discount,
                     points=result.share.points,
+                    credit=result.share.credit,
+                    as_credit=command.as_credit,
+                    client_id=order.client_id,
                     actor_id=actor.user_id,
                 )
             )
@@ -590,6 +595,7 @@ class OrderAdjustmentFacade:
                     previous_price=change.previous_price,
                     price=price,
                     total=change.order.total,
+                    store_credit=change.order.store_credit,
                     actor_id=actor.user_id,
                 )
             )

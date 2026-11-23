@@ -214,6 +214,11 @@ class AttemptNotAllowed(BusinessRuleViolation):
     )
 
 
+class StoreCreditUnavailable(Conflict):
+    default_code = "store_credit_unavailable"
+    default_detail = "Votre avoir a changé. Vérifiez le montant puis confirmez."
+
+
 class PointsUnavailable(Conflict):
     default_code = "points_unavailable"
     default_detail = "Votre solde de points a changé. Vérifiez le montant puis confirmez."

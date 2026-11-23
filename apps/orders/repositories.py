@@ -159,12 +159,16 @@ class OrderRepository:
 
     def returned_amounts(self, item: OrderItem) -> LineAmounts:
         totals = OrderLineReturn.objects.filter(item=item).aggregate(
-            discount=Sum("discount"), points=Sum("points"), paid=Sum("amount_paid")
+            discount=Sum("discount"),
+            points=Sum("points"),
+            paid=Sum("amount_paid"),
+            credit=Sum("credit"),
         )
         return LineAmounts(
             discount=totals["discount"] or ZERO,
             points=totals["points"] or ZERO,
             paid=totals["paid"] or ZERO,
+            credit=totals["credit"] or ZERO,
         )
 
     def mark_all_returned(self, order: Order) -> None:
@@ -183,6 +187,7 @@ class OrderRepository:
             fields = {
                 "discount": line.discount,
                 "points": line.points,
+                "credit": line.credit,
                 "amount_paid": line.amount_paid,
             }
             if line.pk == item_id:

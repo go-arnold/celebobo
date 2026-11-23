@@ -113,6 +113,10 @@ class Order(models.Model):
     points = models.DecimalField(
         max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
     )
+    # paid from the client's store credit (avoir): products first, then the delivery
+    store_credit = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
+    )
     total = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     cancel_reason = models.CharField(max_length=24, choices=CANCEL_CHOICES, blank=True)
     cancel_details = models.CharField(max_length=500, blank=True)
@@ -146,6 +150,7 @@ class Order(models.Model):
                     total=models.F("subtotal")
                     - models.F("discount")
                     - models.F("points")
+                    - models.F("store_credit")
                     + models.F("shipping_fee")
                 ),
                 name="orders_order_total_consistent",
@@ -190,6 +195,10 @@ class OrderItem(models.Model):
     points = models.DecimalField(
         max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
     )
+    # the line's share of the store credit (non-real money too)
+    credit = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
+    )
     amount_paid = models.DecimalField(
         max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
     )
@@ -211,7 +220,9 @@ class OrderItem(models.Model):
                 name="orders_item_returned_within_quantity",
             ),
             models.CheckConstraint(
-                condition=models.Q(discount__gte=0, points__gte=0, amount_paid__gte=0),
+                condition=models.Q(
+                    discount__gte=0, points__gte=0, credit__gte=0, amount_paid__gte=0
+                ),
                 name="orders_item_amounts_positive",
             ),
             models.CheckConstraint(
@@ -219,6 +230,7 @@ class OrderItem(models.Model):
                     amount_paid=models.F("unit_price") * models.F("quantity")
                     - models.F("discount")
                     - models.F("points")
+                    - models.F("credit")
                 ),
                 name="orders_item_paid_consistent",
             ),
@@ -262,6 +274,11 @@ class OrderLineReturn(models.Model):
     amount_paid = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     discount = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
     points = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
+    credit = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, default=Decimal(0)
+    )
+    # given back as store credit rather than money (a change of mind during the trial)
+    as_credit = models.BooleanField(default=False)
     reason = models.CharField(max_length=500, blank=True)
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"

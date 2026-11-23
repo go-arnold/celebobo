@@ -203,6 +203,7 @@ class OrderSelector:
             discount=order.discount,
             coupon_code=order.coupon_code,
             points=order.points,
+            store_credit=order.store_credit,
             shipping_zone=order.shipping_zone,
             shipping_fee=order.shipping_fee,
             delivery_method=DeliveryMethod(order.delivery_method),
@@ -410,6 +411,7 @@ def _line(item: OrderItem) -> OrderLineView:
         returned_amount=sum((entry.amount_paid for entry in item.returns.all()), Decimal(0)),
         serial_required=item.serial_required,
         serials=tuple(entry.serial for entry in item.serials.all()),
+        credit=item.credit,
     )
 
 
@@ -542,6 +544,7 @@ def _convertible(order: Order, *, staff: bool) -> ConvertibleOrder:
         created_at=order.created_at,
         discount=order.discount,
         points=order.points,
+        store_credit=order.store_credit,
         items=tuple(
             ConvertibleItem(
                 id=item.pk,

@@ -198,6 +198,7 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | HTTP | Code | Message |
 |---|---|---|
 | 409 | `points_unavailable` | Votre solde de points a changé. Vérifiez le montant puis confirmez. |
+| 409 | `store_credit_unavailable` | Votre avoir a changé. Vérifiez le montant puis confirmez. |
 
 ## Push notifications
 

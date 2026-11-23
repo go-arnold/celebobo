@@ -1,11 +1,12 @@
 from apps.catalog.domain.queries import StockSource
+from apps.orders.adapters.gateways import NoCreditWallet
 from apps.orders.domain.commands import DeliveryAddress, PlaceOrder
 from apps.orders.domain.enums import OrderStatus
 from apps.orders.domain.errors import AddressRequired, TooManyPendingOrders
 from apps.orders.domain.pricing import line_amounts
 from apps.orders.models import Order
 from apps.orders.repositories import OrderRepository
-from apps.orders.services.contracts import AddressBook, Inventory, Wallet
+from apps.orders.services.contracts import AddressBook, CreditWallet, Inventory, Wallet
 from apps.orders.services.coupons import CouponService
 from apps.orders.services.pricing import PricingContext, PricingService, stock_line
 from core.domain.actor import Actor, Role
@@ -24,7 +25,9 @@ class CheckoutService:
         *,
         wallet: Wallet,
         max_pending: int,
+        credit: CreditWallet | None = None,
     ) -> None:
+        self._credit = credit or NoCreditWallet()
         self._max_pending = max_pending
         self._orders = orders
         self._pricing = pricing
@@ -47,6 +50,7 @@ class CheckoutService:
                 strict=True,
                 lock=True,
                 points=command.points,
+                store_credit=command.store_credit,
                 pickup=command.pickup,
             ),
         )
@@ -69,6 +73,7 @@ class CheckoutService:
             subtotal=quote.subtotal,
             discount=quote.discount,
             points=quote.points,
+            store_credit=quote.store_credit,
             coupon_code=quote.coupon_code or "",
             shipping_zone=quote.shipping_zone,
             shipping_fee=quote.shipping_fee,
@@ -76,6 +81,8 @@ class CheckoutService:
         )
         if quote.points:
             self._wallet.spend(client_id, order.pk, quote.points)
+        if quote.store_credit:
+            self._credit.spend(client_id, order.pk, quote.store_credit)
         if priced_quote.coupon is not None:
             self._coupons.redeem(
                 priced_quote.coupon, order, user_id=client_id, amount=quote.discount
@@ -84,6 +91,7 @@ class CheckoutService:
             [line.unit_price * line.quantity for line in priced],
             discount=quote.discount,
             points=quote.points,
+            credit=quote.store_credit,
         )
         self._orders.add_items(
             order,
@@ -101,6 +109,7 @@ class CheckoutService:
                     "deal_id": line.deal_id,
                     "discount": share.discount,
                     "points": share.points,
+                    "credit": share.credit,
                     "amount_paid": share.paid,
                     "serial_required": line.serial_required,
                     "sealed_return_only": line.sealed_return_only,

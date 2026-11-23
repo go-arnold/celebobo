@@ -18,7 +18,9 @@ class OrdersLines:
 
 
 class OrdersLineRefunds:
-    def refund_unit(self, actor: Actor, order_id: int, item_id: int, *, reason: str) -> None:
+    def refund_unit(
+        self, actor: Actor, order_id: int, item_id: int, *, reason: str, as_credit: bool = False
+    ) -> None:
         container.resolve(DispatchFacade).return_line(
-            actor, order_id, item_id, ReturnLine(quantity=1, reason=reason)
+            actor, order_id, item_id, ReturnLine(quantity=1, reason=reason, as_credit=as_credit)
         )

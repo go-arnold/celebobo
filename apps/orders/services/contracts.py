@@ -29,6 +29,14 @@ class Wallet(Protocol):
     def earned(self, order_id: int) -> Decimal | None: ...
 
 
+class CreditWallet(Protocol):
+    """The client's store credit (avoir): pays products and delivery, 6 months (step 7.3)."""
+
+    def usable(self, user_id: int, base: Decimal, *, lock: bool = False) -> Decimal: ...
+
+    def spend(self, user_id: int, order_id: int, amount: Decimal) -> None: ...
+
+
 class AddressBook(Protocol):
     def snapshot(self, user_id: int, address_id: int) -> DeliveryAddress: ...
 

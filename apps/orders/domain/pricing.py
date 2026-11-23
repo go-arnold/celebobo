@@ -121,6 +121,8 @@ class LineAmounts:
     discount: Decimal
     points: Decimal
     paid: Decimal
+    # the line's share of the store credit (avoir) used on the order
+    credit: Decimal = ZERO
 
 
 def spread(amount: Decimal, weights: Sequence[Decimal]) -> list[Decimal]:
@@ -144,20 +146,35 @@ def spread(amount: Decimal, weights: Sequence[Decimal]) -> list[Decimal]:
 
 
 def line_amounts(
-    totals: Sequence[Decimal], *, discount: Decimal, points: Decimal
+    totals: Sequence[Decimal],
+    *,
+    discount: Decimal,
+    points: Decimal,
+    credit: Decimal = ZERO,
 ) -> list[LineAmounts]:
-    """What each order line really cost the client, once the order's coupon and points are spread.
+    """What each order line really cost the client, once the order's coupon, points and store
+    credit are spread.
 
     The coupon is spread over the line totals; the points over what is left after the coupon,
-    since it pays the products after the discount. Shipping is not part of any line.
+    since it pays the products after the discount; the store credit over what is left after the
+    points (the part of it beyond the products pays the delivery, which is not part of any line).
     """
     discounts = spread(discount, totals)
     after_coupon = [line - share for line, share in zip(totals, discounts, strict=True)]
     point_parts = spread(points, after_coupon)
+    after_points = [rest - part for rest, part in zip(after_coupon, point_parts, strict=True)]
+    credit_parts = spread(min(credit, sum(after_points, ZERO)), after_points)
     return [
-        LineAmounts(discount=coupon, points=credit, paid=rest - credit)
-        for coupon, credit, rest in zip(discounts, point_parts, after_coupon, strict=True)
+        LineAmounts(discount=coupon, points=part, paid=rest - avoir, credit=avoir)
+        for coupon, part, avoir, rest in zip(
+            discounts, point_parts, credit_parts, after_points, strict=True
+        )
     ]
+
+
+def products_credit(credit: Decimal, products_due: Decimal) -> Decimal:
+    """The part of the store credit that pays the products; the rest pays the delivery."""
+    return min(credit, max(products_due, ZERO))
 
 
 def returned_amounts(
@@ -173,9 +190,15 @@ def returned_amounts(
             discount=line.discount - already.discount,
             points=line.points - already.points,
             paid=line.paid - already.paid,
+            credit=line.credit - already.credit,
         )
 
     def part(amount: Decimal) -> Decimal:
         return (amount * returning / quantity).quantize(CENT, rounding=ROUND_DOWN)
 
-    return LineAmounts(discount=part(line.discount), points=part(line.points), paid=part(line.paid))
+    return LineAmounts(
+        discount=part(line.discount),
+        points=part(line.points),
+        paid=part(line.paid),
+        credit=part(line.credit),
+    )

@@ -38,12 +38,14 @@ class Purchase:
     base: Decimal
     points_used: Decimal
     discount: Decimal = ZERO
+    store_credit: Decimal = ZERO
     placed_at: datetime | None = None
 
-    # paid only in cash or Mobile Money: no points, no coupon (owner rule on non-real money)
+    # paid only in cash or Mobile Money: no points, no coupon, no store credit (owner rule on
+    # non-real money)
     @property
     def real_money_only(self) -> bool:
-        return self.points_used == 0 and self.discount == 0
+        return self.points_used == 0 and self.discount == 0 and self.store_credit == 0
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

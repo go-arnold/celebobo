@@ -9,7 +9,7 @@ handle the claim step by step. App `apps/warranty`.
 | Kind (`kind`) | Window | Possible outcomes |
 |---|---|---|
 | `defect` — faulty or different from the order | the **7-day trial** (art. 59), then the **one-month CeLE BoBO warranty**, both from the delivery | repair, exchange, refund |
-| `change_of_mind` — the product does not suit | the **7-day trial** only, product as new; the client pays the return | exchange (store credit comes with step 7.3) |
+| `change_of_mind` — the product does not suit | the **7-day trial** only, product as new; the client pays the return | exchange, or store credit valid 6 months (§14) |
 | `counterfeit` | **12 months** from the purchase (authenticity guarantee) | refund, delivery included |
 
 - The windows are domain constants (`apps/warranty/domain/rules.py`). The claim records the
@@ -44,7 +44,7 @@ handle the claim step by step. App `apps/warranty`.
 |---|---|---|
 | 1. Answer | `POST /bo/claims/{id}/answer/` `{return_method, note}` | **within 72 hours** (art. 65; `answer_due`): drop-off at the shop (avenue Mwanga n° 21, Bukavu) or pick-up by the reseller |
 | 2. Reception | `POST /bo/claims/{id}/receive/` `{sealed, note}` | the drop-off slip is the claim number (`RC-00012`) and the reception date; a client may walk in before any answer. Diagnosis due **3 working days** later (Monday–Saturday) |
-| 3. Diagnosis | `POST /bo/claims/{id}/diagnose/` (`Idempotency-Key`) `{covered, outcome, note, new_serial, quote}` | the outcome must fit the kind (`outcome_not_allowed`): **repair** → in repair, due within **10 working days**; **exchange** → closed, with the new unit's serial; **refund** → closed, the unit is returned through the order's line return (stock, points taken back, refund due recorded on the order, to pay **within 15 days**); **not covered** → closed, product given back, optional quote for a paid repair |
+| 3. Diagnosis | `POST /bo/claims/{id}/diagnose/` (`Idempotency-Key`) `{covered, outcome, note, new_serial, quote}` | the outcome must fit the kind (`outcome_not_allowed`): **repair** → in repair, due within **10 working days**; **exchange** → closed, with the new unit's serial; **store credit** (change of mind) → closed, the unit is returned through the order's line return and what the client paid for it becomes store credit valid 6 months (§14); **refund** → closed, the unit is returned through the order's line return (stock, points taken back, refund due recorded on the order, to pay **within 15 days**); **not covered** → closed, product given back, optional quote for a paid repair |
 | 4. Repair done | `POST /bo/claims/{id}/repaired/` `{note}` | closes the claim; the warranty runs as many more days as the repair took |
 
 - Steps come in order (`claim_step_not_allowed`).
@@ -62,4 +62,3 @@ handle the claim step by step. App `apps/warranty`.
 
 - The delivery fee is refunded for a defective product (policy) — the line return refunds the
   product only; staff refund the fee by hand for now.
-- Store credit for a change of mind: step 7.3.

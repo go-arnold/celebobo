@@ -42,6 +42,8 @@ class OrderRepriced(DomainEvent):
     previous_price: Decimal
     price: Decimal
     total: Decimal
+    # the order's store credit once repriced (an excess goes back to the client's balance)
+    store_credit: Decimal = Decimal(0)
 
 
 @domain_event
@@ -49,10 +51,14 @@ class OrderLineReturned(DomainEvent):
     order_id: int
     item_id: int
     quantity: int
-    # the returned units' share of the line amounts: real money, coupon, points
+    # the returned units' share of the line amounts: real money, coupon, points, store credit
     amount_paid: Decimal
     discount: Decimal
     points: Decimal
+    credit: Decimal = Decimal(0)
+    # the real money comes back as store credit (a change of mind during the trial)
+    as_credit: bool = False
+    client_id: int = 0
 
 
 @domain_event

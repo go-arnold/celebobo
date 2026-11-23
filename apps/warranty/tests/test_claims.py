@@ -207,6 +207,22 @@ class TestHandling:
         assert "25.00 $" in last.message
         assert last.client_id == shopper.pk
 
+    def test_a_change_of_mind_can_become_store_credit(
+        self, as_user, shopper, manager, delivered, django_capture_on_commit_callbacks
+    ):
+        from apps.credit.models import CreditEntry
+
+        claim_id = received_claim(as_user, shopper, manager, delivered, kind="change_of_mind")
+
+        with django_capture_on_commit_callbacks(execute=True):
+            body = diagnose(as_user(manager), claim_id, covered=True, outcome="store_credit").json()
+
+        assert (body["status"], body["outcome"]) == ("closed", "store_credit")
+        credit = CreditEntry.objects.get(user=shopper, kind="issued")
+        # what the client paid for the phone, as store credit valid 6 months
+        assert credit.amount == OrderItem.objects.get(order=delivered).amount_paid
+        assert OrderItem.objects.get(order=delivered).returned_quantity == 1
+
     def test_outcomes_follow_the_kind(self, as_user, shopper, manager, delivered):
         claim_id = received_claim(as_user, shopper, manager, delivered, kind="change_of_mind")
 

@@ -27,6 +27,7 @@
     <tr><td colspan="4" class="num">Sous-total</td><td class="num">{{ order.subtotal }} $</td></tr>
     {% if order.discount %}<tr><td colspan="4" class="num">Remise{% if order.coupon_code %} ({{ order.coupon_code }}){% endif %}</td><td class="num">-{{ order.discount }} $</td></tr>{% endif %}
     {% if order.points %}<tr><td colspan="4" class="num">Points de fidélité utilisés</td><td class="num">-{{ order.points }} $</td></tr>{% endif %}
+    {% if order.store_credit %}<tr><td colspan="4" class="num">Avoir utilisé</td><td class="num">-{{ order.store_credit }} $</td></tr>{% endif %}
     <tr><td colspan="4" class="num">Livraison{% if order.shipping_zone %} ({{ order.shipping_zone }}){% endif %}</td><td class="num">{{ order.shipping_fee }} $</td></tr>
     <tr class="totals"><td colspan="4" class="num">Total</td><td class="num">{{ order.summary.total }} $</td></tr>
   </tfoot>

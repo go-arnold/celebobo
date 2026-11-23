@@ -40,7 +40,12 @@ class LineReturnService:
         if not 1 <= command.quantity <= remaining:
             raise InvalidReturnQuantity(remaining)
         share = returned_amounts(
-            LineAmounts(discount=item.discount, points=item.points, paid=item.amount_paid),
+            LineAmounts(
+                discount=item.discount,
+                points=item.points,
+                paid=item.amount_paid,
+                credit=item.credit,
+            ),
             quantity=item.quantity,
             returned=item.returned_quantity,
             returning=command.quantity,
@@ -53,6 +58,8 @@ class LineReturnService:
             amount_paid=share.paid,
             discount=share.discount,
             points=share.points,
+            credit=share.credit,
+            as_credit=command.as_credit,
             reason=" ".join(command.reason.split())[:500],
             actor_id=actor.user_id,
         )
