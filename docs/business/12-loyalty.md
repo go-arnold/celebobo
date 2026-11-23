@@ -75,7 +75,7 @@ used for delivery. Referral lines carry **no order number** (`order_number: null
 | Who | The reseller who invited the client (`invited_by`), while that reseller is still an active reseller. Points must be on (`points_enabled`) |
 | Window | Orders the client **places** within 12 months (`referral_months`) of joining the reseller (`invited_at`: signing up with the code, or adding the code to the profile later). Clients invited before this rule count from their sign-up date |
 | Rate | 0.3 % (`referral_percent`) of the items' price, delivery excluded, **rounded to the nearest cent** as in the policy's examples ($149 → 0.45 point, $389 → 1.17 points). Whether the client orders through their reseller or alone on the site |
-| Non-real money | **Nothing** on an order that used points or a coupon (owner rule: any non-real money cancels the referral on the whole order). Sale prices are real money |
+| Non-real money | **Nothing** on an order that used points, a coupon or store credit (§14) (owner rule: any non-real money cancels the referral on the whole order). Sale prices are real money |
 | Credit | On delivery, pending until the return period is over (like the client's own earning), once per order. The client still earns their own 1 % |
 | Returns | A cancelled or returned order takes back what is left of the referral; returning some units of a line takes back the share matching the real money returned (rounded down) |
 | Validity | Referral points follow the 12-month rule of the reseller's balance, counted from the reseller's **own** latest purchase (or own credit); referral credits restart nothing. A reseller who never bought counts from the latest referral credit |

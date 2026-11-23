@@ -75,6 +75,8 @@ class Outcome(StrEnum):
     REPAIR = "repair"
     EXCHANGE = "exchange"
     REFUND = "refund"
+    # a change of mind during the trial: what was paid becomes store credit, valid 6 months
+    STORE_CREDIT = "store_credit"
     # not covered (or a change of mind on an opened sealed-only product): given back, maybe with a
     # quote for a paid repair
     NOT_COVERED = "not_covered"
@@ -129,8 +131,8 @@ def outcomes_for(kind: ClaimKind, *, covered: bool) -> frozenset[Outcome]:
     if not covered:
         return frozenset({Outcome.NOT_COVERED})
     if kind is ClaimKind.CHANGE_OF_MIND:
-        # an exchange (store credit comes with step 7.3); the client pays the return
-        return frozenset({Outcome.EXCHANGE})
+        # an exchange or store credit valid 6 months (warranty policy); the client pays the return
+        return frozenset({Outcome.EXCHANGE, Outcome.STORE_CREDIT})
     if kind is ClaimKind.COUNTERFEIT:
         return frozenset({Outcome.REFUND})
     return frozenset({Outcome.REPAIR, Outcome.EXCHANGE, Outcome.REFUND})
@@ -173,6 +175,11 @@ def client_message(
         )
     elif outcome is Outcome.EXCHANGE:
         text = "Échange accordé : votre nouveau produit vous attend."
+    elif outcome is Outcome.STORE_CREDIT:
+        text = (
+            "Avoir accordé : ce que vous aviez payé pour l'article est sur votre avoir, valable "
+            "6 mois sur le site, livraison comprise."
+        )
     elif outcome is Outcome.REPAIR:
         text = (
             "Réparation terminée : votre produit vous attend. Sa garantie est prolongée du temps "

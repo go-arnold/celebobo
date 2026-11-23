@@ -20,6 +20,7 @@ When the code and this document disagree, the code wins — update the document.
 | 11 | [Error codes](11-error-codes.md) | Every business error the API can return |
 | 12 | [Loyalty programmes](12-loyalty.md) | Fidelity points, mobile app links and their settings |
 | 13 | [Warranty claims](13-warranty-claims.md) | Trial, CeLE BoBO warranty and authenticity claims: windows, steps, outcomes |
+| 14 | [Store credit](14-store-credit.md) | The avoir: issued for a change of mind, spent on products and delivery, 6 months |
 
 ## The business in one paragraph
 

@@ -16,16 +16,19 @@ class OrdersLedger:
     def purchase(self, order_id: int) -> Purchase | None:
         order = (
             Order.objects.filter(pk=order_id)
-            .values("client_id", "subtotal", "discount", "points", "created_at")
+            .values("client_id", "subtotal", "discount", "points", "store_credit", "created_at")
             .first()
         )
         if order is None:
             return None
+        products = order["subtotal"] - order["discount"] - order["points"]
         return Purchase(
             client_id=order["client_id"],
-            base=order["subtotal"] - order["discount"] - order["points"],
+            # what the client paid for the products in money: store credit pays them first
+            base=products - min(order["store_credit"], products),
             points_used=order["points"],
             discount=order["discount"],
+            store_credit=order["store_credit"],
             placed_at=order["created_at"],
         )
 

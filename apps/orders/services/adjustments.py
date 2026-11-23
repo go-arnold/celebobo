@@ -57,19 +57,30 @@ class AdjustmentService:
         order.subtotal = sum((line.total for line in items), Decimal(0))
         order.discount = min(order.discount, order.subtotal)
         order.points = min(order.points, order.subtotal - order.discount)
-        order.total = order.subtotal - order.discount - order.points + order.shipping_fee
-        # the new price changes every line's share of the coupon and points
+        # a lower price may leave store credit unused: the credit app gives the excess back to
+        # the client when the order is repriced
+        order.store_credit = min(
+            order.store_credit, order.subtotal - order.discount - order.points + order.shipping_fee
+        )
+        order.total = (
+            order.subtotal - order.discount - order.points - order.store_credit + order.shipping_fee
+        )
+        # the new price changes every line's share of the coupon, points and store credit
         shares = line_amounts(
-            [line.total for line in items], discount=order.discount, points=order.points
+            [line.total for line in items],
+            discount=order.discount,
+            points=order.points,
+            credit=order.store_credit,
         )
         for line, share in zip(items, shares, strict=True):
-            line.discount, line.points, line.amount_paid = (
+            line.discount, line.points, line.credit, line.amount_paid = (
                 share.discount,
                 share.points,
+                share.credit,
                 share.paid,
             )
         self._orders.reprice(item_id=item.pk, price=price, items=items)
-        self._orders.save(order, fields=("subtotal", "discount", "points", "total"))
+        self._orders.save(order, fields=("subtotal", "discount", "points", "store_credit", "total"))
         item.unit_price = price
         return Repricing(order, item, previous)
 

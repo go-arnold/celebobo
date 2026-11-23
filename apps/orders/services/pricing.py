@@ -4,13 +4,20 @@ from decimal import Decimal
 
 from apps.catalog.domain.queries import StockLine
 from apps.catalog.domain.read_models import PricedLine
+from apps.orders.adapters.gateways import NoCreditWallet
 from apps.orders.domain.commands import OrderLineInput
 from apps.orders.domain.enums import DeliveryMethod
-from apps.orders.domain.errors import CouponRejected, EmptyOrder, PointsUnavailable, TooManyLines
+from apps.orders.domain.errors import (
+    CouponRejected,
+    EmptyOrder,
+    PointsUnavailable,
+    StoreCreditUnavailable,
+    TooManyLines,
+)
 from apps.orders.domain.pricing import ZERO, CouponTerms, QuoteLine, quote
 from apps.orders.domain.read_models import QuoteLineView, QuoteView
 from apps.orders.models import Coupon
-from apps.orders.services.contracts import AddressBook, Inventory, Wallet
+from apps.orders.services.contracts import AddressBook, CreditWallet, Inventory, Wallet
 from apps.orders.services.coupons import CouponService
 from apps.orders.services.shipping import ShippingResolver
 
@@ -24,6 +31,9 @@ class PricingContext:
     lock: bool = False
     # points the client asks to use; the quote applies what their balance and the items allow
     points: Decimal = ZERO
+    # store credit the client asks to use: up to their balance and what is left to pay, delivery
+    # included
+    store_credit: Decimal = ZERO
     pickup: bool = False
 
 
@@ -47,11 +57,13 @@ class PricingService:
         *,
         addresses: AddressBook,
         max_lines: int,
+        credit: CreditWallet | None = None,
     ) -> None:
         self._inventory = inventory
         self._shipping = shipping
         self._coupons = coupons
         self._wallet = wallet
+        self._credit = credit or NoCreditWallet()
         self._addresses = addresses
         self._max_lines = max_lines
 
@@ -92,13 +104,23 @@ class PricingService:
         if context.strict and context.points > available:
             raise PointsUnavailable
         points = min(context.points, available)
+        due = result.total - points
+        credit_available = (
+            self._credit.usable(context.user_id, due, lock=context.lock)
+            if context.user_id is not None
+            else ZERO
+        )
+        # asking more than the total is simply capped; asking more than the balance is refused
+        if context.strict and context.store_credit > credit_available and credit_available < due:
+            raise StoreCreditUnavailable
+        store_credit = min(context.store_credit, credit_available)
         return (
             QuoteView(
                 lines=tuple(_line_view(line) for line in priced),
                 subtotal=result.subtotal,
                 discount=result.discount,
                 shipping_fee=result.shipping_fee,
-                total=result.total - points,
+                total=due - store_credit,
                 free_shipping_remaining=result.free_shipping_remaining,
                 shipping_zone=rules.zone,
                 delivery_estimate=rules.delivery_estimate,
@@ -106,6 +128,8 @@ class PricingService:
                 coupon_error=error,
                 points=points,
                 points_available=available,
+                store_credit=store_credit,
+                store_credit_available=credit_available,
                 delivery_method=DeliveryMethod.PICKUP
                 if context.pickup
                 else DeliveryMethod.DELIVERY,

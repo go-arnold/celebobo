@@ -13,4 +13,6 @@ class OrderLines(Protocol):
 class LineRefunds(Protocol):
     """A refund takes the unit back through the order's line return (stock, points, refund due)."""
 
-    def refund_unit(self, actor: Actor, order_id: int, item_id: int, *, reason: str) -> None: ...
+    def refund_unit(
+        self, actor: Actor, order_id: int, item_id: int, *, reason: str, as_credit: bool = False
+    ) -> None: ...

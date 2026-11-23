@@ -34,6 +34,8 @@ class PlaceOrder:
     coupon_code: str | None = None
     # points the client chooses to use (1 point = $1)
     points: Decimal = Decimal(0)
+    # store credit (avoir, in dollars) the client chooses to use
+    store_credit: Decimal = Decimal(0)
     # collected at the shop: the address only gives the contact details
     pickup: bool = False
 
@@ -172,3 +174,5 @@ class CouponChanges:
 class ReturnLine:
     quantity: int
     reason: str = ""
+    # a change of mind during the trial: the real money comes back as store credit (avoir)
+    as_credit: bool = False

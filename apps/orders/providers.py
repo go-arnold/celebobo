@@ -6,6 +6,7 @@ from apps.orders.adapters.gateways import (
     AccountsResellerDirectory,
     CatalogInventory,
     DeliveredOrderPurchases,
+    NoCreditWallet,
     NoOrderThreads,
     NoWallet,
     OrderDealSales,
@@ -36,6 +37,7 @@ from apps.orders.services.cart import CartService
 from apps.orders.services.checkout import CheckoutService
 from apps.orders.services.contracts import (
     AddressBook,
+    CreditWallet,
     Inventory,
     OrderThreads,
     ResellerDirectory,
@@ -60,6 +62,7 @@ def register(container: Container) -> None:
     container.register(ResellerDirectory, lambda _: AccountsResellerDirectory())
     container.register(OrderThreads, lambda _: NoOrderThreads())
     container.register(Wallet, lambda _: NoWallet())
+    container.register(CreditWallet, lambda _: NoCreditWallet())
     container.register(OrderStateMachine, lambda _: OrderStateMachine(TransitionPolicyFactory()))
     container.register(PurchaseVerifier, lambda _: DeliveredOrderPurchases(), replace=True)
     container.register(DealSales, lambda _: OrderDealSales(), replace=True)
@@ -92,6 +95,7 @@ def _pricing(container: Container) -> PricingService:
         container.resolve(Wallet),
         addresses=container.resolve(AddressBook),
         max_lines=settings.max_lines,
+        credit=container.resolve(CreditWallet),
     )
 
 
@@ -127,6 +131,7 @@ def _checkout_facade(container: Container) -> CheckoutFacade:
             _coupons(),
             wallet=container.resolve(Wallet),
             max_pending=order_settings().max_pending_orders,
+            credit=container.resolve(CreditWallet),
         ),
         pricing=pricing,
         carts=CartRepository(),

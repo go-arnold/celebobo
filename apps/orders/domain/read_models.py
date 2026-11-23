@@ -32,6 +32,8 @@ class QuoteView:
     coupon_error: str | None = None
     points: Decimal = Decimal("0.00")
     points_available: Decimal = Decimal("0.00")
+    store_credit: Decimal = Decimal("0.00")
+    store_credit_available: Decimal = Decimal("0.00")
     delivery_method: DeliveryMethod = DeliveryMethod.DELIVERY
     pickup_address: str = ""
     # the zone is quoted on request: the fee is unknown until a reseller quotes it
@@ -72,6 +74,8 @@ class OrderLineView:
     amount_paid: Decimal
     returned_quantity: int = 0
     returned_amount: Decimal = Decimal(0)
+    # the line's share of the store credit used on the order
+    credit: Decimal = Decimal(0)
     # each unit's serial number or IMEI, when the product needs one (warranty policy)
     serial_required: bool = False
     serials: tuple[str, ...] = ()
@@ -196,6 +200,7 @@ class OrderDetail:
     can_rate: bool = False
     delivery_attempts: tuple[AttemptView, ...] = ()
     points: Decimal = Decimal("0.00")
+    store_credit: Decimal = Decimal("0.00")
     points_earned: Decimal | None = None
     history: tuple[StatusEntry, ...]
     allowed_transitions: tuple[OrderStatus, ...]
@@ -306,14 +311,16 @@ class ConvertibleOrder:
     total: Decimal
     created_at: datetime
     items: tuple[ConvertibleItem, ...]
-    # non-real money used on the order: a coupon or promotion, and points
+    # non-real money used on the order: a coupon or promotion, points, store credit
     discount: Decimal = Decimal(0)
     points: Decimal = Decimal(0)
+    store_credit: Decimal = Decimal(0)
 
-    # paid only in cash or Mobile Money: no points, no coupon (owner rule on non-real money)
+    # paid only in cash or Mobile Money: no points, no coupon, no store credit (owner rule on
+    # non-real money)
     @property
     def real_money_only(self) -> bool:
-        return self.discount == 0 and self.points == 0
+        return self.discount == 0 and self.points == 0 and self.store_credit == 0
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

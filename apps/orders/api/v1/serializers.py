@@ -68,6 +68,10 @@ class QuoteRequestInput(QuoteInput):
     points = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=Decimal(0), required=False, default=Decimal(0)
     )
+    # store credit (avoir, in dollars) the client wants to use, up to their balance and the total
+    store_credit = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=Decimal(0), required=False, default=Decimal(0)
+    )
     pickup = serializers.BooleanField(required=False, default=False)
 
 
@@ -94,6 +98,10 @@ class PlaceOrderInput(QuoteInput):
     address = DeliveryAddressInput(required=False, allow_null=True)
     note = serializers.CharField(max_length=1000, required=False, allow_blank=True, default="")
     points = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=Decimal(0), required=False, default=Decimal(0)
+    )
+    # store credit (avoir, in dollars) the client wants to use, up to their balance and the total
+    store_credit = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=Decimal(0), required=False, default=Decimal(0)
     )
     pickup = serializers.BooleanField(required=False, default=False)
@@ -253,6 +261,8 @@ class QuoteOutput(serializers.Serializer[Any]):
     coupon_error = serializers.CharField(allow_null=True)
     points = serializers.DecimalField(max_digits=10, decimal_places=2)
     points_available = serializers.DecimalField(max_digits=10, decimal_places=2)
+    store_credit = serializers.DecimalField(max_digits=10, decimal_places=2)
+    store_credit_available = serializers.DecimalField(max_digits=10, decimal_places=2)
     delivery_method = serializers.CharField()
     pickup_address = serializers.CharField()
     shipping_quote_required = serializers.BooleanField()
@@ -315,6 +325,7 @@ class OrderLineOutput(serializers.Serializer[Any]):
     # the line's share of the order's coupon and points, and the real money paid for it
     discount = serializers.DecimalField(max_digits=10, decimal_places=2)
     points = serializers.DecimalField(max_digits=10, decimal_places=2)
+    credit = serializers.DecimalField(max_digits=10, decimal_places=2)
     amount_paid = serializers.DecimalField(max_digits=10, decimal_places=2)
     # units given back after delivery and the real money owed back for them
     returned_quantity = serializers.IntegerField()
@@ -366,6 +377,7 @@ class OrderDetailOutput(serializers.Serializer[Any]):
     delivery_estimate = serializers.CharField()
     awaiting_shipping_quote = serializers.BooleanField()
     points = serializers.DecimalField(max_digits=10, decimal_places=2)
+    store_credit = serializers.DecimalField(max_digits=10, decimal_places=2)
     points_earned = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
     cancel_reason = serializers.CharField()
     refund_due = serializers.DecimalField(max_digits=10, decimal_places=2)

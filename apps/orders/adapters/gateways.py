@@ -90,6 +90,14 @@ class NoWallet:
         return None
 
 
+class NoCreditWallet:
+    def usable(self, user_id: int, base: Decimal, *, lock: bool = False) -> Decimal:
+        return Decimal(0)
+
+    def spend(self, user_id: int, order_id: int, amount: Decimal) -> None:
+        return None
+
+
 class NoOrderThreads:
     def open_for_order(self, order: Order) -> int | None:
         return None

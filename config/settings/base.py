@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "apps.push",
     "apps.loyalty",
     "apps.warranty",
+    "apps.credit",
     "apps.demo",
     "allauth",
     "allauth.account",
@@ -416,6 +417,11 @@ CELERY_BEAT_SCHEDULE = {
     },
     "expire-points": {
         "task": "loyalty.expire_points",
+        "schedule": 24 * 60 * 60,
+    },
+    # daily: store credit unused after 6 months expires
+    "expire-store-credit": {
+        "task": "credit.expire",
         "schedule": 24 * 60 * 60,
     },
     # hourly: personal data exports are deleted as soon as their download link expires

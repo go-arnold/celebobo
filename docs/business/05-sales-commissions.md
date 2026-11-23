@@ -100,8 +100,8 @@ Each **sale line** earns, on the **amount paid** for it (unit price × quantity,
 
 - Each amount is **rounded to the cent** (half up) before the smaller one is taken.
 - The cost, origin and gain are the ones **copied into the sale** when it was recorded or converted.
-- **Nothing at all** on an order that used **any non-real money**: points (`points` > 0) or a
-  coupon / promotion (`discount` > 0). This applies to the **whole order**, every line, not just
+- **Nothing at all** on an order that used **any non-real money**: points (`points` > 0), a
+  coupon / promotion (`discount` > 0) or store credit (`store_credit` > 0, §14). This applies to the **whole order**, every line, not just
   the share paid that way. Sale prices and daily deals are real money and earn normally.
 - **Nothing** on a reseller's **own purchases** (the buyer is the reseller selling).
 - Sales **recorded directly** with a reseller as seller follow the same line rules (there are no
