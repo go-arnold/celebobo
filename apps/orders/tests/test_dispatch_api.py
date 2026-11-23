@@ -126,6 +126,7 @@ class TestAssignment:
                 "open_orders": 1,
                 # no cash to remit: new orders are allowed (reseller policy, section 6)
                 "cash_blocked": None,
+                "suspended_until": None,
             }
         ]
 

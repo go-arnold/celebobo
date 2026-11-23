@@ -446,3 +446,5 @@ class AssignableResellerOutput(serializers.Serializer[Any]):
     open_orders = serializers.IntegerField()
     # cash to remit first (over the cap or past 24 hours): new orders are refused until then
     cash_blocked = serializers.CharField(allow_null=True)
+    # suspended (reseller policy, section 10): no new orders until then
+    suspended_until = serializers.DateTimeField(allow_null=True)

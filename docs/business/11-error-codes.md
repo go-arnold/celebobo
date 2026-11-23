@@ -201,6 +201,12 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 | 409 | `store_credit_unavailable` | Votre avoir a changé. Vérifiez le montant puis confirmez. |
 | 422 | `reseller_cash_blocked` | Ce revendeur doit d'abord reverser l'argent encaissé (plus de 24 heures de retard ou plafond atteint). (`meta.reason`) |
 | 422 | `remittance_exceeds_held` | Le montant dépasse l'argent que ce revendeur doit reverser. (`meta.held`) |
+| 422 | `reseller_suspended` | Ce revendeur est suspendu : il ne reçoit pas de nouvelles commandes. (`meta.until`) |
+| 404 | `sanction_not_found` | Sanction introuvable. |
+| 400 | `invalid_suspension` | Une suspension dure de 7 à 30 jours. |
+| 422 | `sanction_closed` | Cette sanction est déjà décidée. |
+| 422 | `explanation_closed` | Le délai de 48 heures pour vous expliquer est passé. |
+| 422 | `hearing_pending` | Le revendeur peut encore s'expliquer : attendez sa réponse ou la fin des 48 heures. |
 
 ## Push notifications
 

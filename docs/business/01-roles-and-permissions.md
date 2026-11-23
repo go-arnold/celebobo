@@ -39,6 +39,7 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `claims.submit.own` | Claim on own delivered orders (§13) | | ✓ | ✓ | ✓ | ✓ |
 | `store_credit.view.own` | See own store credit (§14) | | ✓ | ✓ | ✓ | ✓ |
 | `cash.view.own` | See the cash collected and still to remit (§15) | | | ✓ | ✓ | ✓ |
+| `standing.view.own` | See their level and sanctions, explain within 48 hours (§16) | | | ✓ | ✓ | ✓ |
 | `personal_data.export.own` | Download one's own data ("Mes données", ZIP) | | ✓ | ✓ | ✓ | ✓ |
 | `media.upload` | Upload an avatar or a message attachment | | ✓ | ✓ | ✓ | ✓ |
 | `conversations.use` | Read and write in own conversations | | ✓ | ✓ | ✓ | ✓ |
@@ -90,6 +91,7 @@ A deactivated account cannot log in, and its open sessions are revoked.
 | `coupons.manage` | Coupons | | | | ✓ | ✓ |
 | `claims.manage` | Handle warranty claims: answer, reception, diagnosis, outcome (§13) | | | | ✓ | ✓ |
 | `cash.manage` | Record what resellers remit, see everyone's cash (§15) | | | | ✓ | ✓ |
+| `standing.manage` | Review levels, open and decide sanctions (§16) | | | | ✓ | ✓ |
 | `presence.view` | Who is online | | | | ✓ | ✓ |
 | `resellers.view` / `resellers.manage` | Reseller list, manager, activation | | | | ✓ | ✓ |
 | `reseller_applications.review` | Approve / reject applications | | | | ✓ | ✓ |

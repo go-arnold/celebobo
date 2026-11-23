@@ -26,6 +26,7 @@ from apps.orders.domain.events import (
     ResellerRated,
 )
 from apps.sales.domain.events import PayoutRecorded, PayoutStatementPrepared
+from apps.standing.domain.events import LevelChanged, SanctionUpdated
 from apps.warranty.domain.events import ClaimSubmitted, ClaimUpdated
 from core.container import container
 from core.events.bus import event_bus
@@ -93,6 +94,16 @@ def notify_payout_statement(event: PayoutStatementPrepared) -> None:
 @event_bus.on(PayoutRecorded, background=True)
 def notify_payout_paid(event: PayoutRecorded) -> None:
     container.resolve(NotificationRouter).payout_recorded(event)
+
+
+@event_bus.on(LevelChanged, background=True)
+def notify_level_changed(event: LevelChanged) -> None:
+    container.resolve(NotificationRouter).level_changed(event)
+
+
+@event_bus.on(SanctionUpdated, background=True)
+def notify_sanction(event: SanctionUpdated) -> None:
+    container.resolve(NotificationRouter).sanction_updated(event)
 
 
 @event_bus.on(CashOverdue, background=True)

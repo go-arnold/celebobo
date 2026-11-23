@@ -146,6 +146,8 @@ Anything else is refused (`invalid_transition`). Every change is written to the 
   assignable list shows each reseller's availability and number of open orders.
 - A reseller who still holds collected cash past 24 hours, or up to their cap, gets **no new
   orders** (`reseller_cash_blocked`, §15); the assignable list says why (`cash_blocked`).
+- A **suspended** reseller gets no new orders until the suspension ends (`reseller_suspended`,
+  §16); the assignable list gives the end (`suspended_until`).
 - **Suggested reseller**: the back-office order (list and detail) carries `suggested_reseller`
   (`id`, `name`, `reason: "invited_client"`, `invited_at`) — the reseller who **invited the client**
   with their referral code, whenever that was (no 12-month limit, unlike referral points), as long as

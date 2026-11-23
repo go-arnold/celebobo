@@ -22,6 +22,7 @@ When the code and this document disagree, the code wins — update the document.
 | 13 | [Warranty claims](13-warranty-claims.md) | Trial, CeLE BoBO warranty and authenticity claims: windows, steps, outcomes |
 | 14 | [Store credit](14-store-credit.md) | The avoir: issued for a change of mind, spent on products and delivery, 6 months |
 | 15 | [Cash collected by resellers](15-reseller-cash.md) | Collections, 24-hour remittance, cap per level, blocked assignment |
+| 16 | [Reseller levels and sanctions](16-reseller-levels.md) | Quarterly level review, advantages, warning, suspension, exclusion and the 48-hour hearing |
 
 ## The business in one paragraph
 

@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "apps.warranty",
     "apps.credit",
     "apps.cash",
+    "apps.standing",
     "apps.demo",
     "allauth",
     "allauth.account",
@@ -255,6 +256,7 @@ SPECTACULAR_SETTINGS = {
         "SectionKindEnum": ["showcase", "column"],
         "ConsentKindEnum": ["terms", "hosting_abroad", "marketing"],
         "ClaimKindEnum": ["defect", "change_of_mind", "counterfeit"],
+        "SanctionKindEnum": ["warning", "suspension", "exclusion"],
     },
 }
 
@@ -424,6 +426,11 @@ CELERY_BEAT_SCHEDULE = {
     "remind-overdue-cash": {
         "task": "cash.remind_overdue",
         "schedule": 60 * 60,
+    },
+    # daily: on the first day of each quarter, reseller levels are reviewed
+    "review-reseller-levels": {
+        "task": "standing.review_levels",
+        "schedule": 24 * 60 * 60,
     },
     # daily: store credit unused after 6 months expires
     "expire-store-credit": {

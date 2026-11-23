@@ -55,3 +55,5 @@ class NotificationKind(StrEnum):
     CLAIM_SUBMITTED = "claim_submitted"
     CLAIM_UPDATE = "claim_update"
     CASH_OVERDUE = "cash_overdue"
+    LEVEL_CHANGED = "level_changed"
+    SANCTION = "sanction"
