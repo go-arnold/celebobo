@@ -98,6 +98,14 @@ class NoCreditWallet:
         return None
 
 
+class NoCashGate:
+    def blocked_reason(self, reseller_id: int) -> str | None:
+        return None
+
+    def blocked(self, reseller_ids: Iterable[int]) -> dict[int, str]:
+        return {}
+
+
 class NoOrderThreads:
     def open_for_order(self, order: Order) -> int | None:
         return None

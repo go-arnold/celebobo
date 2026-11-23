@@ -219,6 +219,17 @@ class StoreCreditUnavailable(Conflict):
     default_detail = "Votre avoir a changé. Vérifiez le montant puis confirmez."
 
 
+class ResellerCashBlocked(BusinessRuleViolation):
+    default_code = "reseller_cash_blocked"
+    default_detail = (
+        "Ce revendeur doit d'abord reverser l'argent encaissé : plus de 24 heures de retard ou "
+        "plafond d'argent non reversé atteint."
+    )
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"{self.default_detail} ({reason})", meta={"reason": reason})
+
+
 class PointsUnavailable(Conflict):
     default_code = "points_unavailable"
     default_detail = "Votre solde de points a changé. Vérifiez le montant puis confirmez."

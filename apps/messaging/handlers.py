@@ -1,5 +1,6 @@
 from django.db import transaction
 
+from apps.cash.domain.events import CashOverdue
 from apps.messaging.domain.events import (
     ConversationAssigned,
     ConversationOpened,
@@ -92,6 +93,11 @@ def notify_payout_statement(event: PayoutStatementPrepared) -> None:
 @event_bus.on(PayoutRecorded, background=True)
 def notify_payout_paid(event: PayoutRecorded) -> None:
     container.resolve(NotificationRouter).payout_recorded(event)
+
+
+@event_bus.on(CashOverdue, background=True)
+def notify_cash_overdue(event: CashOverdue) -> None:
+    container.resolve(NotificationRouter).cash_overdue(event)
 
 
 @event_bus.on(ClaimSubmitted, background=True)

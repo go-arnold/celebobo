@@ -20,6 +20,7 @@ from apps.orders.domain.pricing import ZonePricing
 from apps.orders.domain.read_models import (
     AddressSnapshot,
     AttemptView,
+    CashableOrder,
     ClaimableLine,
     ClientOrderTotals,
     ConvertibleItem,
@@ -703,4 +704,17 @@ def _claimable(item: OrderItem) -> ClaimableLine:
         returned_quantity=item.returned_quantity,
         serials=tuple(entry.serial for entry in item.serials.all()),
         sealed_return_only=item.sealed_return_only,
+    )
+
+
+def cashable_order(order_id: int) -> CashableOrder | None:
+    order = Order.objects.filter(pk=order_id).first()
+    if order is None:
+        return None
+    return CashableOrder(
+        order_id=order.pk,
+        number=order.number,
+        reseller_id=order.assigned_reseller_id,
+        total=order.total,
+        pickup=order.delivery_method == DeliveryMethod.PICKUP.value,
     )

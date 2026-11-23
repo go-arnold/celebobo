@@ -6,6 +6,7 @@ from apps.orders.adapters.gateways import (
     AccountsResellerDirectory,
     CatalogInventory,
     DeliveredOrderPurchases,
+    NoCashGate,
     NoCreditWallet,
     NoOrderThreads,
     NoWallet,
@@ -37,6 +38,7 @@ from apps.orders.services.cart import CartService
 from apps.orders.services.checkout import CheckoutService
 from apps.orders.services.contracts import (
     AddressBook,
+    CashGate,
     CreditWallet,
     Inventory,
     OrderThreads,
@@ -63,6 +65,7 @@ def register(container: Container) -> None:
     container.register(OrderThreads, lambda _: NoOrderThreads())
     container.register(Wallet, lambda _: NoWallet())
     container.register(CreditWallet, lambda _: NoCreditWallet())
+    container.register(CashGate, lambda _: NoCashGate())
     container.register(OrderStateMachine, lambda _: OrderStateMachine(TransitionPolicyFactory()))
     container.register(PurchaseVerifier, lambda _: DeliveredOrderPurchases(), replace=True)
     container.register(DealSales, lambda _: OrderDealSales(), replace=True)
@@ -106,6 +109,7 @@ def _lifecycle(container: Container) -> OrderLifecycleService:
         container.resolve(Inventory),
         container.resolve(ResellerDirectory),
         clock=timezone.now,
+        cash=container.resolve(CashGate),
     )
 
 
@@ -166,6 +170,7 @@ def _dispatch_facade(container: Container) -> DispatchFacade:
         threads=container.resolve(OrderThreads),
         wallet=container.resolve(Wallet),
         publisher=container.resolve(EventPublisher),
+        cash=container.resolve(CashGate),
     )
 
 

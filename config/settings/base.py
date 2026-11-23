@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "apps.loyalty",
     "apps.warranty",
     "apps.credit",
+    "apps.cash",
     "apps.demo",
     "allauth",
     "allauth.account",
@@ -418,6 +419,11 @@ CELERY_BEAT_SCHEDULE = {
     "expire-points": {
         "task": "loyalty.expire_points",
         "schedule": 24 * 60 * 60,
+    },
+    # hourly: resellers are reminded of collected money not remitted within 24 hours
+    "remind-overdue-cash": {
+        "task": "cash.remind_overdue",
+        "schedule": 60 * 60,
     },
     # daily: store credit unused after 6 months expires
     "expire-store-credit": {

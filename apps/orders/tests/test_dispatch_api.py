@@ -124,6 +124,8 @@ class TestAssignment:
                 "name": "Patrick Kabasele",
                 "availability": "offline",
                 "open_orders": 1,
+                # no cash to remit: new orders are allowed (reseller policy, section 6)
+                "cash_blocked": None,
             }
         ]
 

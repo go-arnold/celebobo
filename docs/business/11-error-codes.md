@@ -199,6 +199,8 @@ Every error is a `problem+json` body: `{ type, title, status, code, detail, erro
 |---|---|---|
 | 409 | `points_unavailable` | Votre solde de points a changé. Vérifiez le montant puis confirmez. |
 | 409 | `store_credit_unavailable` | Votre avoir a changé. Vérifiez le montant puis confirmez. |
+| 422 | `reseller_cash_blocked` | Ce revendeur doit d'abord reverser l'argent encaissé (plus de 24 heures de retard ou plafond atteint). (`meta.reason`) |
+| 422 | `remittance_exceeds_held` | Le montant dépasse l'argent que ce revendeur doit reverser. (`meta.held`) |
 
 ## Push notifications
 

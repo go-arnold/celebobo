@@ -8,6 +8,7 @@ import structlog
 from django.db import transaction
 from django.utils import timezone
 
+from apps.orders.adapters.gateways import NoCashGate
 from apps.orders.domain.commands import (
     AssignOrder,
     CancelOrder,
@@ -72,7 +73,7 @@ from apps.orders.services.adjustments import AdjustmentService
 from apps.orders.services.attempts import DeliveryAttemptService
 from apps.orders.services.cart import CartOwner, CartService
 from apps.orders.services.checkout import CheckoutService
-from apps.orders.services.contracts import OrderThreads, ResellerDirectory, Wallet
+from apps.orders.services.contracts import CashGate, OrderThreads, ResellerDirectory, Wallet
 from apps.orders.services.lifecycle import Handover, OrderLifecycleService, StatusChange
 from apps.orders.services.pricing import PricingContext, PricingService
 from apps.orders.services.promotions import CouponAdminService, ShippingZoneService
@@ -292,7 +293,9 @@ class DispatchFacade:
         attempts: DeliveryAttemptService,
         serials: SerialNumberService,
         publisher: EventPublisher,
+        cash: CashGate | None = None,
     ) -> None:
+        self._cash = cash or NoCashGate()
         self._attempts = attempts
         self._serials = serials
         self._refunds = refunds
@@ -458,12 +461,14 @@ class DispatchFacade:
     def assignable(self, search: str | None) -> list[AssignableReseller]:
         resellers = self._resellers.assignable(search)
         workload = self._selector.open_orders_by_reseller(reseller.id for reseller in resellers)
+        blocked = self._cash.blocked([reseller.id for reseller in resellers])
         return [
             AssignableReseller(
                 id=reseller.id,
                 name=reseller.name,
                 availability=reseller.availability or "offline",
                 open_orders=workload.get(reseller.id, 0),
+                cash_blocked=blocked.get(reseller.id),
             )
             for reseller in resellers
         ]

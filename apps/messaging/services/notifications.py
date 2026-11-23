@@ -204,6 +204,11 @@ class NotificationFanout:
             ),
         )
 
+    def cash_overdue(self, reseller_id: int, *, number: str, amount: str) -> None:
+        self._notifications.notify(
+            [reseller_id], render(NotificationKind.CASH_OVERDUE, number=number, amount=amount)
+        )
+
     def claim_update(self, client_id: int, claim_id: int, *, number: str, message: str) -> None:
         self._notifications.notify(
             [client_id],
