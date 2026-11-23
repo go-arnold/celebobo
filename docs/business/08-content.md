@@ -18,6 +18,8 @@ Public content is cached and refreshed automatically when content or categories 
 
 Unpublished pages and FAQ entries are visible only in the back-office.
 
+Back-office: « Pages et politiques », « FAQ » (questions grouped by category, add, edit, hide, delete).
+
 **Policies.** The conditions of sale and the five policies are pages, loaded once by a migration from
 `apps/content/policies/*.md` (a page that already exists is never overwritten), then edited in the
 back-office: `conditions-de-vente` (0.9, migration `content/0008_conditions_of_sale`; the `terms`
@@ -52,7 +54,8 @@ One record, `GET /settings/public/` exposes the public part to the shop:
 - A hidden **honeypot** field: if a bot fills it, the message is stored as `spam` and nobody is notified.
 - Otherwise the sender gets an acknowledgement email and staff see the message live in the
   **contact inbox** (`contact.inbox`), where they mark it `handled` (or `spam`) with an internal note.
-  The inbox shows counts per status.
+  The inbox shows counts per status. Back-office: « Messages de contact » (new / handled / spam,
+  subject filter, search; reply by email or phone, then « Marquer traité »).
 - Retention: a contact message is a message with customer service, which the privacy policy (§6)
   keeps "3 years after the last order". The form is open to visitors without an account or order,
   so the period runs from the message: it is deleted **3 years after it was received**, whatever
@@ -66,7 +69,8 @@ One record, `GET /settings/public/` exposes the public part to the shop:
 - A new subscriber receives a **welcome email** with the newsletter **coupon code** and discount.
 - Every email contains an **unsubscribe link** (`/newsletter/desinscription?token=…`); an unknown token
   answers `unknown_subscription`.
-- Staff (`newsletter.view`) list subscribers (active / unsubscribed, search) and export them as CSV.
+- Staff (`newsletter.view`) list subscribers (active / unsubscribed, search) and export them as CSV
+  (back-office « Newsletter »; the export keeps the filters).
 - The newsletter follows an account's `marketing` consent, both ways: giving it subscribes the
   account's e-mail, withdrawing it unsubscribes it, and the unsubscribe link withdraws the consent
   ([accounts](02-accounts.md#newsletter-and-promotions)).
