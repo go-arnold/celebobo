@@ -21,7 +21,7 @@ not deduct their commission (it is paid separately, §5). The unremitted cash a 
 | Confirmé | 1 000 $ |
 | Ambassadeur | 2 500 $ |
 
-Levels come with step 7.5; until then every reseller counts as **Débutant**.
+The level comes from the quarterly review (§16); a reseller never reviewed counts as **Débutant**.
 
 A reseller gets **no new orders** (`reseller_cash_blocked`, 422, `meta.reason`) while:
 - some collected money is **more than 24 hours** old and not remitted, or

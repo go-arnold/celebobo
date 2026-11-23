@@ -171,6 +171,20 @@ TEMPLATES: Mapping[NotificationKind, NotificationTemplate] = MappingProxyType(
             topic=STATUS_CHANGED_TOPIC,
             essential=True,
         ),
+        NotificationKind.LEVEL_CHANGED: NotificationTemplate(
+            title="Nouveau niveau : {level}",
+            body="Votre niveau de revendeur est maintenant « {level} », d'après vos ventes "
+            "validées des 3 derniers mois et votre note.",
+            link="/admin/niveau",
+            topic=STATUS_CHANGED_TOPIC,
+        ),
+        NotificationKind.SANCTION: NotificationTemplate(
+            title="Sanction : {label}",
+            body="{message}",
+            link="/admin/niveau",
+            topic=STATUS_CHANGED_TOPIC,
+            essential=True,
+        ),
         NotificationKind.PAYOUT_PAID: NotificationTemplate(
             title="Paiement reçu : {amount} $",
             body="Celebobo vous a versé {amount} $ pour votre relevé du {date}.",

@@ -9,6 +9,7 @@ from apps.orders.adapters.gateways import (
     NoCashGate,
     NoCreditWallet,
     NoOrderThreads,
+    NoSuspensions,
     NoWallet,
     OrderDealSales,
 )
@@ -43,6 +44,7 @@ from apps.orders.services.contracts import (
     Inventory,
     OrderThreads,
     ResellerDirectory,
+    SuspensionGate,
     Wallet,
 )
 from apps.orders.services.coupons import CouponService
@@ -66,6 +68,7 @@ def register(container: Container) -> None:
     container.register(Wallet, lambda _: NoWallet())
     container.register(CreditWallet, lambda _: NoCreditWallet())
     container.register(CashGate, lambda _: NoCashGate())
+    container.register(SuspensionGate, lambda _: NoSuspensions())
     container.register(OrderStateMachine, lambda _: OrderStateMachine(TransitionPolicyFactory()))
     container.register(PurchaseVerifier, lambda _: DeliveredOrderPurchases(), replace=True)
     container.register(DealSales, lambda _: OrderDealSales(), replace=True)
@@ -110,6 +113,7 @@ def _lifecycle(container: Container) -> OrderLifecycleService:
         container.resolve(ResellerDirectory),
         clock=timezone.now,
         cash=container.resolve(CashGate),
+        suspensions=container.resolve(SuspensionGate),
     )
 
 
@@ -171,6 +175,7 @@ def _dispatch_facade(container: Container) -> DispatchFacade:
         wallet=container.resolve(Wallet),
         publisher=container.resolve(EventPublisher),
         cash=container.resolve(CashGate),
+        suspensions=container.resolve(SuspensionGate),
     )
 
 

@@ -1,4 +1,5 @@
 from collections.abc import Iterable, Sequence
+from datetime import datetime
 from decimal import Decimal
 from typing import Protocol
 
@@ -59,6 +60,14 @@ class CashGate(Protocol):
     def blocked_reason(self, reseller_id: int) -> str | None: ...
 
     def blocked(self, reseller_ids: Iterable[int]) -> dict[int, str]: ...
+
+
+class SuspensionGate(Protocol):
+    """Until when a reseller is suspended (reseller policy, section 10), for one or many."""
+
+    def suspended_until(self, reseller_id: int) -> datetime | None: ...
+
+    def suspended(self, reseller_ids: Iterable[int]) -> dict[int, datetime]: ...
 
 
 class OrderThreads(Protocol):

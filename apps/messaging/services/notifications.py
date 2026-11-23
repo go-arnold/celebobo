@@ -204,6 +204,16 @@ class NotificationFanout:
             ),
         )
 
+    def level_changed(self, reseller_id: int, *, level: str) -> None:
+        self._notifications.notify(
+            [reseller_id], render(NotificationKind.LEVEL_CHANGED, level=level)
+        )
+
+    def sanction(self, reseller_id: int, *, label: str, message: str) -> None:
+        self._notifications.notify(
+            [reseller_id], render(NotificationKind.SANCTION, label=label, message=message)
+        )
+
     def cash_overdue(self, reseller_id: int, *, number: str, amount: str) -> None:
         self._notifications.notify(
             [reseller_id], render(NotificationKind.CASH_OVERDUE, number=number, amount=amount)

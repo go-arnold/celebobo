@@ -243,6 +243,8 @@ class AssignableReseller:
     open_orders: int
     # cash to remit first (reseller policy, section 6): new orders are refused until then
     cash_blocked: str | None = None
+    # suspended (reseller policy, section 10): no new orders until then
+    suspended_until: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

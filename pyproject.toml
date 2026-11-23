@@ -224,6 +224,7 @@ source_modules = [
     "apps.warranty.domain",
     "apps.credit.domain",
     "apps.cash.domain",
+    "apps.standing.domain",
 ]
 forbidden_modules = ["django", "rest_framework", "celery", "allauth", "dj_rest_auth"]
 
@@ -248,6 +249,7 @@ containers = [
     "apps.warranty",
     "apps.credit",
     "apps.cash",
+    "apps.standing",
 ]
 layers = [
     "api",

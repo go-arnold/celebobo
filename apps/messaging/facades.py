@@ -67,6 +67,8 @@ from apps.orders.domain.events import (
     ResellerRated,
 )
 from apps.sales.domain.events import PayoutRecorded, PayoutStatementPrepared
+from apps.standing.domain.events import LevelChanged, SanctionUpdated
+from apps.standing.domain.rules import SanctionKind
 from apps.warranty.domain.events import ClaimSubmitted, ClaimUpdated
 from core.domain.actor import Actor
 from core.domain.errors import Unauthenticated
@@ -395,6 +397,14 @@ class NotificationRouter:
             event.statement_id,
             amount=str(event.amount),
             date=f"{event.payout_date:%d/%m/%Y}",
+        )
+
+    def level_changed(self, event: LevelChanged) -> None:
+        self._fanout.level_changed(event.reseller_id, level=event.level_label)
+
+    def sanction_updated(self, event: SanctionUpdated) -> None:
+        self._fanout.sanction(
+            event.reseller_id, label=SanctionKind(event.kind).label, message=event.message
         )
 
     def cash_overdue(self, event: CashOverdue) -> None:

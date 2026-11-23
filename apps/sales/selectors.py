@@ -494,3 +494,29 @@ def top_sellers(
         key=lambda performance: (-performance.revenue, performance.seller_id),
     )
     return [performance for performance in ranked[:limit] if performance.revenue > ZERO]
+
+
+# validated sales of each reseller over a period (reseller policy, section 9): valid sales whose
+# 7-day validation is over, net of refunds
+def validated_sales(
+    reseller_ids: Iterable[int], *, since: datetime, validated_before: datetime
+) -> dict[int, Decimal]:
+    ids = list(reseller_ids)
+    rows = (
+        Sale.objects.filter(
+            seller_id__in=ids,
+            status=SaleStatus.VALID.value,
+            sold_at__gte=since,
+            sold_at__lte=validated_before,
+        )
+        .values("seller_id")
+        .annotate(
+            gross=Sum(F("unit_price") * F("quantity")),
+            refunded=Sum("refunded_amount"),
+        )
+    )
+    found = {
+        row["seller_id"]: (row["gross"] or Decimal(0)) - (row["refunded"] or Decimal(0))
+        for row in rows
+    }
+    return {pk: found.get(pk, Decimal(0)) for pk in ids}

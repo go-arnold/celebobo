@@ -230,6 +230,14 @@ class ResellerCashBlocked(BusinessRuleViolation):
         super().__init__(f"{self.default_detail} ({reason})", meta={"reason": reason})
 
 
+class ResellerSuspended(BusinessRuleViolation):
+    default_code = "reseller_suspended"
+    default_detail = "Ce revendeur est suspendu : il ne reçoit pas de nouvelles commandes."
+
+    def __init__(self, until: object) -> None:
+        super().__init__(meta={"until": str(until)})
+
+
 class PointsUnavailable(Conflict):
     default_code = "points_unavailable"
     default_detail = "Votre solde de points a changé. Vérifiez le montant puis confirmez."
