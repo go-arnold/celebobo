@@ -138,7 +138,9 @@ author and a note (history at `/bo/products/{id}/stock-movements/`).
   A line asking for more units than are left pays the normal price.
 - Two active deals of the same product cannot overlap.
 - Every minute a scheduled task announces deals that start or end, so the shop pages are refreshed.
-- The home page shows the live deal that ends first, with its countdown and "sold x / y" bar.
+- The home page shows the live deal that ends first, with its countdown and "sold x / y" bar
+  (`GET /home/` `deal`: `variant_id` names the variant on offer, `null` for the whole product; a deal on
+  one variant leaves the product's own prices and the other variants unchanged).
 - Price filters and sorting still use the normal price.
 
 ## Reviews

@@ -123,6 +123,7 @@ class TestStorefront:
         assert detail["price"] == "120.00"
         assert detail["discount_percent"] == "17.50"
         assert home["deal"]["product"]["slug"] == "galaxy-a55"
+        assert home["deal"]["variant_id"] is None
         assert home["deal"]["deal_price"] == "99.00"
         assert home["deal"]["regular_price"] == "120.00"
         assert home["deal"]["quantity"] == 20
@@ -155,6 +156,8 @@ class TestStorefront:
         }
 
         assert variants == {small.pk: "300.00", large.pk: "299.00"}
+        home_deal = api.get("/api/v1/home/").json()["deal"]
+        assert (home_deal["variant_id"], home_deal["regular_price"]) == (large.pk, "350.00")
         assert quoted_price(api, product, variant=large) == "299.00"
         assert quoted_price(api, product, variant=small) == "300.00"
 
