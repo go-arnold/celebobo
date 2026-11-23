@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from apps.catalog.domain.enums import StockReason
 from apps.catalog.domain.queries import StockLine, StockSource
+from apps.orders.adapters.gateways import NoCashGate
 from apps.orders.domain import delivery
 from apps.orders.domain.commands import AssignOrder, CancelOrder, DeclineAssignment, TransitionOrder
 from apps.orders.domain.enums import PAID_STATUSES, CancelReason, OrderStatus
@@ -15,13 +16,14 @@ from apps.orders.domain.errors import (
     DeliveryReasonRequired,
     InvalidDeliveryCode,
     NotAssignedToYou,
+    ResellerCashBlocked,
     ResellerNotFound,
 )
 from apps.orders.domain.state_machine import OrderState, OrderStateMachine
 from apps.orders.models import Order
 from apps.orders.repositories import OrderRepository
 from apps.orders.services.checkout import ORDER_SOURCE, actor_role
-from apps.orders.services.contracts import Inventory, ResellerDirectory
+from apps.orders.services.contracts import CashGate, Inventory, ResellerDirectory
 from apps.orders.services.serials import ensure_complete as ensure_serials
 from core.domain.actor import Actor, Role
 from core.domain.errors import DomainError
@@ -74,7 +76,9 @@ class OrderLifecycleService:
         resellers: ResellerDirectory,
         *,
         clock: Callable[[], datetime],
+        cash: CashGate | None = None,
     ) -> None:
+        self._cash = cash or NoCashGate()
         self._clock = clock
         self._orders = orders
         self._machine = machine
@@ -144,6 +148,8 @@ class OrderLifecycleService:
         reseller = self._resellers.active(command.reseller_id)
         if reseller is None:
             raise ResellerNotFound
+        if (reason := self._cash.blocked_reason(reseller.id)) is not None:
+            raise ResellerCashBlocked(reason)
         previous_reseller_id = order.assigned_reseller_id
         order.assigned_reseller_id = reseller.id
         self._orders.save(order, fields=("assigned_reseller",))

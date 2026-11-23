@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "apps.loyalty",
     "apps.warranty",
     "apps.credit",
+    "apps.cash",
     "apps.demo",
     "allauth",
     "allauth.account",

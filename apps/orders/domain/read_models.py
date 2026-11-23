@@ -241,6 +241,8 @@ class AssignableReseller:
     name: str
     availability: str
     open_orders: int
+    # cash to remit first (reseller policy, section 6): new orders are refused until then
+    cash_blocked: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -382,3 +384,14 @@ class ClaimableLine:
     returned_quantity: int
     serials: tuple[str, ...]
     sealed_return_only: bool
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CashableOrder:
+    """What the reseller who delivers an order collects from the client (reseller policy, 6)."""
+
+    order_id: int
+    number: str
+    reseller_id: int | None
+    total: Decimal
+    pickup: bool

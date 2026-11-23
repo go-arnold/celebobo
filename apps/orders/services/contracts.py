@@ -52,6 +52,15 @@ class ResellerDirectory(Protocol):
     def inviters(self, client_ids: Iterable[int]) -> dict[int, SuggestedReseller]: ...
 
 
+class CashGate(Protocol):
+    """Why a reseller may not get new orders for now (cash held over their cap, or not remitted
+    within 24 hours), or None; for one reseller or many."""
+
+    def blocked_reason(self, reseller_id: int) -> str | None: ...
+
+    def blocked(self, reseller_ids: Iterable[int]) -> dict[int, str]: ...
+
+
 class OrderThreads(Protocol):
     def open_for_order(self, order: Order) -> int | None: ...
 

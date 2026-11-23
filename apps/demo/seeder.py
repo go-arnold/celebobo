@@ -32,6 +32,8 @@ from apps.accounts.facades import (
 from apps.accounts.models import User
 from apps.analytics.facades import FactsFacade
 from apps.assistant.facades import AssistantInsightsFacade
+from apps.cash.domain.commands import RecordRemittance
+from apps.cash.facades import CashFacade
 from apps.catalog.domain.deals import DealDraft
 from apps.catalog.domain.management import (
     BrandDraft,
@@ -613,6 +615,8 @@ class DemoSeeder:
                         order_id,
                         TransitionOrder(to=OrderStatus.RETURNED, reason="Produit défectueux"),
                     )
+                # the reseller remits what they collected, so the next orders can be assigned
+                self._settle_cash(staff, reseller.pk)
             self._backdate(order_id, target)
             if target is OrderStatus.DELIVERED:
                 delivered.append(
@@ -624,6 +628,19 @@ class DemoSeeder:
             sales.convert(actor_from_user(item["reseller"]), item["order_id"], ConvertOrder())
             self.report.add("converted orders")
         return delivered
+
+    # reseller policy, section 6: collected money is remitted within 24 hours
+    @staticmethod
+    def _settle_cash(staff: Actor, reseller_id: int) -> None:
+        cash = container.resolve(CashFacade)
+        held = cash.summary(staff, reseller_id).held
+        if held > 0:
+            cash.remit(
+                staff,
+                RecordRemittance(
+                    reseller_id=reseller_id, amount=held, reference="Démo — Mobile Money"
+                ),
+            )
 
     def _steps(self, target: OrderStatus) -> int:
         if target in (OrderStatus.DELIVERED, OrderStatus.RETURNED):
