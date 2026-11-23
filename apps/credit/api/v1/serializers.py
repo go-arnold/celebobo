@@ -9,7 +9,7 @@ def money() -> serializers.DecimalField:
     return serializers.DecimalField(max_digits=10, decimal_places=2)
 
 
-class MovementOutput(serializers.Serializer[Any]):
+class CreditMovementOutput(serializers.Serializer[Any]):
     kind = serializers.ChoiceField(choices=[kind.value for kind in EntryKind])
     kind_label = serializers.SerializerMethodField()
     amount = money()
@@ -25,4 +25,4 @@ class MovementOutput(serializers.Serializer[Any]):
 class StoreCreditOutput(serializers.Serializer[Any]):
     available = money()
     next_expiry = serializers.DateTimeField(allow_null=True)
-    history = MovementOutput(many=True)
+    history = CreditMovementOutput(many=True)
