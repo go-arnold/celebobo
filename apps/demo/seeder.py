@@ -242,10 +242,10 @@ class DemoSeeder:
             self._actor,
             SettingsChanges(
                 usd_to_cdf=Decimal("2850.00"),
-                hotline="+250 791 449 879",
-                whatsapp="+250791449879",
+                hotline="+243 996 531 255",
+                whatsapp="+243996531255",
                 email="support@celebobo.com",
-                address="Bukavu · Goma, RD Congo",
+                address="Avenue Mwanga n° 21, Nyalukemba, Bukavu, RD Congo",
                 opening_hours=[dict(item) for item in content.OPENING_HOURS],
                 payment_methods=[method.value for method in PAYMENTS],
                 social_links={

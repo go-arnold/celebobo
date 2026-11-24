@@ -121,6 +121,18 @@ DELIVERY = (12203732, 6867941, 12725456, 6867965, 6867937)
 BANNERS = (9784247, 3945691, 25450654)
 
 # category slug (from the base seed) -> photo pool
+# products whose category pool would show another object: their own verified Pexels photos (main image first)
+PHOTO_OVERRIDES: dict[str, tuple[int, ...]] = {
+    "Casque gaming HyperX Cloud II": (844923, 935890, 7772548),
+    "Manette DualSense": (7887636, 5961216),
+    "PlayStation 5 Slim": (5961216, 7887636),
+    "Sony WF-C700N": (33797659, 3921827),
+    "JBL Charge 5": (4917455, 374606),
+    "Support voiture magnétique": (4824425,),
+    "Verre trempé Galaxy A55 (lot de 2)": (7742507,),
+    "Écouteurs filaires Samsung USB-C": (983831, 994870),
+}
+
 CATEGORY_POOL = {
     "android": "smartphones",
     "iphone-ios": "smartphones",
@@ -805,9 +817,13 @@ class DemoEnricher:
             )
             self.report.add("produits ajoutés")
 
-    # every product shows 4 to 5 real photos of its kind
+    # every product shows 4 to 5 real photos of its kind; products whose category pool would show the wrong
+    # object (a console for a headset, a charger for earphones) get their own photos instead
     def _galleries(self) -> None:
         for index, product in enumerate(Product.objects.select_related("category").order_by("pk")):
+            if product.name in PHOTO_OVERRIDES:
+                self._own_photos(product, PHOTO_OVERRIDES[product.name])
+                continue
             pool = POOLS[CATEGORY_POOL.get(product.category.slug, "accessoires")]
             have = list(product.images.order_by("position").values_list("url", flat=True))
             wanted = 4 + index % 2
@@ -825,6 +841,17 @@ class DemoEnricher:
                 have.append(url)
                 position += 1
                 self.report.add("photos produits")
+
+    def _own_photos(self, product: Product, photos: tuple[int, ...]) -> None:
+        urls = [photo_url(photo, width=1000) for photo in photos]
+        if list(product.images.order_by("position").values_list("url", flat=True)) == urls:
+            return
+        product.images.all().delete()
+        for position, url in enumerate(urls):
+            ProductImage.objects.create(
+                product=product, url=url, alt=product.name, position=position
+            )
+            self.report.add("photos produits")
 
     def _restock(self) -> None:
         Product.objects.update(stock=F("stock") + 150)
