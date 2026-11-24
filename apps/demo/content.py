@@ -4,10 +4,11 @@ PAGES = (
     (
         "a-propos",
         "À propos de Celebobo",
-        "Votre boutique high-tech de confiance à Bukavu et à Goma.",
-        "## Notre histoire\n\nCelebobo est né au Kivu, à Bukavu et à Goma, avec une idée simple : rendre la technologie "
-        "accessible, avec des produits authentiques, des prix clairs et un vrai conseil.\n\n"
-        "## Nos engagements\n\n- Des produits neufs et garantis\n- Un réseau de revendeurs partout "
+        "Tout ce qu'il faut pour la maison, la famille et le quotidien, livré à Bukavu et à Goma.",
+        "## Notre histoire\n\nCelebobo est né au Kivu, à Bukavu et à Goma, avec une idée simple : trouver au même "
+        "endroit la mode, la maison, la beauté, l'alimentation et l'électronique, avec des prix clairs et un vrai "
+        "conseil.\n\n"
+        "## Nos engagements\n\n- Des produits neufs et contrôlés\n- Un réseau de revendeurs partout "
         "en RDC\n- Une livraison rapide à Bukavu, à Goma et dans leurs environs\n"
         "- Un service client joignable par WhatsApp",
     ),
@@ -55,8 +56,9 @@ FAQ = (
     ),
     (
         "Produits",
-        "Vos produits sont-ils garantis ?",
-        "Oui, tous nos produits sont neufs, authentiques et couverts par la garantie constructeur.",
+        "Vos produits sont-ils neufs ?",
+        "Oui, tous nos produits sont neufs et contrôlés avant l'envoi. Les appareils électriques et électroniques "
+        "sont en plus couverts par la garantie du fabricant.",
     ),
     (
         "Revendeurs",
@@ -67,16 +69,16 @@ FAQ = (
 
 BANNERS = (
     (
-        "Galaxy A55 à prix choc",
-        "Jusqu'à -30 $ cette semaine seulement",
-        "/produits/samsung-galaxy-a55-5g",
-        "J'en profite",
+        "Nouvelle collection wax",
+        "Robes, pagnes et sacs cousus au Kivu",
+        "/categorie/mode-femme-homme",
+        "Découvrir",
     ),
     (
-        "La rentrée en toute sérénité",
-        "Portables et tablettes pour étudiants",
-        "/categorie/ordinateurs-portables",
-        "Découvrir",
+        "Équipez votre cuisine",
+        "Casseroles, vaisselle et linge de maison à prix doux",
+        "/categorie/maison-cuisine",
+        "J'en profite",
     ),
     (
         "Livraison offerte dès 199 $",
@@ -86,7 +88,7 @@ BANNERS = (
     ),
 )
 
-DEAL = ("samsung-galaxy-a55-5g", {"Stockage": "128 Go"}, "399.00", 20, "Coque offerte", 3)
+DEAL = ("baskets-blanches-unisexes", {"Pointure": "42"}, "36.00", 20, "Chaussettes offertes", 3)
 
 COUPONS = (
     (

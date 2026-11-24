@@ -15,6 +15,7 @@ from typing import Any
 
 from django.db.models import F
 from django.utils import timezone
+from django.utils.text import slugify
 
 from apps.accounts.models import Consent, NotificationPreference, User
 from apps.assistant.models import AssistantMessage, AssistantSession
@@ -25,7 +26,7 @@ from apps.catalog.facades import ProductAdminFacade
 from apps.catalog.models import Brand, Category, Favorite, Product, ProductImage, ProductVariant
 from apps.content.models import Banner, HomeSection
 from apps.credit.models import CreditEntry
-from apps.demo import people
+from apps.demo import catalogue, people
 from apps.demo.photos import photo_url
 from apps.demo.seeder import DemoSeeder, SeedReport, quiet_side_effects
 from apps.documents.domain.enums import JobFormat, JobKind
@@ -50,509 +51,39 @@ from core.api.actor import actor_from_user
 from core.container import container
 from core.domain.errors import DomainError
 
-# Pexels photo ids by subject (verified on images.pexels.com)
+# Pexels photo ids by category, gathered from each product's own verified photos
 POOLS: dict[str, tuple[int, ...]] = {
-    "smartphones": (
-        21854468,
-        47261,
-        30639091,
-        14486282,
-        13844013,
-        24181865,
-        3945672,
-        6070602,
-        719399,
-        215582,
-        4594997,
-        1350462,
-        214487,
-        221179,
-        5076516,
-    ),
-    "tablettes": (6373027, 10535365, 17150248, 25809251, 17767834, 7987849, 8533358),
-    "ordinateurs": (
-        11129922,
-        6611936,
-        3747070,
-        19935029,
-        6893890,
-        16037283,
-        25636747,
-        17367708,
-        8534385,
-        18096280,
-        5710687,
-        36123568,
-    ),
-    "audio": (
-        33797659,
-        3921827,
-        4917455,
-        7772548,
-        210927,
-        17810098,
-        3945667,
-        844923,
-        815494,
-        12266868,
-        935890,
-        31683433,
-        18542239,
-        374606,
-    ),
-    "montres": (
-        18662969,
-        374673,
-        5083218,
-        5081914,
-        12007330,
-        15228782,
-        7530583,
-        9130511,
-        4379289,
-        5081923,
-    ),
-    "accessoires": (36012993, 3921704, 3921711, 1670768, 4072683, 37475677, 16814788),
-    "gaming": (30302447, 4523018, 7887636, 12718842, 5961235, 12718845, 15686450),
+    category.key: tuple(
+        dict.fromkeys(
+            photo
+            for product in catalogue.PRODUCTS
+            if product.category == category.key
+            for photo in product.photos
+        )
+    )
+    for category in catalogue.CATEGORIES
 }
 PORTRAITS = (19039168, 19379640, 12455720, 18587652, 30386124, 2531355, 7657229, 4982473)
 LIFESTYLE = (6331230, 3776189, 36764824, 36712920, 6331237, 36715576, 4971954, 8938735)
 DELIVERY = (12203732, 6867941, 12725456, 6867965, 6867937)
 BANNERS = (9784247, 3945691, 25450654)
 
-# category slug (from the base seed) -> photo pool
-# products whose category pool would show another object: their own verified Pexels photos (main image first)
-PHOTO_OVERRIDES: dict[str, tuple[int, ...]] = {
-    "Casque gaming HyperX Cloud II": (844923, 935890, 7772548),
-    "Manette DualSense": (7887636, 5961216),
-    "PlayStation 5 Slim": (5961216, 7887636),
-    "Sony WF-C700N": (33797659, 3921827),
-    "JBL Charge 5": (4917455, 374606),
-    "Support voiture magnétique": (4824425,),
-    "Verre trempé Galaxy A55 (lot de 2)": (7742507,),
-    "Écouteurs filaires Samsung USB-C": (983831, 994870),
+# every product's own verified photos (main image first)
+PRODUCT_PHOTOS: dict[str, tuple[int, ...]] = {
+    product.name: product.photos for product in catalogue.PRODUCTS if product.photos
 }
 
-CATEGORY_POOL = {
-    "android": "smartphones",
-    "iphone-ios": "smartphones",
-    "smartphones": "smartphones",
-    "tablettes": "tablettes",
-    "pc-portables": "ordinateurs",
-    "macbook": "ordinateurs",
-    "ordinateurs-portables": "ordinateurs",
-    "audio": "audio",
-    "montres-connectees": "montres",
-    "accessoires": "accessoires",
-    "gaming": "gaming",
+# category slug (top-level and sub-categories of the base seed) -> photo pool
+CATEGORY_POOL: dict[str, str] = {
+    **{slugify(category.name): category.key for category in catalogue.CATEGORIES},
+    **{slugify(name): parent for name, parent, _ in catalogue.SUBCATEGORIES},
 }
+FALLBACK_POOL = "mode"
 
-# (category slug, name, brand, price, sale price, cost, stock, description, features)
+# the base catalogue now covers the whole marketplace: no extra products
 EXTRA_PRODUCTS: tuple[
     tuple[str, str, str, str, str | None, str, int, str, tuple[str, ...]], ...
-] = (
-    (
-        "android",
-        "Samsung Galaxy A15",
-        "Samsung",
-        "189.00",
-        "169.00",
-        "140.00",
-        40,
-        "Écran Super AMOLED 6,5\", 128 Go et batterie 5000 mAh : l'essentiel Samsung à petit prix.",
-        (
-            "Écran Super AMOLED 90 Hz",
-            "128 Go de stockage",
-            "Batterie 5000 mAh",
-            "Charge rapide 25 W",
-        ),
-    ),
-    (
-        "android",
-        "Samsung Galaxy A35 5G",
-        "Samsung",
-        "349.00",
-        None,
-        "275.00",
-        22,
-        "Le milieu de gamme Samsung en 5G : écran 120 Hz, IP67 et quatre ans de mises à jour.",
-        ("5G", "Écran 120 Hz", "Étanche IP67", "Triple caméra 50 Mpx"),
-    ),
-    (
-        "android",
-        "Samsung Galaxy S23 FE",
-        "Samsung",
-        "549.00",
-        "499.00",
-        "420.00",
-        12,
-        "La fiche technique d'un haut de gamme à un prix plus doux, avec zoom optique x3.",
-        ("Processeur Exynos 2200", "Zoom optique x3", "Recharge sans fil", "Écran 120 Hz"),
-    ),
-    (
-        "android",
-        "Xiaomi Redmi 13C",
-        "Xiaomi",
-        "129.00",
-        None,
-        "98.00",
-        50,
-        'Grand écran 6,74", 128 Go et triple capteur photo pour les petits budgets.',
-        ('Écran 6,74" 90 Hz', "128 Go", "Batterie 5000 mAh", "Lecteur d'empreinte latéral"),
-    ),
-    (
-        "android",
-        "Xiaomi Redmi Note 13 Pro",
-        "Xiaomi",
-        "329.00",
-        "299.00",
-        "250.00",
-        18,
-        "Capteur 200 Mpx, écran AMOLED 1,5K et charge 67 W : la photo sans compromis.",
-        ("Capteur 200 Mpx", "AMOLED 1,5K 120 Hz", "Charge 67 W", "Gorilla Glass Victus"),
-    ),
-    (
-        "android",
-        "Tecno Camon 30",
-        "Tecno",
-        "239.00",
-        None,
-        "185.00",
-        26,
-        "Un téléphone pensé pour les portraits, avec caméra frontale 50 Mpx et autofocus.",
-        ("Selfie 50 Mpx AF", "AMOLED 120 Hz", "256 Go", "Charge 70 W"),
-    ),
-    (
-        "android",
-        "Tecno Pova 6 Pro",
-        "Tecno",
-        "259.00",
-        "229.00",
-        "195.00",
-        20,
-        "Batterie géante de 6000 mAh et charge rapide pour les gros utilisateurs.",
-        ("Batterie 6000 mAh", "Charge 70 W", "AMOLED 120 Hz", "Lumières LED arrière"),
-    ),
-    (
-        "android",
-        "Infinix Note 40",
-        "Infinix",
-        "219.00",
-        None,
-        "170.00",
-        30,
-        "Charge sans fil magnétique, écran AMOLED et son JBL dans un design fin.",
-        ("Charge sans fil 20 W", "Son JBL stéréo", "AMOLED 120 Hz", "256 Go"),
-    ),
-    (
-        "android",
-        "Infinix Smart 8",
-        "Infinix",
-        "99.00",
-        "89.00",
-        "72.00",
-        60,
-        "Le premier smartphone idéal : grand écran, 64 Go et une autonomie de deux jours.",
-        ('Écran 6,6" 90 Hz', "64 Go", "Batterie 5000 mAh", "Déverrouillage facial"),
-    ),
-    (
-        "android",
-        "Google Pixel 8a",
-        "Google",
-        "499.00",
-        None,
-        "400.00",
-        8,
-        "Le meilleur de l'appareil photo Google et sept ans de mises à jour Android.",
-        ("Puce Tensor G3", "7 ans de mises à jour", "Photo de nuit", "Étanche IP67"),
-    ),
-    (
-        "iphone-ios",
-        "iPhone 13",
-        "Apple",
-        "549.00",
-        "519.00",
-        "440.00",
-        10,
-        "Puce A15 Bionic, double caméra 12 Mpx et écran Super Retina XDR.",
-        ("Puce A15 Bionic", "Double caméra 12 Mpx", "Face ID", "5G"),
-    ),
-    (
-        "iphone-ios",
-        "iPhone 15 Pro",
-        "Apple",
-        "1099.00",
-        None,
-        "930.00",
-        5,
-        "Titane, puce A17 Pro et téléobjectif x3 : l'iPhone le plus avancé.",
-        ("Châssis en titane", "Puce A17 Pro", "Téléobjectif x3", "USB-C 10 Gb/s"),
-    ),
-    (
-        "tablettes",
-        "Samsung Galaxy Tab S9 FE",
-        "Samsung",
-        "449.00",
-        "419.00",
-        "350.00",
-        9,
-        'Écran 10,9" 90 Hz, S Pen inclus et étanchéité IP68 pour dessiner partout.',
-        ("S Pen inclus", "Étanche IP68", "Écran 90 Hz", "Batterie 8000 mAh"),
-    ),
-    (
-        "tablettes",
-        "Xiaomi Pad 6",
-        "Xiaomi",
-        "329.00",
-        None,
-        "260.00",
-        12,
-        "Écran 2,8K 144 Hz et quatre haut-parleurs pour les films et le travail.",
-        ("Écran 2,8K 144 Hz", "Snapdragon 870", "4 haut-parleurs", "Charge 33 W"),
-    ),
-    (
-        "tablettes",
-        "Lenovo Tab P12",
-        "Lenovo",
-        "389.00",
-        "359.00",
-        "300.00",
-        7,
-        'Grande tablette 12,7" pour la prise de notes, avec stylet et son JBL.',
-        ('Écran 12,7" 3K', "Stylet inclus", "Son JBL", "Batterie 10 200 mAh"),
-    ),
-    (
-        "pc-portables",
-        "HP Pavilion 14",
-        "HP",
-        "649.00",
-        None,
-        "520.00",
-        8,
-        "Portable léger en aluminium, Core i5 et SSD 512 Go pour étudier et travailler.",
-        ("Intel Core i5", "16 Go de RAM", "SSD 512 Go", 'Écran 14" Full HD'),
-    ),
-    (
-        "pc-portables",
-        "Lenovo ThinkPad E14",
-        "Lenovo",
-        "799.00",
-        "749.00",
-        "640.00",
-        6,
-        "Le portable professionnel robuste, avec clavier réputé et sécurité biométrique.",
-        ("Intel Core i7", "16 Go de RAM", "SSD 512 Go", "Lecteur d'empreintes"),
-    ),
-    (
-        "pc-portables",
-        "Dell Inspiron 15",
-        "Dell",
-        "599.00",
-        None,
-        "480.00",
-        10,
-        'Grand écran 15,6" et pavé numérique pour la bureautique au quotidien.',
-        ("Intel Core i5", "8 Go de RAM", "SSD 512 Go", "Pavé numérique"),
-    ),
-    (
-        "pc-portables",
-        "Asus VivoBook 15",
-        "Asus",
-        "529.00",
-        "489.00",
-        "410.00",
-        12,
-        "Un portable polyvalent et fin, écran anti-reflets et charge rapide.",
-        ("AMD Ryzen 5", "8 Go de RAM", "SSD 512 Go", "Charge rapide"),
-    ),
-    (
-        "pc-portables",
-        "Acer Aspire 5",
-        "Acer",
-        "569.00",
-        None,
-        "455.00",
-        9,
-        'Écran IPS 15,6", Wi-Fi 6 et rétroéclairage du clavier.',
-        ("Intel Core i5", "16 Go de RAM", "Wi-Fi 6", "Clavier rétroéclairé"),
-    ),
-    (
-        "macbook",
-        "MacBook Pro 14 M3",
-        "Apple",
-        "1799.00",
-        None,
-        "1500.00",
-        3,
-        "Puce M3, écran Liquid Retina XDR et jusqu'à 22 h d'autonomie.",
-        ("Puce Apple M3", "Écran Liquid Retina XDR", "22 h d'autonomie", "Port HDMI et SD"),
-    ),
-    (
-        "audio",
-        "JBL Charge 5",
-        "JBL",
-        "179.00",
-        "159.00",
-        "130.00",
-        15,
-        "Enceinte étanche puissante qui recharge aussi votre téléphone.",
-        ("Étanche IP67", "20 h d'autonomie", "Sert de batterie externe", "PartyBoost"),
-    ),
-    (
-        "audio",
-        "JBL Tune 520BT",
-        "JBL",
-        "59.00",
-        None,
-        "42.00",
-        35,
-        "Casque sans fil léger, son JBL Pure Bass et 57 h d'écoute.",
-        ("57 h d'autonomie", "Pure Bass", "Pliable", "Multipoint"),
-    ),
-    (
-        "audio",
-        "Sony WF-C700N",
-        "Sony",
-        "119.00",
-        "99.00",
-        "82.00",
-        18,
-        "Écouteurs à réduction de bruit compacts, confortables toute la journée.",
-        ("Réduction de bruit", "Étanches IPX4", "20 h avec l'étui", "Appli Sony"),
-    ),
-    (
-        "audio",
-        "Anker Soundcore Life Q30",
-        "Anker",
-        "89.00",
-        None,
-        "64.00",
-        20,
-        "Réduction de bruit hybride et 40 h d'écoute pour les trajets.",
-        ("Réduction de bruit hybride", "40 h d'autonomie", "Charge rapide", "Égaliseur"),
-    ),
-    (
-        "audio",
-        "Marshall Emberton II",
-        "Marshall",
-        "169.00",
-        None,
-        "128.00",
-        9,
-        "Le son Marshall dans une enceinte de poche, 30 h d'autonomie.",
-        ("Son 360°", "Étanche IP67", "30 h d'autonomie", "Design iconique"),
-    ),
-    (
-        "montres-connectees",
-        "Huawei Watch Fit 3",
-        "Huawei",
-        "149.00",
-        "129.00",
-        "105.00",
-        14,
-        "Grand écran AMOLED, suivi de la santé et dix jours d'autonomie.",
-        ('Écran AMOLED 1,82"', "GPS intégré", "10 jours d'autonomie", "100+ sports"),
-    ),
-    (
-        "montres-connectees",
-        "Samsung Galaxy Fit3",
-        "Samsung",
-        "69.00",
-        None,
-        "48.00",
-        30,
-        "Bracelet connecté au grand écran, sommeil et activité suivis jour et nuit.",
-        ('Écran 1,6" AMOLED', "13 jours d'autonomie", "Suivi du sommeil", "Étanche 5 ATM"),
-    ),
-    (
-        "montres-connectees",
-        "Amazfit GTR 4",
-        "Amazfit",
-        "179.00",
-        "159.00",
-        "125.00",
-        11,
-        "Montre ronde élégante, GPS bi-fréquence et appels Bluetooth.",
-        ("GPS bi-fréquence", "Appels Bluetooth", "14 jours d'autonomie", "150 sports"),
-    ),
-    (
-        "accessoires",
-        "Chargeur Anker 65 W GaN",
-        "Anker",
-        "49.00",
-        None,
-        "32.00",
-        40,
-        "Un seul chargeur compact pour le portable, la tablette et le téléphone.",
-        ("65 W GaN", "3 ports USB-C/A", "Compact", "Protection thermique"),
-    ),
-    (
-        "accessoires",
-        "Écouteurs filaires Samsung USB-C",
-        "Samsung",
-        "15.00",
-        None,
-        "8.00",
-        80,
-        "Écouteurs réglés par AKG, connecteur USB-C et micro intégré.",
-        ("Son AKG", "USB-C", "Micro et télécommande", "Embouts de rechange"),
-    ),
-    (
-        "accessoires",
-        "Verre trempé Galaxy A55 (lot de 2)",
-        "Samsung",
-        "12.00",
-        "9.00",
-        "4.00",
-        120,
-        "Protection d'écran 9H, pose facile sans bulles.",
-        ("Dureté 9H", "Lot de 2", "Pose sans bulles", "Compatible coque"),
-    ),
-    (
-        "accessoires",
-        "Support voiture magnétique",
-        "Baseus",
-        "19.00",
-        None,
-        "10.00",
-        45,
-        "Fixation magnétique solide pour la grille d'aération.",
-        ("Aimants N52", "Rotation 360°", "Compatible MagSafe", "Installation sans outil"),
-    ),
-    (
-        "gaming",
-        "PlayStation 5 Slim",
-        "Sony",
-        "549.00",
-        "519.00",
-        "460.00",
-        6,
-        "La PS5 plus compacte, SSD 1 To et manette DualSense.",
-        ("SSD 1 To", "4K jusqu'à 120 i/s", "Manette DualSense", "Lecteur Blu-ray"),
-    ),
-    (
-        "gaming",
-        "Manette DualSense",
-        "Sony",
-        "75.00",
-        None,
-        "55.00",
-        25,
-        "Retour haptique et gâchettes adaptatives pour sentir chaque partie.",
-        ("Retour haptique", "Gâchettes adaptatives", "Micro intégré", "USB-C"),
-    ),
-    (
-        "gaming",
-        "Casque gaming HyperX Cloud II",
-        "HyperX",
-        "99.00",
-        "89.00",
-        "68.00",
-        14,
-        "Son surround 7.1 et micro antibruit pour PC et consoles.",
-        ("Son 7.1", "Micro détachable", "Mousse à mémoire de forme", "Compatible PS5/PC"),
-    ),
-)
+] = ()
 
 FIRST_NAMES = (
     "Jean",
@@ -610,9 +141,9 @@ PLACES = (
 # questions asked to the shop assistant: (question, answer, topic, sentiment, products shown)
 QUESTIONS = (
     (
-        "Un smartphone Samsung à moins de 300 $ ?",
-        "Le Galaxy A35 5G (349 $) dépasse un peu ; dans votre budget, le Galaxy A15 à 169 $ ou le Galaxy A55 en promotion.",
-        "smartphones",
+        "Une robe en wax pour un mariage ?",
+        "La robe longue en wax « Kivu » (39 $ en ce moment) ou la robe pagne évasée, du S au XL.",
+        "mode",
         "positive",
         2,
     ),
@@ -624,23 +155,23 @@ QUESTIONS = (
         0,
     ),
     (
-        "Quel casque pour le sport ?",
-        "Les Sony WF-C700N (étanches IPX4) ou le JBL Tune 520BT, léger et 57 h d'autonomie.",
-        "audio",
+        "Quel réfrigérateur pour une famille de cinq ?",
+        "Le Samsung double porte 260 L suffit pour cinq personnes ; pour plus de place, le LG américain 500 L.",
+        "électroménager",
         "positive",
         2,
     ),
     (
-        "Mon téléphone ne charge plus, que faire ?",
-        "Pendant les 7 jours d'essai ou le mois de garantie, ouvrez une réclamation depuis votre commande avec une photo : réponse sous 72 h.",
-        "garantie",
+        "La taille ne me va pas, que faire ?",
+        "Vous avez 7 jours après la livraison pour retourner un article non porté : ouvrez une demande depuis votre commande.",
+        "retours",
         "negative",
         0,
     ),
     (
-        "Un portable pour un étudiant en informatique ?",
-        "Le Lenovo ThinkPad E14 (Core i7, 16 Go) ou, moins cher, l'Asus VivoBook 15 avec Ryzen 5.",
-        "ordinateurs",
+        "Avez-vous du riz en gros ?",
+        "Oui, le riz parfumé en sac de 25 kg à 32 $, et l'huile végétale en bidon de 5 L.",
+        "alimentation",
         "positive",
         2,
     ),
@@ -652,9 +183,9 @@ QUESTIONS = (
         0,
     ),
     (
-        "La PS5 est-elle disponible ?",
-        "Oui, la PlayStation 5 Slim est en stock à 519 $ avec une manette DualSense.",
-        "gaming",
+        "Une poussette légère pour voyager ?",
+        "La poussette compacte se plie d'une main et pèse peu ; elle est à 99 $ en ce moment.",
+        "bébé",
         "positive",
         1,
     ),
@@ -666,9 +197,9 @@ QUESTIONS = (
         0,
     ),
     (
-        "Quelle montre pour suivre mon sommeil ?",
-        "Le Samsung Galaxy Fit3 (13 jours d'autonomie) ou la Huawei Watch Fit 3 avec GPS.",
-        "montres",
+        "Un soin naturel pour peau sèche ?",
+        "Le lait corporel au karité (400 ml) et les savons artisanaux au karité de la Savonnerie du Kivu.",
+        "beauté",
         "positive",
         2,
     ),
@@ -681,7 +212,7 @@ QUESTIONS = (
     ),
 )
 RATINGS = (
-    (5, "Livreur ponctuel et très aimable, il a vérifié le téléphone avec moi."),
+    (5, "Livreur ponctuel et très aimable, il a vérifié le colis avec moi."),
     (5, "Parfait, livré le jour même à Ibanda."),
     (4, "Bon service, un peu de retard mais il m'a prévenu."),
     (4, "Très professionnel, je recommande."),
@@ -821,10 +352,10 @@ class DemoEnricher:
     # object (a console for a headset, a charger for earphones) get their own photos instead
     def _galleries(self) -> None:
         for index, product in enumerate(Product.objects.select_related("category").order_by("pk")):
-            if product.name in PHOTO_OVERRIDES:
-                self._own_photos(product, PHOTO_OVERRIDES[product.name])
+            if product.name in PRODUCT_PHOTOS:
+                self._own_photos(product, PRODUCT_PHOTOS[product.name])
                 continue
-            pool = POOLS[CATEGORY_POOL.get(product.category.slug, "accessoires")]
+            pool = POOLS[CATEGORY_POOL.get(product.category.slug, FALLBACK_POOL)]
             have = list(product.images.order_by("position").values_list("url", flat=True))
             wanted = 4 + index % 2
             start = (index * 3) % len(pool)
@@ -897,13 +428,12 @@ class DemoEnricher:
     # every placement of the home page gets its pictures
     def _banners(self) -> None:
         sections = list(HomeSection.objects.select_related("category"))
-        products = list(Product.objects.filter(is_active=True).order_by("-sale_price")[:12])
         plan: list[tuple[str, str, str, int, Product | None]] = [
             (
                 "hero",
-                "Les nouveautés Samsung sont arrivées",
-                "Galaxy A, Tab et Buds",
-                LIFESTYLE[0],
+                "Nouvelle collection wax",
+                "Robes et pagnes cousus au Kivu",
+                POOLS["mode"][0],
                 None,
             ),
             (
@@ -913,28 +443,34 @@ class DemoEnricher:
                 DELIVERY[1],
                 None,
             ),
-            ("hero_mini", "Écouteurs dès 15 $", "Audio", POOLS["audio"][5], None),
-            ("hero_mini", "Montres connectées", "Santé et sport", POOLS["montres"][4], None),
+            ("hero_mini", "Beauté au karité", "Soins du corps", POOLS["beaute"][0], None),
+            ("hero_mini", "Café du Kivu", "Alimentation", POOLS["alimentation"][0], None),
             (
                 "hero_side",
-                "Portables pour étudier",
-                "Rentrée",
-                POOLS["ordinateurs"][5],
-                products[0] if products else None,
+                "Réfrigérateurs à prix doux",
+                "Électroménager",
+                POOLS["electromenager"][0],
+                Product.objects.filter(name="Réfrigérateur double porte 260 L").first(),
             ),
             (
                 "hero_side",
-                "Gaming : PS5 et manettes",
-                "Jeux",
-                POOLS["gaming"][3],
-                products[1] if len(products) > 1 else None,
+                "Tout pour bébé",
+                "Bébé et enfants",
+                POOLS["bebe"][0],
+                Product.objects.filter(name="Poussette compacte pliable").first(),
             ),
-            ("deal_side", "Chargeurs rapides", "Accessoires", POOLS["accessoires"][5], None),
             (
                 "deal_side",
-                "Tablettes pour toute la famille",
-                "Tablettes",
-                POOLS["tablettes"][4],
+                "Baskets et sandales",
+                "Chaussures",
+                PRODUCT_PHOTOS["Baskets blanches unisexes"][0],
+                None,
+            ),
+            (
+                "deal_side",
+                "Équipez votre cuisine",
+                "Maison et cuisine",
+                POOLS["maison"][0],
                 None,
             ),
             ("deal_side", "Achetez depuis votre téléphone", "Simple et rapide", LIFESTYLE[2], None),
@@ -942,7 +478,7 @@ class DemoEnricher:
         links: dict[str, str] = {}
         for section in sections:
             slug = section.category.slug
-            pool = POOLS[CATEGORY_POOL.get(slug, "accessoires")]
+            pool = POOLS[CATEGORY_POOL.get(slug, FALLBACK_POOL)]
             title = section.title or section.category.name
             links[title] = f"/categorie/{slug}"
             plan.append(
@@ -1185,7 +721,7 @@ class DemoEnricher:
     def _cagnotte(self) -> None:
         if Campaign.objects.exists():
             return
-        audio = Category.objects.filter(slug="audio").first()
+        beauty = Category.objects.filter(slug="beaute-sante").first()
         past = Campaign.objects.create(
             name="Black Friday",
             description="5 % de cashback en points sur tout le site.",
@@ -1198,8 +734,8 @@ class DemoEnricher:
             created_by=self._admin,
         )
         running = Campaign.objects.create(
-            name="Fête de l'audio",
-            description="3 % de points en plus sur les écouteurs, casques et enceintes, jusqu'à 20 $ par commande.",
+            name="Semaine de la beauté",
+            description="3 % de points en plus sur les soins, le maquillage et les parfums, jusqu'à 20 $ par commande.",
             kind="boosted_points",
             percent=Decimal("3"),
             starts_at=self._now - timedelta(days=3),
@@ -1208,8 +744,8 @@ class DemoEnricher:
             points_valid_days=60,
             created_by=self._admin,
         )
-        if audio:
-            running.categories.set([audio])
+        if beauty:
+            running.categories.set([beauty])
         Campaign.objects.create(
             name="Noël à Bukavu",
             description="10 % de remise immédiate dès 100 $ d'achat, jusqu'à 50 $.",
@@ -1250,7 +786,13 @@ class DemoEnricher:
         )
         manager = User.objects.filter(role="manager").first()
         plan: tuple[tuple[str, str, str, str, dict[str, Any]], ...] = (
-            ("defect", "trial", "submitted", "L'écran clignote quand la luminosité est basse.", {}),
+            (
+                "defect",
+                "trial",
+                "submitted",
+                "La fermeture éclair s'est cassée au bout de deux jours.",
+                {},
+            ),
             (
                 "defect",
                 "warranty",
@@ -1309,7 +851,7 @@ class DemoEnricher:
             if Claim.objects.filter(item=item).exists():
                 continue
             pool = POOLS[
-                CATEGORY_POOL.get(item.product.category.slug if item.product else "", "accessoires")
+                CATEGORY_POOL.get(item.product.category.slug if item.product else "", FALLBACK_POOL)
             ]
             Claim.objects.create(
                 order=item.order,

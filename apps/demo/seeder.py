@@ -121,7 +121,7 @@ REVIEWS = (
     (5, "Conforme à la description, le conseiller a été très patient."),
     (4, "Très bon rapport qualité-prix, l'emballage était soigné."),
     (4, "Bon produit, livraison un peu longue mais le suivi était clair."),
-    (3, "Correct pour le prix, mais la batterie pourrait être meilleure."),
+    (3, "Correct pour le prix, mais la taille est un peu juste."),
 )
 MESSAGES = (
     "Bonjour, ma commande est-elle bien confirmée ?",
@@ -746,7 +746,7 @@ class DemoSeeder:
             actor_from_user(clients[0]),
             OpenSupport(
                 subject="Garantie",
-                message="Bonjour, comment fonctionne la garantie sur les smartphones ?",
+                message="Bonjour, puis-je échanger un article si la taille ne convient pas ?",
             ),
         )
         self.report.add("support conversations")
